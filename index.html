@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="FC Colla — Gestió d'estadístiques, partits i ranking ELO del teu grup de futbol">
+  <meta name="theme-color" content="#0A1810">
+  <title>FC Colla — Futbol App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===== APP SHELL ===== -->
+  <div id="app">
+    <div id="page-home"   class="page active"></div>
+    <div id="page-stats"  class="page"></div>
+    <div id="page-partits" class="page"></div>
+    <div id="page-perfil" class="page"></div>
+  </div>
+
+  <!-- ===== BOTTOM NAVIGATION ===== -->
+  <nav class="bottom-nav" id="bottom-nav" role="navigation" aria-label="Navegació principal">
+    <button class="nav-item active" data-page="home" id="nav-home" aria-label="Inici">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span>Inici</span>
+    </button>
+    <button class="nav-item" data-page="stats" id="nav-stats" aria-label="Estadístiques">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6"  y1="20" x2="6"  y2="14"/>
+      </svg>
+      <span>Stats</span>
+    </button>
+    <button class="nav-item" data-page="partits" id="nav-partits" aria-label="Partits">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+        <path d="M2 12h20"/>
+      </svg>
+      <span>Partits</span>
+    </button>
+    <button class="nav-item" data-page="perfil" id="nav-perfil" aria-label="Jugadors">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      <span>Jugadors</span>
+    </button>
+  </nav>
+
+  <!-- ===== MODAL ===== -->
+  <div id="modal-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true"></div>
+  <div id="modal-container" class="modal-container" aria-hidden="true">
+    <div class="modal-handle"></div>
+    <div id="modal-content"></div>
+  </div>
+
+  <!-- ===== TOAST ===== -->
+  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="data.js"></script>
+  <script src="elo.js"></script>
+  <script src="components/home.js"></script>
+  <script src="components/stats.js"></script>
+  <script src="components/partits.js"></script>
+  <script src="components/perfil.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
