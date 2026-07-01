@@ -28,10 +28,7 @@ function renderPerfil(state) {
   const maxAssists = Math.max(...players.map(p => p.assists), 1);
 
   return `
-    <div class="page-header">
-      <h1>Jugadors</h1>
-      <span class="header-badge">${players.length} jugadors</span>
-    </div>
+    <!-- Note: header is now globally rendered by app shell -->
 
     ${renderProfileHero(topPlayer)}
     ${renderQuickStats(players, topScorer)}
@@ -40,19 +37,19 @@ function renderPerfil(state) {
       <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
-      <input type="search" class="search-input" id="perfil-search" placeholder="Cercar jugador..." value="${search}" aria-label="Cercar jugador">
+      <input type="search" class="search-input" id="perfil-search" placeholder="${t('search_player')}" value="${search}" aria-label="${t('search_player')}">
     </div>
 
     <div class="sort-row">
-      <span class="sort-label">Ordenar:</span>
+      <span class="sort-label">${t('order_by')}</span>
       <div class="sort-chips">
         ${[
           { key: 'elo',     label: 'ELO' },
-          { key: 'goals',   label: 'Gols' },
-          { key: 'assists', label: 'Assists' },
-          { key: 'winrate', label: 'Win%' },
+          { key: 'goals',   label: t('goals') },
+          { key: 'assists', label: t('assists') },
+          { key: 'winrate', label: t('winrate') },
         ].map(s => `
-          <button class="filter-chip ${sort === s.key ? 'active' : ''}" data-sort="${s.key}" id="sort-${s.key}" aria-label="Ordenar per ${s.label}">${s.label}</button>
+          <button class="filter-chip ${sort === s.key ? 'active' : ''}" data-sort="${s.key}" id="sort-${s.key}" aria-label="${t('order_by')} ${s.label}">${s.label}</button>
         `).join('')}
       </div>
     </div>
@@ -76,17 +73,17 @@ function renderProfileHero(player) {
     <div class="profile-hero" id="profile-hero-player" data-player-id="${player.id}" role="button" tabindex="0" aria-label="Millor jugador: ${player.name}">
       <div class="profile-hero-avatar">${avatarContent}</div>
       <div class="profile-hero-info">
-        <p class="profile-hero-label">⭐ Millor Jugador</p>
+        <p class="profile-hero-label">⭐ ${t('best_player')}</p>
         <p class="profile-hero-name">${player.name}</p>
         <p class="profile-hero-elo">${player.elo} ELO <span class="elo-trend ${trend.cls}" style="font-size:0.65rem;padding:2px 6px;">${trend.label}</span></p>
         <div class="profile-hero-stats">
           <div class="profile-hero-stat">
             <div class="profile-hero-stat-val">${player.goals}</div>
-            <div class="profile-hero-stat-lbl">Gols</div>
+            <div class="profile-hero-stat-lbl">${t('goals')}</div>
           </div>
           <div class="profile-hero-stat">
             <div class="profile-hero-stat-val">${player.assists}</div>
-            <div class="profile-hero-stat-lbl">Assists</div>
+            <div class="profile-hero-stat-lbl">${t('assists')}</div>
           </div>
           <div class="profile-hero-stat">
             <div class="profile-hero-stat-val">${winRate}%</div>
@@ -101,25 +98,24 @@ function renderProfileHero(player) {
 function renderQuickStats(players, topScorer) {
   const totalGoals = players.reduce((s, p) => s + p.goals, 0);
   const avgElo = Math.round(players.reduce((s, p) => s + p.elo, 0) / players.length);
-  const totalMatches = Math.max(...players.map(p => p.matches));
 
   return `
     <div class="quick-stats">
       <div class="qs-card">
         <div class="qs-val">${players.length}</div>
-        <div class="qs-lbl">Total Jugadors</div>
+        <div class="qs-lbl">${t('total_players')}</div>
       </div>
       <div class="qs-card">
         <div class="qs-val">${totalGoals}</div>
-        <div class="qs-lbl">Total Gols</div>
+        <div class="qs-lbl">${t('total_goals')}</div>
       </div>
       <div class="qs-card">
         <div class="qs-val">${topScorer.emoji} ${topScorer.name}</div>
-        <div class="qs-lbl">Top Scorer</div>
+        <div class="qs-lbl">${t('top_scorer')}</div>
       </div>
       <div class="qs-card">
         <div class="qs-val">${avgElo}</div>
-        <div class="qs-lbl">ELO Mitjà</div>
+        <div class="qs-lbl">${t('avg_elo')}</div>
       </div>
     </div>
   `;
@@ -131,8 +127,8 @@ function renderPlayerRow(player, rank, allPlayers, maxGoals, maxAssists, players
   const topEloP   = getTopElo(players);
 
   const badges = [];
-  if (player.id === topScorer.id) badges.push(`<span class="badge-mini badge-top-scorer">🏆 Gols</span>`);
-  if (player.id === topAssist.id) badges.push(`<span class="badge-mini badge-top-assist">🎯 Assist</span>`);
+  if (player.id === topScorer.id) badges.push(`<span class="badge-mini badge-top-scorer">🏆 ${t('goals')}</span>`);
+  if (player.id === topAssist.id) badges.push(`<span class="badge-mini badge-top-assist">🎯 ${t('assists')}</span>`);
   if (player.id === topEloP.id)   badges.push(`<span class="badge-mini badge-best-elo">⚡ ELO</span>`);
 
   const rankCls = rank <= 3 ? `rank-${rank}` : '';
@@ -147,7 +143,8 @@ function renderPlayerRow(player, rank, allPlayers, maxGoals, maxAssists, players
 
   const streakDots = (player.streak || []).map(s => {
     const cls = s === 'W' ? 'streak-w' : s === 'D' ? 'streak-d' : 'streak-l';
-    return `<span class="streak-dot ${cls}">${s}</span>`;
+    const titleText = s === 'W' ? t('victory') : s === 'D' ? t('draw') : t('defeat');
+    return `<span class="streak-dot ${cls}" title="${titleText}">${s}</span>`;
   }).join('');
 
   return `
@@ -256,7 +253,7 @@ function openPlayerModal(player, players, matches) {
 
   const streakDots = (player.streak || []).map(s => {
     const cls = s === 'W' ? 'streak-w' : s === 'D' ? 'streak-d' : 'streak-l';
-    const label = s === 'W' ? 'Victòria' : s === 'D' ? 'Empat' : 'Derrota';
+    const label = s === 'W' ? t('victory') : s === 'D' ? t('draw') : t('defeat');
     return `<span class="streak-dot ${cls}" title="${label}" style="width:22px;height:22px;font-size:0.65rem;">${s}</span>`;
   }).join('');
 
@@ -276,7 +273,7 @@ function openPlayerModal(player, players, matches) {
           </div>
         `;
       }).join('')
-    : `<p style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding:12px;">Cap registre de participació</p>`;
+    : `<p style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding:12px;">${t('no_participation')}</p>`;
 
   const content = `
     <div class="modal-header">
@@ -285,7 +282,7 @@ function openPlayerModal(player, players, matches) {
         ${player.name}
         <div style="font-size:0.72rem;color:var(--text-muted);font-weight:400;font-family:var(--font-body);">${player.elo} ELO · <span class="elo-trend ${trend.cls}" style="font-size:0.65rem;">${trend.label}</span></div>
       </div>
-      <button class="modal-close" id="modal-close-btn" aria-label="Tancar modal">✕</button>
+      <button class="modal-close" id="modal-close-btn" aria-label="${t('close')}">✕</button>
     </div>
     <div class="modal-body">
 
@@ -295,7 +292,7 @@ function openPlayerModal(player, players, matches) {
           ${player.photo ? `<img src="${player.photo}" alt="${player.name}">` : `<span style="font-size:2rem">${player.emoji}</span>`}
         </div>
         <label for="photo-input-${player.id}" style="cursor:pointer;">
-          <p class="photo-upload-text">📷 Toca per canviar la foto</p>
+          <p class="photo-upload-text">📷 ${t('change_photo')}</p>
           <input type="file" id="photo-input-${player.id}" accept="image/*" aria-label="Pujar foto de ${player.name}">
         </label>
       </div>
@@ -304,23 +301,23 @@ function openPlayerModal(player, players, matches) {
       <div class="modal-stat-grid">
         <div class="modal-stat">
           <div class="modal-stat-val">${player.goals}</div>
-          <div class="modal-stat-lbl">Gols</div>
+          <div class="modal-stat-lbl">${t('goals')}</div>
         </div>
         <div class="modal-stat">
           <div class="modal-stat-val">${player.assists}</div>
-          <div class="modal-stat-lbl">Assists</div>
+          <div class="modal-stat-lbl">${t('assists')}</div>
         </div>
         <div class="modal-stat">
           <div class="modal-stat-val">${player.matches}</div>
-          <div class="modal-stat-lbl">Partits</div>
+          <div class="modal-stat-lbl">${t('played')}</div>
         </div>
         <div class="modal-stat">
           <div class="modal-stat-val">${player.wins}</div>
-          <div class="modal-stat-lbl">Victòries</div>
+          <div class="modal-stat-lbl">${t('victory')}</div>
         </div>
         <div class="modal-stat">
           <div class="modal-stat-val">${winRate}%</div>
-          <div class="modal-stat-lbl">Win Rate</div>
+          <div class="modal-stat-lbl">${t('win_rate')}</div>
         </div>
         <div class="modal-stat">
           <div class="modal-stat-val">${player.elo}</div>
@@ -329,17 +326,17 @@ function openPlayerModal(player, players, matches) {
       </div>
 
       <!-- Racha -->
-      <p class="modal-section-title" style="margin-bottom:10px;">Racha Última</p>
+      <p class="modal-section-title" style="margin-bottom:10px;">${t('best_streak')}</p>
       <div class="streak-row" style="gap:6px;margin-bottom:20px;">${streakDots}</div>
 
       <!-- Comparativa vs Mitjana -->
-      <p class="modal-section-title" style="margin-bottom:12px;">Comparativa vs Equip</p>
-      ${renderCompareBar('Gols', player.goals, avgGoals, maxGoals)}
-      ${renderCompareBar('Assists', player.assists, avgAssists, maxAssists)}
+      <p class="modal-section-title" style="margin-bottom:12px;">${t('compare_vs_team')}</p>
+      ${renderCompareBar(t('goals'), player.goals, avgGoals, maxGoals)}
+      ${renderCompareBar(t('assists'), player.assists, avgAssists, maxAssists)}
       ${renderCompareBar('ELO', player.elo, avgElo, Math.max(...players.map(p => p.elo)), true)}
 
       <!-- Partits Recents -->
-      <p class="modal-section-title" style="margin-bottom:10px;margin-top:20px;">Últims Partits</p>
+      <p class="modal-section-title" style="margin-bottom:10px;margin-top:20px;">${t('recent_matches')}</p>
       ${recentMatchesHTML}
     </div>
   `;
@@ -363,7 +360,7 @@ function openPlayerModal(player, players, matches) {
           av.innerHTML = `<img src="${dataUrl}" alt="${player.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
         });
         saveState(window.APP_STATE);
-        showToast('📷 Foto actualitzada!');
+        showToast(`📷 ${t('photo_updated')}`);
       };
       reader.readAsDataURL(file);
     });
@@ -381,7 +378,7 @@ function renderCompareBar(label, value, avg, max, hideAvg = false) {
     <div class="compare-row">
       <div class="compare-label">
         <span>${label}</span>
-        <span>${value} <span style="color:${diffColor};font-size:0.65rem;">(${diffStr} vs avg)</span></span>
+        <span>${value} <span style="color:${diffColor};font-size:0.65rem;">(${diffStr} ${t('vs')} avg)</span></span>
       </div>
       <div class="compare-bar-track">
         <div class="compare-bar-avg" style="left:${avgPct}%" title="Mitjana: ${avg}"></div>
@@ -394,7 +391,7 @@ function renderCompareBar(label, value, avg, max, hideAvg = false) {
 function openMatchModal(match, players) {
   const result = getMatchResult(match.score);
   const badgeCls = result === 'W' ? 'badge-w' : result === 'D' ? 'badge-d' : 'badge-l';
-  const badgeTxt = result === 'W' ? 'Victòria' : result === 'D' ? 'Empat' : 'Derrota';
+  const badgeTxt = result === 'W' ? t('victory') : result === 'D' ? t('draw') : t('defeat');
   const mvpPlayer = match.mvp ? getPlayerById(players, match.mvp) : null;
 
   const goalEvents = match.goals.length
@@ -413,12 +410,12 @@ function openMatchModal(match, players) {
           </div>
         `;
       }).join('')
-    : `<p style="font-size:0.82rem;color:var(--text-muted);text-align:center;padding:12px;">Cap gol registrat</p>`;
+    : `<p style="font-size:0.82rem;color:var(--text-muted);text-align:center;padding:12px;">${t('no_participation')}</p>`;
 
   const content = `
     <div class="modal-header">
       <div style="flex:1;">
-        <div style="font-size:0.65rem;font-weight:700;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--font-display);margin-bottom:6px;">⚽ Detalls del Partit</div>
+        <div style="font-size:0.65rem;font-weight:700;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--font-display);margin-bottom:6px;">⚽ ${t('last_match')}</div>
         <div class="match-modal-score">
           <span>${match.score[0]}</span>
           <span class="sep"> – </span>
@@ -430,20 +427,20 @@ function openMatchModal(match, players) {
           <span style="font-size:0.75rem;color:var(--text-muted);">${formatDate(match.date)}</span>
         </div>
       </div>
-      <button class="modal-close" id="modal-close-btn" aria-label="Tancar modal">✕</button>
+      <button class="modal-close" id="modal-close-btn" aria-label="${t('close')}">✕</button>
     </div>
     <div class="modal-body">
       ${mvpPlayer ? `
         <div style="background:var(--gold-dim);border:1px solid rgba(255,215,0,0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
           <span style="font-size:1.5rem;">${mvpPlayer.emoji}</span>
           <div>
-            <p style="font-size:0.62rem;color:var(--gold);font-family:var(--font-display);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;">⭐ MVP del Partit</p>
+            <p style="font-size:0.62rem;color:var(--gold);font-family:var(--font-display);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;">⭐ ${t('mvp')}</p>
             <p style="font-family:var(--font-display);font-size:0.92rem;font-weight:700;color:var(--text-primary);">${mvpPlayer.name}</p>
           </div>
         </div>
       ` : ''}
 
-      <p class="modal-section-title">Gols</p>
+      <p class="modal-section-title">${t('goals')}</p>
       <div class="goal-timeline" style="margin-bottom:20px;">
         ${goalEvents}
       </div>

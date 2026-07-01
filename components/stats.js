@@ -6,54 +6,74 @@ let goalsChartInstance = null;
 
 function renderStats(state) {
   const { players } = state;
-  const sorted = [...players].sort((a, b) => b.elo - a.elo);
 
   return `
-    <div class="page-header">
-      <h1>Estadístiques</h1>
-      <span class="header-badge">ELO · Gols</span>
+    <!-- Note: header is now globally rendered by app shell -->
+
+    <div class="section">
+      <p class="section-title">${t('team_summary')}</p>
+      ${renderTeamSummary(state)}
     </div>
 
     <div class="section">
-      <p class="section-title">Ranking ELO</p>
-      <div class="elo-list" id="elo-list">
-        ${sorted.map((p, i) => renderEloRow(p, i + 1)).join('')}
-      </div>
-    </div>
-
-    <div class="section">
-      <p class="section-title">Top Goleadors</p>
+      <p class="section-title">${t('chart_goals_label')} & ${t('chart_assists_label')}</p>
       <div class="chart-container">
         <canvas id="goals-chart" aria-label="Gràfica de gols per jugador"></canvas>
       </div>
     </div>
 
     <div class="section">
-      <p class="section-title">Rivalitat 1v1</p>
+      <p class="section-title">${t('rivalry_title')}</p>
       ${renderRivalryView(players, state.comparison)}
     </div>
   `;
 }
 
-function renderEloRow(player, rank) {
-  const trend = ELO.getTrend(player);
-  const rankCls = rank <= 3 ? `rank-${rank}` : '';
-  const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
-  const winRate = getWinRate(player);
-  const avatarContent = player.photo
-    ? `<img src="${player.photo}" alt="${player.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
-    : player.emoji;
+function renderTeamSummary(state) {
+  const { players, matches } = state;
+  const gf = matches.reduce((sum, m) => sum + m.score[0], 0);
+  const pj = matches.length;
+  let wins = 0, draws = 0, losses = 0;
+  matches.forEach(m => {
+    const r = getMatchResult(m.score);
+    if (r === 'W') wins++;
+    else if (r === 'D') draws++;
+    else losses++;
+  });
+  const winRate = pj > 0 ? Math.round((wins / pj) * 100) : 0;
+  const avgGoals = pj > 0 ? (gf / pj).toFixed(1) : '0.0';
+  const avgElo = players.length > 0 ? Math.round(players.reduce((sum, p) => sum + p.elo, 0) / players.length) : 0;
 
   return `
-    <div class="elo-row" id="elo-row-${player.id}" data-player-id="${player.id}" role="button" tabindex="0" aria-label="${player.name} — ELO ${player.elo}">
-      <div class="elo-rank ${rankCls}">${rankLabel}</div>
-      <div class="player-avatar" style="width:38px;height:38px;font-size:1.1rem;flex-shrink:0;">${avatarContent}</div>
-      <div class="elo-player-info">
-        <p class="elo-player-name">${player.name}</p>
-        <p class="elo-player-sub">${player.matches}PJ · ${winRate}% WR · ${player.goals}⚽ ${player.assists}🎯</p>
+    <div class="team-summary-card">
+      <div class="team-summary-grid">
+        <div class="team-summary-item accent-neon">
+          <div class="ts-val">${avgElo}</div>
+          <div class="ts-lbl">${t('avg_elo')}</div>
+        </div>
+        <div class="team-summary-item">
+          <div class="ts-val">${gf}</div>
+          <div class="ts-lbl">${t('total_goals')}</div>
+        </div>
+        <div class="team-summary-item accent-cyan">
+          <div class="ts-val">${avgGoals}</div>
+          <div class="ts-lbl">${t('goals_per_game')}</div>
+        </div>
+        <div class="team-summary-item">
+          <div class="ts-val">${winRate}%</div>
+          <div class="ts-lbl">${t('win_rate')}</div>
+        </div>
+        <div class="team-summary-item" style="grid-column: 1 / -1; display: flex; flex-direction: row; justify-content: space-between; align-items: center; border-color: rgba(255,255,255,0.04);">
+          <div>
+            <div class="ts-val" style="font-size: 1.1rem; color: var(--text-secondary);">${wins}W – ${draws}D – ${losses}L</div>
+            <div class="ts-lbl">${t('v_e_d')}</div>
+          </div>
+          <div>
+            <div class="ts-val" style="font-size: 1.1rem; color: var(--text-secondary); text-align: right;">${pj}</div>
+            <div class="ts-lbl" style="text-align: right;">${t('played')}</div>
+          </div>
+        </div>
       </div>
-      <div class="elo-trend ${trend.cls}">${trend.label}</div>
-      <div class="elo-score">${player.elo}</div>
     </div>
   `;
 }
@@ -68,7 +88,7 @@ function renderRivalryView(players, comparison) {
         <select class="rivalry-select" id="rivalry-select-a" aria-label="Jugador A">
           ${players.map(p => `<option value="${p.id}" ${p.id === pA.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}
         </select>
-        <div class="rivalry-vs">VS</div>
+        <div class="rivalry-vs">${t('rivalry_vs')}</div>
         <select class="rivalry-select" id="rivalry-select-b" aria-label="Jugador B">
           ${players.map(p => `<option value="${p.id}" ${p.id === pB.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}
         </select>
@@ -85,11 +105,11 @@ function renderRivalryContent(pA, pB) {
   const prob = ELO.winProbability(pA, pB);
 
   const metrics = [
-    { label: 'ELO',     a: pA.elo,     b: pB.elo },
-    { label: 'Gols',    a: pA.goals,   b: pB.goals },
-    { label: 'Assists', a: pA.assists, b: pB.assists },
-    { label: 'Victòries', a: pA.wins, b: pB.wins },
-    { label: 'Win %',   a: getWinRate(pA), b: getWinRate(pB) },
+    { label: 'ELO',         a: pA.elo,         b: pB.elo },
+    { label: t('goals'),    a: pA.goals,       b: pB.goals },
+    { label: t('assists'),  a: pA.assists,     b: pB.assists },
+    { label: t('played'),   a: pA.matches,     b: pB.matches },
+    { label: 'Win %',       a: getWinRate(pA), b: getWinRate(pB) },
   ];
 
   const rows = metrics.map(m => `
@@ -134,18 +154,6 @@ function renderRivalryContent(pA, pB) {
 function initStats(state) {
   const { players } = state;
 
-  // ELO rows click → player modal
-  document.querySelectorAll('#page-stats [data-player-id]').forEach(el => {
-    el.addEventListener('click', () => {
-      const pid = parseInt(el.dataset.playerId);
-      const player = players.find(p => p.id === pid);
-      if (player) openPlayerModal(player, players, state.matches);
-    });
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') el.click();
-    });
-  });
-
   // Rivalry selects
   const selA = document.getElementById('rivalry-select-a');
   const selB = document.getElementById('rivalry-select-b');
@@ -184,7 +192,7 @@ function initGoalsChart(players) {
     data: {
       labels: sorted.map(p => `${p.emoji} ${p.name}`),
       datasets: [{
-        label: 'Gols',
+        label: t('chart_goals_label'),
         data: sorted.map(p => p.goals),
         backgroundColor: sorted.map((_, i) => {
           const alpha = 1 - (i * 0.1);
@@ -193,7 +201,7 @@ function initGoalsChart(players) {
         borderRadius: 8,
         borderSkipped: false,
       }, {
-        label: 'Assists',
+        label: t('chart_assists_label'),
         data: sorted.map(p => p.assists),
         backgroundColor: sorted.map((_, i) => {
           const alpha = 0.7 - (i * 0.08);

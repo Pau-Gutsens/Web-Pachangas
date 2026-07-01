@@ -12,6 +12,24 @@
 
   <!-- ===== APP SHELL ===== -->
   <div id="app">
+    <!-- ===== GLOBAL HEADER ===== -->
+    <header class="app-header">
+      <div class="app-header-left">
+        <span class="app-logo">⚽</span>
+        <h1 id="app-title">FC Colla</h1>
+      </div>
+      <div class="app-header-right">
+        <span class="header-badge" id="header-badge">Temporada 26</span>
+        <button class="btn-settings" id="btn-settings" aria-label="Configuració">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="page-login"   class="page"></div>
     <div id="page-home"   class="page active"></div>
     <div id="page-stats"  class="page"></div>
     <div id="page-partits" class="page"></div>
@@ -66,12 +84,14 @@
 
   <!-- ===== SCRIPTS ===== -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="translations.js"></script>
   <script src="data.js"></script>
   <script src="elo.js"></script>
   <script src="components/home.js"></script>
   <script src="components/stats.js"></script>
   <script src="components/partits.js"></script>
   <script src="components/perfil.js"></script>
+  <script src="components/login.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

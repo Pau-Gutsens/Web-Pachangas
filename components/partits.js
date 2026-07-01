@@ -15,16 +15,13 @@ const DRAG_STATE = {
 function renderPartits(state) {
   const activeTab = state.partitsTab || 'historial';
   return `
-    <div class="page-header">
-      <h1>Partits</h1>
-      <span class="header-badge">${state.matches.length} jugats</span>
-    </div>
+    <!-- Note: header is now globally rendered by app shell -->
 
     <div class="tabs" role="tablist" id="partits-tabs">
-      <button class="tab-btn ${activeTab === 'historial'  ? 'active' : ''}" data-tab="historial"  role="tab" id="tab-historial"  aria-selected="${activeTab==='historial'}">Historial</button>
-      <button class="tab-btn ${activeTab === 'calendari'  ? 'active' : ''}" data-tab="calendari"  role="tab" id="tab-calendari"  aria-selected="${activeTab==='calendari'}">Calendari</button>
-      <button class="tab-btn ${activeTab === 'registrar'  ? 'active' : ''}" data-tab="registrar"  role="tab" id="tab-registrar"  aria-selected="${activeTab==='registrar'}">Registrar</button>
-      <button class="tab-btn ${activeTab === 'alineacio'  ? 'active' : ''}" data-tab="alineacio"  role="tab" id="tab-alineacio"  aria-selected="${activeTab==='alineacio'}">Alineació</button>
+      <button class="tab-btn ${activeTab === 'historial'  ? 'active' : ''}" data-tab="historial"  role="tab" id="tab-historial"  aria-selected="${activeTab==='historial'}">${t('tab_history')}</button>
+      <button class="tab-btn ${activeTab === 'calendari'  ? 'active' : ''}" data-tab="calendari"  role="tab" id="tab-calendari"  aria-selected="${activeTab==='calendari'}">${t('tab_calendar')}</button>
+      <button class="tab-btn ${activeTab === 'registrar'  ? 'active' : ''}" data-tab="registrar"  role="tab" id="tab-registrar"  aria-selected="${activeTab==='registrar'}">${t('tab_register')}</button>
+      <button class="tab-btn ${activeTab === 'alineacio'  ? 'active' : ''}" data-tab="alineacio"  role="tab" id="tab-alineacio"  aria-selected="${activeTab==='alineacio'}">${t('tab_lineup')}</button>
     </div>
 
     <div id="tab-content-historial" class="tab-content ${activeTab === 'historial' ? 'active' : ''}">
@@ -61,20 +58,20 @@ function renderHistorial(state) {
 
   const matchCards = filtered.length
     ? filtered.map(m => renderMatchCard(m, players)).join('')
-    : `<div class="empty-state"><div class="empty-state-icon">🔍</div><p class="empty-state-text">Cap partit trobat amb aquests filtres</p></div>`;
+    : `<div class="empty-state"><div class="empty-state-icon">🔍</div><p class="empty-state-text">${t('no_matches_found')}</p></div>`;
 
   return `
     <div class="section">
       <div class="filters-row">
-        <input type="text" class="filter-input" id="filter-rival" placeholder="Cercar rival..." value="${filters.rival || ''}" aria-label="Filtrar per rival">
-        <input type="date" class="filter-input" id="filter-date-from" value="${filters.dateFrom || ''}" style="max-width:140px;" aria-label="Data des de">
-        <input type="date" class="filter-input" id="filter-date-to"   value="${filters.dateTo || ''}" style="max-width:140px;" aria-label="Data fins a">
+        <input type="text" class="filter-input" id="filter-rival" placeholder="${t('search_rival')}" value="${filters.rival || ''}" aria-label="${t('search_rival')}">
+        <input type="date" class="filter-input" id="filter-date-from" value="${filters.dateFrom || ''}" style="max-width:140px;" aria-label="${t('date_from')}">
+        <input type="date" class="filter-input" id="filter-date-to"   value="${filters.dateTo || ''}" style="max-width:140px;" aria-label="${t('date_to')}">
       </div>
       <div class="filter-chips">
-        <button class="filter-chip ${!filters.result || filters.result === 'all' ? 'active' : ''}" data-filter-result="all"   id="chip-all" aria-label="Tots">Tots</button>
-        <button class="filter-chip chip-w ${filters.result === 'W' ? 'active' : ''}" data-filter-result="W" id="chip-w" aria-label="Victòries">Victòria</button>
-        <button class="filter-chip chip-d ${filters.result === 'D' ? 'active' : ''}" data-filter-result="D" id="chip-d" aria-label="Empats">Empat</button>
-        <button class="filter-chip chip-l ${filters.result === 'L' ? 'active' : ''}" data-filter-result="L" id="chip-l" aria-label="Derrotes">Derrota</button>
+        <button class="filter-chip ${!filters.result || filters.result === 'all' ? 'active' : ''}" data-filter-result="all"   id="chip-all" aria-label="${t('filter_all')}">${t('filter_all')}</button>
+        <button class="filter-chip chip-w ${filters.result === 'W' ? 'active' : ''}" data-filter-result="W" id="chip-w" aria-label="${t('victory')}">${t('victory')}</button>
+        <button class="filter-chip chip-d ${filters.result === 'D' ? 'active' : ''}" data-filter-result="D" id="chip-d" aria-label="${t('draw')}">${t('draw')}</button>
+        <button class="filter-chip chip-l ${filters.result === 'L' ? 'active' : ''}" data-filter-result="L" id="chip-l" aria-label="${t('defeat')}">${t('defeat')}</button>
       </div>
       <div id="match-list">${matchCards}</div>
     </div>
@@ -84,7 +81,7 @@ function renderHistorial(state) {
 function renderMatchCard(match, players) {
   const result = getMatchResult(match.score);
   const badgeCls = result === 'W' ? 'badge-w' : result === 'D' ? 'badge-d' : 'badge-l';
-  const badgeTxt = result === 'W' ? 'Victòria' : result === 'D' ? 'Empat' : 'Derrota';
+  const badgeTxt = result === 'W' ? t('victory') : result === 'D' ? t('draw') : t('defeat');
   const mvpPlayer = match.mvp ? getPlayerById(players, match.mvp) : null;
   const goalCount = match.goals.length;
 
@@ -104,7 +101,7 @@ function renderMatchCard(match, players) {
       </div>
       <div class="match-meta">
         ${mvpPlayer ? `<span class="match-mvp">⭐ ${mvpPlayer.name}</span>` : ''}
-        <span class="match-goals-preview">⚽ ${goalCount} gol${goalCount !== 1 ? 's' : ''}</span>
+        <span class="match-goals-preview">⚽ ${goalCount} ${t('goals')}</span>
       </div>
     </div>
   `;
@@ -135,11 +132,11 @@ function renderCalendari(state) {
     if (!match) {
       const isPast = new Date(j.date) < new Date();
       return `
-        <div class="cal-jornada pending" id="cal-j-${j.jornada}" aria-label="Jornada ${j.jornada} pendent">
+        <div class="cal-jornada pending" id="cal-j-${j.jornada}" aria-label="${t('jornada')} ${j.jornada} pendent">
           <p class="cal-j-num">J${j.jornada}</p>
           <p class="cal-j-rival">${j.rival}</p>
           <p class="cal-j-date">${formatDate(j.date)}</p>
-          <p class="cal-j-score pend">${isPast ? '? – ?' : 'Pendent'}</p>
+          <p class="cal-j-score pend">${isPast ? '? – ?' : t('pending')}</p>
         </div>
       `;
     }
@@ -147,7 +144,7 @@ function renderCalendari(state) {
     const resCls = r === 'W' ? 'result-w' : r === 'D' ? 'result-d' : 'result-l';
     const scoreCls = r === 'W' ? 'win' : r === 'D' ? 'draw' : 'loss';
     return `
-      <div class="cal-jornada ${resCls}" id="cal-j-${j.jornada}" data-match-id="${match.id}" role="button" tabindex="0" aria-label="Jornada ${j.jornada} vs ${j.rival}">
+      <div class="cal-jornada ${resCls}" id="cal-j-${j.jornada}" data-match-id="${match.id}" role="button" tabindex="0" aria-label="${t('jornada')} ${j.jornada} vs ${j.rival}">
         <p class="cal-j-num">J${j.jornada}</p>
         <p class="cal-j-rival">${j.rival}</p>
         <p class="cal-j-date">${formatDate(j.date)}</p>
@@ -159,11 +156,11 @@ function renderCalendari(state) {
   return `
     <div class="section">
       <div class="season-stats-bar">
-        <div><div class="ss-stat-val">${pj}</div><div class="ss-stat-lbl">PJ</div></div>
-        <div><div class="ss-stat-val">${wins}–${draws}–${losses}</div><div class="ss-stat-lbl">V–E–D</div></div>
+        <div><div class="ss-stat-val">${pj}</div><div class="ss-stat-lbl">${t('played').toUpperCase()}</div></div>
+        <div><div class="ss-stat-val">${wins}–${draws}–${losses}</div><div class="ss-stat-lbl">${t('v_e_d')}</div></div>
         <div><div class="ss-stat-val">${gf}–${ga}</div><div class="ss-stat-lbl">GF–GC</div></div>
         <div><div class="ss-stat-val">${pts}</div><div class="ss-stat-lbl">Pts</div></div>
-        <div><div class="ss-stat-val">${pj > 0 ? Math.round(gf/pj*10)/10 : 0}</div><div class="ss-stat-lbl">Gols/PJ</div></div>
+        <div><div class="ss-stat-val">${pj > 0 ? Math.round(gf/pj*10)/10 : 0}</div><div class="ss-stat-lbl">G/PJ</div></div>
         <div><div class="ss-stat-val">${pj > 0 ? Math.round(wins/pj*100) : 0}%</div><div class="ss-stat-lbl">WR</div></div>
       </div>
       <div class="calendar-grid">${calItems}</div>
@@ -182,52 +179,52 @@ function renderRegistrarForm(state) {
       <div class="card">
         <form id="register-match-form" novalidate>
           <div class="form-group">
-            <label class="form-label" for="reg-rival">Rival</label>
-            <input type="text" class="form-input" id="reg-rival" placeholder="Nom del rival..." required aria-required="true">
+            <label class="form-label" for="reg-rival">${t('reg_rival')}</label>
+            <input type="text" class="form-input" id="reg-rival" placeholder="${t('reg_rival')}..." required aria-required="true">
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="reg-date">Data del Partit</label>
+            <label class="form-label" for="reg-date">${t('reg_date')}</label>
             <input type="date" class="form-input" id="reg-date" value="${new Date().toISOString().split('T')[0]}" required aria-required="true">
           </div>
 
           <div class="form-group">
-            <label class="form-label">Resultat</label>
+            <label class="form-label">${t('reg_result')}</label>
             <div class="score-inputs">
-              <input type="number" class="form-input" id="reg-score-us" placeholder="Nosaltres" min="0" max="99" required aria-label="Gols a favor">
+              <input type="number" class="form-input" id="reg-score-us" placeholder="${t('reg_score_us')}" min="0" max="99" required aria-label="${t('reg_score_us')}">
               <div class="score-sep">–</div>
-              <input type="number" class="form-input" id="reg-score-them" placeholder="Rival" min="0" max="99" required aria-label="Gols en contra">
+              <input type="number" class="form-input" id="reg-score-them" placeholder="${t('reg_score_them')}" min="0" max="99" required aria-label="${t('reg_score_them')}">
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="reg-mvp">MVP del Partit</label>
-            <select class="form-select" id="reg-mvp" aria-label="Seleccionar MVP">
-              <option value="">— Sense MVP —</option>
+            <label class="form-label" for="reg-mvp">${t('reg_mvp')}</label>
+            <select class="form-select" id="reg-mvp" aria-label="${t('reg_mvp')}">
+              <option value="">— ${t('reg_no_mvp')} —</option>
               ${playerOptions}
             </select>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Gols</label>
+            <label class="form-label">${t('reg_goals')}</label>
             <div id="goals-list"></div>
-            <button type="button" class="btn-add-goal" id="btn-add-goal" aria-label="Afegir gol">
+            <button type="button" class="btn-add-goal" id="btn-add-goal" aria-label="${t('reg_add_goal')}">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-              Afegir Gol
+              ${t('reg_add_goal')}
             </button>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Assistències</label>
+            <label class="form-label">${t('reg_assists')}</label>
             <div id="assists-list"></div>
-            <button type="button" class="btn-add-goal" id="btn-add-assist" aria-label="Afegir assistència">
+            <button type="button" class="btn-add-goal" id="btn-add-assist" aria-label="${t('reg_add_assist')}">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-              Afegir Assistència
+              ${t('reg_add_assist')}
             </button>
           </div>
 
           <button type="submit" class="btn-primary" id="btn-register-match">
-            ⚽ Registrar Partit
+            ⚽ ${t('reg_submit')}
           </button>
         </form>
       </div>
@@ -244,8 +241,8 @@ function addGoalEntry(containerId, players, type = 'goal') {
   div.className = 'goal-entry';
   div.dataset.idx = idx;
   div.innerHTML = `
-    <select aria-label="Jugador" class="goal-player">
-      <option value="">— Jugador —</option>
+    <select aria-label="${t('nav_players')}" class="goal-player">
+      <option value="">— ${t('nav_players')} —</option>
       ${playerOpts}
     </select>
     <input type="number" min="1" max="120" placeholder="Min" class="goal-minute" aria-label="Minut" style="max-width:60px;">
@@ -294,24 +291,24 @@ function renderAlineacio(state) {
   const editToolbar = editMode ? `
     <div class="edit-mode-toolbar" id="edit-toolbar">
       <div class="edit-toolbar-left">
-        <button class="btn-add-pos" id="btn-add-pos" ${positions.length >= 11 ? 'disabled' : ''} aria-label="Afegir posició">
+        <button class="btn-add-pos" id="btn-add-pos" ${positions.length >= 11 ? 'disabled' : ''} aria-label="${t('add_position')}">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-          Afegir (${positions.length}/11)
+          ${t('add_position')} (${positions.length}/11)
         </button>
       </div>
       <div class="edit-toolbar-right">
         <div class="save-formation-group">
-          <input type="text" class="save-formation-input" id="save-formation-name" placeholder="Nom formació..." value="${formation && !FORMATIONS[formation] ? formation : ''}" maxlength="20" aria-label="Nom de la formació">
-          <button class="btn-save-formation" id="btn-save-formation" aria-label="Guardar formació">💾 Guardar</button>
+          <input type="text" class="save-formation-input" id="save-formation-name" placeholder="${t('formation_name')}" value="${formation && !FORMATIONS[formation] ? formation : ''}" maxlength="20" aria-label="${t('formation_name')}">
+          <button class="btn-save-formation" id="btn-save-formation" aria-label="${t('save_formation')}">💾 ${t('save_formation')}</button>
         </div>
-        <button class="btn-cancel-edit" id="btn-cancel-edit" aria-label="Sortir del mode edició">✕ Cancel·lar</button>
+        <button class="btn-cancel-edit" id="btn-cancel-edit" aria-label="${t('cancel')}">✕ ${t('cancel')}</button>
       </div>
     </div>
   ` : '';
 
   const editToggleBtn = !editMode ? `
-    <button class="btn-edit-positions" id="btn-edit-positions" aria-label="Editar posicions">
-      ✏️ Editar posicions
+    <button class="btn-edit-positions" id="btn-edit-positions" aria-label="${t('edit_positions')}">
+      ✏️ ${t('edit_positions')}
     </button>
   ` : '';
 
@@ -330,7 +327,7 @@ function renderAlineacio(state) {
       </div>
 
       <div class="tactical-player-selector">
-        <h4>${editMode ? '✏️ Mode edició actiu — arrossega les posicions al camp' : 'Assignar jugadors a posicions'}</h4>
+        <h4>${editMode ? `✏️ ${t('edit_mode_active')}` : t('assign_players')}</h4>
         <div id="tactical-positions-list">
           ${editMode ? renderEditPositionsList(positions) : renderPositionAssignments(positions, state.players)}
         </div>
@@ -342,14 +339,12 @@ function renderAlineacio(state) {
 function renderFieldSVG() {
   return `
     <svg class="field-svg" viewBox="0 0 300 420" xmlns="http://www.w3.org/2000/svg">
-      <!-- Grass gradient -->
       <defs>
         <linearGradient id="grassGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"   stop-color="#0d2c14"/>
           <stop offset="50%"  stop-color="#0f3016"/>
           <stop offset="100%" stop-color="#0d2c14"/>
         </linearGradient>
-        <!-- Stripes -->
         <pattern id="stripes" width="30" height="30" patternUnits="userSpaceOnUse">
           <rect width="15" height="30" fill="rgba(255,255,255,0.02)"/>
         </pattern>
@@ -357,40 +352,26 @@ function renderFieldSVG() {
       <rect width="300" height="420" fill="url(#grassGrad)"/>
       <rect width="300" height="420" fill="url(#stripes)"/>
 
-      <!-- Field lines -->
-      <!-- Outer border -->
       <rect x="15" y="15" width="270" height="390" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" rx="2"/>
-      <!-- Center line -->
       <line x1="15" y1="210" x2="285" y2="210" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
-      <!-- Center circle -->
       <circle cx="150" cy="210" r="35" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
       <circle cx="150" cy="210" r="2" fill="rgba(255,255,255,0.3)"/>
 
-      <!-- Top penalty area -->
       <rect x="75" y="15" width="150" height="60" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
-      <!-- Top goal box -->
       <rect x="110" y="15" width="80" height="25" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
-      <!-- Top penalty spot -->
       <circle cx="150" cy="57" r="2" fill="rgba(255,255,255,0.25)"/>
-      <!-- Top penalty arc -->
       <path d="M 115 75 A 35 35 0 0 1 185 75" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
 
-      <!-- Bottom penalty area -->
       <rect x="75" y="345" width="150" height="60" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
-      <!-- Bottom goal box -->
       <rect x="110" y="380" width="80" height="25" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
-      <!-- Bottom penalty spot -->
       <circle cx="150" cy="363" r="2" fill="rgba(255,255,255,0.25)"/>
-      <!-- Bottom penalty arc -->
       <path d="M 115 345 A 35 35 0 0 0 185 345" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
 
-      <!-- Corner arcs -->
       <path d="M 15 30 A 10 10 0 0 1 30 15" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
       <path d="M 270 15 A 10 10 0 0 1 285 30" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
       <path d="M 285 390 A 10 10 0 0 1 270 405" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
       <path d="M 30 405 A 10 10 0 0 1 15 390" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
 
-      <!-- Goals -->
       <rect x="120" y="8" width="60" height="10" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
       <rect x="120" y="402" width="60" height="10" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
     </svg>
@@ -436,9 +417,7 @@ function renderTacticalPlayers(positions, players) {
 function renderEditPositionsList(positions) {
   return `
     <div class="edit-positions-hint">
-      🖱️ Arrossega les posicions al camp per moure-les.<br>
-      ✏️ Fes clic als noms per editar-los.<br>
-      ✕ Elimina posicions amb el botó vermell.
+      ${t('edit_mode_hint')}
     </div>
     <div class="edit-positions-summary">
       ${positions.map(p => `
@@ -456,7 +435,7 @@ function renderPositionAssignments(positions, players) {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
         <span style="font-size:0.7rem;font-family:var(--font-display);font-weight:700;color:var(--neon);width:30px;flex-shrink:0;">${pos.label}</span>
         <select class="form-select" style="flex:1;padding:8px 12px;font-size:0.8rem;" data-position="${pos.pos}" id="pos-select-${pos.pos}" aria-label="Assignar jugador a ${pos.label}">
-          <option value="">— Sense assignar —</option>
+          <option value="">— ${t('no_assign')} —</option>
           ${playerOpts}
         </select>
       </div>
@@ -573,7 +552,7 @@ function initRegistrar(state) {
       const mvpVal = document.getElementById('reg-mvp')?.value;
 
       if (!rival || !date || isNaN(us) || isNaN(them)) {
-        showToast('Omple tots els camps obligatoris');
+        showToast(t('reg_fill_fields'));
         return;
       }
 
@@ -606,7 +585,7 @@ function initRegistrar(state) {
       state.players = ELO.processMatch(state.players, newMatch);
       saveState(state);
 
-      showToast('✅ Partit registrat correctament!');
+      showToast(`✅ ${t('reg_success')}`);
       state.partitsTab = 'historial';
 
       // Re-render partits page
@@ -642,7 +621,7 @@ function initAlineacio(state) {
           DRAG_STATE.activePositions = null;
         }
         rerender();
-        showToast(`Formació "${fname}" esborrada`);
+        showToast(`${t('formation_deleted')} (${fname})`);
       });
     }
 
@@ -685,7 +664,7 @@ function initAlineacio(state) {
       const nameInput = document.getElementById('save-formation-name');
       const fname = nameInput ? nameInput.value.trim() : '';
       if (!fname) {
-        showToast('Posa un nom a la formació');
+        showToast(t('reg_fill_fields'));
         return;
       }
       const positions = getActivePositions(state);
@@ -695,7 +674,7 @@ function initAlineacio(state) {
       DRAG_STATE.editMode = false;
       saveState(state);
       rerender();
-      showToast(`✅ Formació "${fname}" guardada!`);
+      showToast(`✅ ${t('formation_saved')} (${fname})`);
     });
   }
 
