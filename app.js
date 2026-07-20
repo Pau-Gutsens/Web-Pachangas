@@ -71,7 +71,7 @@ function updateHeader(page, state) {
 
   switch (page) {
     case 'home':
-      titleEl.textContent = 'FC Colla';
+      titleEl.textContent = 'FC😎';
       badgeEl.textContent = `${t('season')} 26`;
       badgeEl.classList.add('badge-neon');
       break;
@@ -108,44 +108,77 @@ function translateStaticElements() {
   updateHeader(window.APP_STATE.currentPage, window.APP_STATE);
 }
 
+// ---- Theme Management ----
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('fc-theme', theme);
+}
+
+function loadTheme() {
+  const saved = localStorage.getItem('fc-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  return saved;
+}
+
 // ---- Settings Modal ----
 function openSettingsModal() {
   const state = window.APP_STATE;
+  const currentTheme = localStorage.getItem('fc-theme') || 'dark';
+  const isLight = currentTheme === 'light';
+
   const content = `
     <div class="modal-header">
       <div class="modal-title">⚙️ ${t('settings_title')}</div>
       <button class="modal-close" id="modal-close-btn" aria-label="${t('close')}">✕</button>
     </div>
     <div class="modal-body settings-modal-body">
-      
+
+      <!-- Theme Toggle -->
+      <div class="settings-section">
+        <h3>🎨 ${t('settings_appearance')}</h3>
+        <div class="theme-toggle-row">
+          <span class="theme-toggle-label">
+            <span class="theme-icon">${isLight ? '☀️' : '🌙'}</span>
+            ${isLight ? t('settings_mode_light') : t('settings_mode_dark')}
+          </span>
+          <label class="theme-switch" aria-label="Toggle theme">
+            <input type="checkbox" id="theme-toggle-checkbox" ${isLight ? 'checked' : ''}>
+            <span class="theme-switch-track"></span>
+          </label>
+        </div>
+      </div>
+
       <!-- Language Selection -->
       <div class="settings-section">
         <h3>🌐 ${t('select_lang')}</h3>
-        <div class="lang-selector-group">
+        <div class="lang-selector-group" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
           <button class="lang-btn ${state.lang === 'ca' ? 'active' : ''}" data-lang="ca">Català</button>
           <button class="lang-btn ${state.lang === 'es' ? 'active' : ''}" data-lang="es">Español</button>
-          <button class="lang-btn ${state.lang === 'en' ? 'active' : ''}" data-lang="en">English</button>
         </div>
       </div>
-      
-      <!-- Data Management -->
+
+      <!-- Logout -->
       <div class="settings-section">
-        <h3>💾 ${t('data_management')}</h3>
-        <div class="settings-data-actions">
-          <button class="settings-action-btn" id="btn-export-data">📥 ${t('export_data')}</button>
-          <label class="settings-action-btn file-input-label" id="label-import-data" for="input-import-data">
-            📤 ${t('import_data')}
-            <input type="file" id="input-import-data" accept=".json" style="display:none;">
-          </label>
-          <button class="settings-action-btn btn-danger" id="btn-reset-data">⚠️ ${t('reset_data')}</button>
-          <button class="settings-action-btn btn-danger" id="btn-logout" style="margin-top:12px;border-color:var(--red);color:var(--red);">🚪 ${t('login_logout')}</button>
-        </div>
+        <button class="settings-action-btn btn-danger" id="btn-logout">
+          🚪 ${t('login_logout')}
+        </button>
       </div>
-      
+
     </div>
   `;
 
   openModal(content);
+
+  // Theme toggle
+  const themeCheckbox = document.getElementById('theme-toggle-checkbox');
+  if (themeCheckbox) {
+    themeCheckbox.addEventListener('change', () => {
+      const newTheme = themeCheckbox.checked ? 'light' : 'dark';
+      applyTheme(newTheme);
+      // Re-render modal to update icon/label
+      openSettingsModal();
+    });
+  }
 
   // Bind Language buttons
   document.querySelectorAll('.lang-selector-group .lang-btn').forEach(btn => {
@@ -163,91 +196,6 @@ function openSettingsModal() {
     });
   });
 
-  // Export Data
-  const btnExport = document.getElementById('btn-export-data');
-  if (btnExport) {
-    btnExport.addEventListener('click', () => {
-      const toSave = {
-        players: state.players,
-        matches: state.matches,
-        customFormations: state.customFormations || {},
-        lang: state.lang || 'ca',
-        currentUserId: state.currentUserId
-      };
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(toSave, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `fc_colla_data_${new Date().toISOString().split('T')[0]}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast('📥 Data exported!');
-    });
-  }
-
-  // Import Data
-  const inputImport = document.getElementById('input-import-data');
-  if (inputImport) {
-    inputImport.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const parsed = JSON.parse(event.target.result);
-          if (parsed.players && parsed.matches) {
-            state.players = parsed.players;
-            state.matches = parsed.matches;
-            state.customFormations = parsed.customFormations || {};
-            if (parsed.lang) state.lang = parsed.lang;
-            if (parsed.currentUserId !== undefined) state.currentUserId = parsed.currentUserId;
-
-            saveState(state);
-            closeModal();
-
-            // Refresh whole app
-            translateStaticElements();
-            renderPage(state.currentPage, state);
-            showToast(`✅ ${t('import_success')}`);
-          } else {
-            showToast(`❌ ${t('import_error')}`);
-          }
-        } catch (err) {
-          showToast(`❌ ${t('import_error')}`);
-        }
-      };
-      reader.readAsText(file);
-    });
-  }
-
-  // Reset Data
-  const btnReset = document.getElementById('btn-reset-data');
-  if (btnReset) {
-    btnReset.addEventListener('click', () => {
-      if (confirm(t('reset_confirm'))) {
-        // Clear localStorage
-        localStorage.removeItem(STORAGE_KEY);
-
-        // Re-load default values
-        const loaded = loadState();
-        state.players = loaded.players;
-        state.matches = loaded.matches;
-        state.customFormations = loaded.customFormations || {};
-        state.lang = loaded.lang || 'ca';
-        state.currentUserId = null;
-
-        saveState(state);
-        closeModal();
-
-        // Refresh whole app
-        translateStaticElements();
-        navigate('login');
-        showToast(`🧹 ${t('reset_success')}`);
-      }
-    });
-  }
-
   // Log Out
   const btnLogout = document.getElementById('btn-logout');
   if (btnLogout) {
@@ -259,6 +207,7 @@ function openSettingsModal() {
     });
   }
 }
+
 
 // ---- Modal System ----
 function openModal(htmlContent) {
@@ -406,6 +355,9 @@ function initNavigation() {
 function init() {
   const state = window.APP_STATE;
 
+  // Apply saved theme immediately (before any rendering)
+  loadTheme();
+
   // Load persisted data
   const saved = loadState();
   state.players = saved.players;
@@ -413,6 +365,11 @@ function init() {
   state.customFormations = saved.customFormations || {};
   state.lang = saved.lang || 'ca';
   state.currentUserId = saved.currentUserId;
+
+  // Detect if this is genuinely the first ever visit
+  // (no saved state at all in localStorage)
+  const rawSaved = localStorage.getItem(STORAGE_KEY);
+  state.isFirstVisit = !rawSaved;
 
   // Init navigation
   initNavigation();
@@ -426,19 +383,26 @@ function init() {
   // Run initial translation on static elements
   translateStaticElements();
 
-  // Redirect to login if no profile chosen, else load home
-  if (!state.currentUserId) {
-    // Navigate directly to login
-    navigate('login');
-  } else {
-    // Render initial page (Home)
+  // Auto-login logic:
+  // - If currentUserId is already set → skip login, go directly to home
+  // - If no currentUserId → show login screen
+  //   (first visit: open on signup tab; returning user: open on login tab)
+  if (state.currentUserId) {
+    // Already logged in — go straight to app
+    const header = document.querySelector('.app-header');
+    const bottomNav = document.getElementById('bottom-nav');
+    if (header) header.style.display = 'flex';
+    if (bottomNav) bottomNav.style.display = 'flex';
     renderPage('home', state);
     document.getElementById('page-home')?.classList.add('active');
     updateHeader('home', state);
+  } else {
+    // Not logged in — navigate to login
+    navigate('login');
   }
 
-  console.log('%c⚽ FC Colla App Ready!', 'color:#B8FF00;font-weight:bold;font-size:14px;');
-  console.log(`%c${state.players.length} jugadors · ${state.matches.length} partits`, 'color:#00D9FF;font-size:11px;');
+  console.log('%c⚽ FC😎 App Ready!', 'color:#a78bfa;font-weight:bold;font-size:14px;');
+  console.log(`%c${state.players.length} jugadors · ${state.matches.length} partits`, 'color:#67e8f9;font-size:11px;');
 }
 
 // Boot when DOM is ready

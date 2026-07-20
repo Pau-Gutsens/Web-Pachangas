@@ -108,6 +108,9 @@ window.TRANSLATIONS = {
 
     // Settings Modal
     settings_title: "Configuració",
+    settings_appearance: "Aparença",
+    settings_mode_dark: "Mode Fosc",
+    settings_mode_light: "Mode Clar",
     select_lang: "Idioma de l'aplicació",
     data_management: "Gestió de dades",
     reset_data: "Restablir dades per defecte",
@@ -120,7 +123,7 @@ window.TRANSLATIONS = {
     close: "Tancar",
 
     // Login screen
-    login_welcome: "Benvingut a FC Colla",
+    login_welcome: "Benvingut a FC😎",
     login_subtitle: "Gestiona les teves pachangues i ranking ELO",
     login_tab_login: "Entrar",
     login_tab_signup: "Registrar-se",
@@ -129,10 +132,17 @@ window.TRANSLATIONS = {
     login_name_label: "Nom del jugador",
     login_name_placeholder: "Escriu el teu nom...",
     login_emoji_label: "Tria el teu emoji de batalla",
+    login_avatar_label: "Tria el teu avatar",
+    login_avatar_emoji: "Emoji",
+    login_avatar_photo: "Foto pròpia",
+    login_photo_tap: "Toca per pujar una foto",
+    login_photo_clear: "Eliminar foto",
     login_btn_create: "Crear Perfil i Entrar",
     login_guest_btn: "Entra com a convidat",
     login_logout: "Tancar Sessió",
-    login_error_empty: "Siusplau, introdueix un nom."
+    login_error_empty: "Siusplau, introdueix un nom.",
+    login_first_time: "Primera vegada? Crea el teu perfil!",
+    login_welcome_back: "Benvingut de nou,"
   },
   es: {
     // Navigation
@@ -239,6 +249,9 @@ window.TRANSLATIONS = {
 
     // Settings Modal
     settings_title: "Configuración",
+    settings_appearance: "Apariencia",
+    settings_mode_dark: "Modo Oscuro",
+    settings_mode_light: "Modo Claro",
     select_lang: "Idioma de la aplicación",
     data_management: "Gestión de datos",
     reset_data: "Restablecer datos por defecto",
@@ -251,7 +264,7 @@ window.TRANSLATIONS = {
     close: "Cerrar",
 
     // Login screen
-    login_welcome: "Bienvenido a FC Colla",
+    login_welcome: "Bienvenido a FC😎",
     login_subtitle: "Gestiona tus pachangas y ranking ELO",
     login_tab_login: "Entrar",
     login_tab_signup: "Registrarse",
@@ -260,10 +273,17 @@ window.TRANSLATIONS = {
     login_name_label: "Nombre del jugador",
     login_name_placeholder: "Escribe tu nombre...",
     login_emoji_label: "Elige tu emoji de batalla",
+    login_avatar_label: "Elige tu avatar",
+    login_avatar_emoji: "Emoji",
+    login_avatar_photo: "Foto propia",
+    login_photo_tap: "Toca para subir una foto",
+    login_photo_clear: "Eliminar foto",
     login_btn_create: "Crear Perfil y Entrar",
     login_guest_btn: "Entrar como invitado",
     login_logout: "Cerrar Sesión",
-    login_error_empty: "Por favor, introduce un nombre."
+    login_error_empty: "Por favor, introduce un nombre.",
+    login_first_time: "¿Primera vez? ¡Crea tu perfil!",
+    login_welcome_back: "¡Bienvenido de nuevo,"
   },
   en: {
     // Navigation
@@ -370,6 +390,9 @@ window.TRANSLATIONS = {
 
     // Settings Modal
     settings_title: "Settings",
+    settings_appearance: "Appearance",
+    settings_mode_dark: "Dark Mode",
+    settings_mode_light: "Light Mode",
     select_lang: "Application Language",
     data_management: "Data Management",
     reset_data: "Reset to default data",
@@ -382,7 +405,7 @@ window.TRANSLATIONS = {
     close: "Close",
 
     // Login screen
-    login_welcome: "Welcome to FC Colla",
+    login_welcome: "Welcome to FC😎",
     login_subtitle: "Manage your matches and ELO ranking",
     login_tab_login: "Log In",
     login_tab_signup: "Sign Up",
@@ -391,10 +414,17 @@ window.TRANSLATIONS = {
     login_name_label: "Player Name",
     login_name_placeholder: "Type your name...",
     login_emoji_label: "Choose your battle emoji",
+    login_avatar_label: "Choose your avatar",
+    login_avatar_emoji: "Emoji",
+    login_avatar_photo: "Own photo",
+    login_photo_tap: "Tap to upload a photo",
+    login_photo_clear: "Remove photo",
     login_btn_create: "Create Profile & Enter",
     login_guest_btn: "Browse as Guest",
     login_logout: "Log Out",
-    login_error_empty: "Please enter a name."
+    login_error_empty: "Please enter a name.",
+    login_first_time: "First time? Create your profile!",
+    login_welcome_back: "Welcome back,"
   }
 };
 

@@ -196,7 +196,7 @@ function initGoalsChart(players) {
         data: sorted.map(p => p.goals),
         backgroundColor: sorted.map((_, i) => {
           const alpha = 1 - (i * 0.1);
-          return `rgba(184, 255, 0, ${alpha})`;
+          return `rgba(167, 139, 250, ${alpha})`;
         }),
         borderRadius: 8,
         borderSkipped: false,
@@ -205,7 +205,7 @@ function initGoalsChart(players) {
         data: sorted.map(p => p.assists),
         backgroundColor: sorted.map((_, i) => {
           const alpha = 0.7 - (i * 0.08);
-          return `rgba(0, 217, 255, ${Math.max(alpha, 0.2)})`;
+          return `rgba(103, 232, 249, ${Math.max(alpha, 0.2)})`;
         }),
         borderRadius: 8,
         borderSkipped: false,
@@ -218,18 +218,18 @@ function initGoalsChart(players) {
       plugins: {
         legend: {
           labels: {
-            color: '#7a8a7a',
+            color: '#7b7a9a',
             font: { family: 'Space Grotesk', size: 11 },
             boxWidth: 12,
             borderRadius: 3,
           }
         },
         tooltip: {
-          backgroundColor: '#0F2218',
-          borderColor: 'rgba(184,255,0,0.3)',
+          backgroundColor: '#111222',
+          borderColor: 'rgba(167, 139, 250, 0.3)',
           borderWidth: 1,
-          titleColor: '#B8FF00',
-          bodyColor: '#c0c0c0',
+          titleColor: '#a78bfa',
+          bodyColor: '#c4c2d4',
           titleFont: { family: 'Space Grotesk', size: 12, weight: '600' },
           bodyFont: { family: 'Inter', size: 11 },
           padding: 10,
@@ -240,7 +240,7 @@ function initGoalsChart(players) {
         x: {
           grid: { color: 'rgba(255,255,255,0.04)' },
           ticks: {
-            color: '#7a8a7a',
+            color: '#7b7a9a',
             font: { family: 'Space Grotesk', size: 10 },
           },
           border: { color: 'transparent' }
@@ -248,7 +248,7 @@ function initGoalsChart(players) {
         y: {
           grid: { display: false },
           ticks: {
-            color: '#c0c0c0',
+            color: '#c4c2d4',
             font: { family: 'Space Grotesk', size: 12, weight: '600' },
           },
           border: { color: 'transparent' }
