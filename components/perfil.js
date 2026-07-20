@@ -247,10 +247,6 @@ function openPlayerModal(player, players, matches) {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5);
 
-  const avatarContent = player.photo
-    ? `<img src="${player.photo}" alt="${player.name}">`
-    : `<span style="font-size:2.5rem">${player.emoji}</span>`;
-
   const streakDots = (player.streak || []).map(s => {
     const cls = s === 'W' ? 'streak-w' : s === 'D' ? 'streak-d' : 'streak-l';
     const label = s === 'W' ? t('victory') : s === 'D' ? t('draw') : t('defeat');
@@ -275,16 +271,40 @@ function openPlayerModal(player, players, matches) {
       }).join('')
     : `<p style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding:12px;">${t('no_participation')}</p>`;
 
+  // FUT-style rating: map ELO to 0-99
+  const minElo = Math.min(...players.map(p => p.elo), 1200);
+  const maxElo = Math.max(...players.map(p => p.elo), 1600);
+  const futRating = Math.round(55 + ((player.elo - minElo) / Math.max(maxElo - minElo, 1)) * 44);
+  const futAvatarInner = player.photo
+    ? `<img src="${player.photo}" alt="${player.name}">`
+    : `<span style="font-size:2.2rem;line-height:1;">${player.emoji}</span>`;
+
   const content = `
-    <div class="modal-header">
-      <div class="player-avatar" style="width:52px;height:52px;font-size:1.6rem;">${avatarContent}</div>
-      <div class="modal-title">
-        ${player.name}
-        <div style="font-size:0.72rem;color:var(--text-muted);font-weight:400;font-family:var(--font-body);">${player.elo} ELO · <span class="elo-trend ${trend.cls}" style="font-size:0.65rem;">${trend.label}</span></div>
-      </div>
+    <div class="modal-header" style="border-bottom:none;padding-bottom:0;">
+      <div style="flex:1;"></div>
       <button class="modal-close" id="modal-close-btn" aria-label="${t('close')}">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="padding-top:0;">
+
+      <!-- FUT Card -->
+      <div class="fut-card-wrapper">
+        <div class="fut-card">
+          <div class="fut-badge">
+            <div class="fut-rating">${futRating}</div>
+            <div class="fut-pos">CAM</div>
+          </div>
+          <div class="fut-avatar">${futAvatarInner}</div>
+          <div class="fut-name">${player.name}</div>
+          <div class="fut-stats">
+            <div class="fut-stat-item"><span class="fut-stat-num">${player.goals}</span><span class="fut-stat-lbl"> G</span></div>
+            <div class="fut-stat-item"><span class="fut-stat-num">${player.assists}</span><span class="fut-stat-lbl"> A</span></div>
+            <div class="fut-stat-item"><span class="fut-stat-num">${player.matches}</span><span class="fut-stat-lbl"> PJ</span></div>
+            <div class="fut-stat-item"><span class="fut-stat-num">${winRate}%</span><span class="fut-stat-lbl"> WR</span></div>
+            <div class="fut-stat-item"><span class="fut-stat-num">${player.elo}</span><span class="fut-stat-lbl"> ELO</span></div>
+            <div class="fut-stat-item"><span class="fut-stat-num ${trend.cls}">${trend.label}</span></div>
+          </div>
+        </div>
+      </div>
 
       <!-- Photo upload -->
       <div class="photo-upload-area" id="photo-upload-area-${player.id}" role="button" tabindex="0" aria-label="Canviar foto de ${player.name}">
@@ -297,36 +317,8 @@ function openPlayerModal(player, players, matches) {
         </label>
       </div>
 
-      <!-- Quick stats -->
-      <div class="modal-stat-grid">
-        <div class="modal-stat">
-          <div class="modal-stat-val">${player.goals}</div>
-          <div class="modal-stat-lbl">${t('goals')}</div>
-        </div>
-        <div class="modal-stat">
-          <div class="modal-stat-val">${player.assists}</div>
-          <div class="modal-stat-lbl">${t('assists')}</div>
-        </div>
-        <div class="modal-stat">
-          <div class="modal-stat-val">${player.matches}</div>
-          <div class="modal-stat-lbl">${t('played')}</div>
-        </div>
-        <div class="modal-stat">
-          <div class="modal-stat-val">${player.wins}</div>
-          <div class="modal-stat-lbl">${t('victory')}</div>
-        </div>
-        <div class="modal-stat">
-          <div class="modal-stat-val">${winRate}%</div>
-          <div class="modal-stat-lbl">${t('win_rate')}</div>
-        </div>
-        <div class="modal-stat">
-          <div class="modal-stat-val">${player.elo}</div>
-          <div class="modal-stat-lbl">ELO</div>
-        </div>
-      </div>
-
       <!-- Racha -->
-      <p class="modal-section-title" style="margin-bottom:10px;">${t('best_streak')}</p>
+      <p class="modal-section-title" style="margin-bottom:10px;margin-top:20px;">${t('best_streak')}</p>
       <div class="streak-row" style="gap:6px;margin-bottom:20px;">${streakDots}</div>
 
       <!-- Comparativa vs Mitjana -->
@@ -393,9 +385,10 @@ function openMatchModal(match, players) {
   const badgeCls = result === 'W' ? 'badge-w' : result === 'D' ? 'badge-d' : 'badge-l';
   const badgeTxt = result === 'W' ? t('victory') : result === 'D' ? t('draw') : t('defeat');
   const mvpPlayer = match.mvp ? getPlayerById(players, match.mvp) : null;
+  const scoreColorUs = result === 'W' ? 'var(--neon)' : result === 'L' ? 'var(--red)' : 'var(--text-secondary)';
 
   const goalEvents = match.goals.length
-    ? match.goals.sort((a, b) => a.minute - b.minute).map(g => {
+    ? [...match.goals].sort((a, b) => a.minute - b.minute).map(g => {
         const p = getPlayerById(players, g.player);
         const assist = match.assists.find(a => a.minute === g.minute && a.player !== g.player);
         const assistP = assist ? getPlayerById(players, assist.player) : null;
@@ -404,7 +397,7 @@ function openMatchModal(match, players) {
             <span class="goal-minute">${g.minute}'</span>
             <span style="font-size:1rem;">⚽</span>
             <div style="flex:1;">
-              <p class="goal-player-name">${p ? p.emoji + ' ' + p.name : 'Desconegut'}</p>
+              <p class="goal-player-name">${p ? (p.emoji + ' ' + p.name) : 'Desconegut'}</p>
               ${assistP ? `<p class="goal-assist-label">🎯 ${assistP.name}</p>` : ''}
             </div>
           </div>
@@ -412,30 +405,36 @@ function openMatchModal(match, players) {
       }).join('')
     : `<p style="font-size:0.82rem;color:var(--text-muted);text-align:center;padding:12px;">${t('no_participation')}</p>`;
 
+  const mvpAvatarInner = mvpPlayer
+    ? (mvpPlayer.photo
+        ? `<img src="${mvpPlayer.photo}" alt="${mvpPlayer.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+        : `<span style="font-size:1.4rem;">${mvpPlayer.emoji}</span>`)
+    : '';
+
   const content = `
-    <div class="modal-header">
+    <div class="modal-header" style="background:linear-gradient(160deg,var(--bg-elevated) 0%,var(--bg-base) 100%);border-bottom:1px solid var(--border-subtle);">
       <div style="flex:1;">
-        <div style="font-size:0.65rem;font-weight:700;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--font-display);margin-bottom:6px;">⚽ ${t('last_match')}</div>
+        <div style="font-size:0.6rem;font-weight:700;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--font-display);margin-bottom:8px;">⚽ ${t('last_match')}</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+          <span class="match-badge ${badgeCls}" style="font-size:0.6rem;">${badgeTxt}</span>
+          <span style="font-size:0.75rem;color:var(--text-muted);font-family:var(--font-display);">vs ${match.rival}</span>
+        </div>
         <div class="match-modal-score">
-          <span>${match.score[0]}</span>
+          <span style="color:${scoreColorUs}">${match.score[0]}</span>
           <span class="sep"> – </span>
           <span class="them">${match.score[1]}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
-          <span class="match-badge ${badgeCls}">${badgeTxt}</span>
-          <span style="font-size:0.78rem;color:var(--text-muted);">vs ${match.rival}</span>
-          <span style="font-size:0.75rem;color:var(--text-muted);">${formatDate(match.date)}</span>
-        </div>
+        <div style="font-size:0.68rem;color:var(--text-muted);margin-top:6px;">${formatDate(match.date)}</div>
       </div>
       <button class="modal-close" id="modal-close-btn" aria-label="${t('close')}">✕</button>
     </div>
     <div class="modal-body">
       ${mvpPlayer ? `
-        <div style="background:var(--gold-dim);border:1px solid rgba(255,215,0,0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.5rem;">${mvpPlayer.emoji}</span>
+        <div style="background:linear-gradient(135deg,rgba(251,180,36,0.12),rgba(251,180,36,0.04));border:1px solid rgba(251,180,36,0.25);border-radius:var(--radius-md);padding:14px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:50%;border:2px solid var(--gold);overflow:hidden;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 10px rgba(251,180,36,0.3);">${mvpAvatarInner}</div>
           <div>
-            <p style="font-size:0.62rem;color:var(--gold);font-family:var(--font-display);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;">⭐ ${t('mvp')}</p>
-            <p style="font-family:var(--font-display);font-size:0.92rem;font-weight:700;color:var(--text-primary);">${mvpPlayer.name}</p>
+            <p style="font-size:0.58rem;color:var(--gold);font-family:var(--font-display);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:3px;">⭐ ${t('mvp')}</p>
+            <p style="font-family:var(--font-display);font-size:0.95rem;font-weight:800;color:var(--text-primary);">${mvpPlayer.name}</p>
           </div>
         </div>
       ` : ''}

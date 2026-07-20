@@ -10,15 +10,6 @@ function renderLogin(state) {
     <button type="button" class="emoji-picker-item ${i === 0 ? 'active' : ''}" data-emoji="${em}">${em}</button>
   `).join('');
 
-  const playerOptions = state.players.length > 0
-    ? state.players.map(p => {
-        const avatar = p.photo
-          ? `<img src="${p.photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px;">`
-          : `${p.emoji} `;
-        return `<option value="${p.id}">${p.emoji || ''} ${p.name} (${p.elo} ELO)</option>`;
-      }).join('')
-    : `<option value="" disabled selected>— ${t('no_assign')} —</option>`;
-
   // isFirstVisit: no saved state ever → force signup tab only
   const isFirstVisit = state.isFirstVisit;
   // hasPlayers: there are existing profiles → allow login tab
@@ -28,6 +19,23 @@ function renderLogin(state) {
   const showTabs = hasPlayers;
   // Default tab: login if returning user with no session, signup if first visit
   const defaultTab = isFirstVisit || !hasPlayers ? 'signup' : 'login';
+
+  // Build interactive player cards for the login tab
+  const playerCardsHTML = state.players.length > 0
+    ? state.players.map((p, i) => {
+        const avatarContent = p.photo
+          ? `<img src="${p.photo}" alt="${p.name}">`
+          : p.emoji;
+        const trend = ELO.getTrend(p);
+        return `
+          <div class="login-player-card ${i === 0 ? 'active' : ''}" data-player-id="${p.id}" role="button" tabindex="0" aria-label="Iniciar sessió com a ${p.name}">
+            <div class="login-player-avatar">${avatarContent}</div>
+            <div class="login-player-name">${p.name}</div>
+            <div class="login-player-elo">${p.elo} ELO <span class="elo-trend ${trend.cls}" style="font-size:0.55rem;padding:1px 4px;">${trend.label}</span></div>
+          </div>
+        `;
+      }).join('')
+    : `<p style="color:var(--text-muted);font-size:0.82rem;text-align:center;grid-column:1/-1;padding:20px 0;">— ${t('no_assign')} —</p>`;
 
   return `
     <div class="login-container">
@@ -52,11 +60,9 @@ function renderLogin(state) {
 
         <!-- Log In Tab -->
         <div class="login-tab-content ${defaultTab === 'login' ? 'active' : ''}" id="content-tab-login">
-          <div class="form-group" style="margin-bottom: 20px;">
-            <label class="form-label" for="login-select">${t('login_select_player')}</label>
-            <select class="form-select" id="login-select" aria-label="${t('login_select_player')}">
-              ${playerOptions}
-            </select>
+          <p style="font-family:var(--font-display);font-size:0.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">${t('login_select_player')}</p>
+          <div class="login-players-grid" id="login-players-grid">
+            ${playerCardsHTML}
           </div>
           <button class="btn-primary" id="btn-submit-login">${t('login_btn_enter')}</button>
         </div>
@@ -106,15 +112,9 @@ function renderLogin(state) {
         </div>
 
         <!-- Guest Entry -->
-        ${showTabs || !isFirstVisit ? `
         <div class="login-footer">
           <button class="login-guest-btn" id="btn-submit-guest">${t('login_guest_btn')} →</button>
         </div>
-        ` : `
-        <div class="login-footer">
-          <button class="login-guest-btn" id="btn-submit-guest">${t('login_guest_btn')} →</button>
-        </div>
-        `}
 
       </div>
     </div>
@@ -125,6 +125,8 @@ function initLogin(state) {
   let selectedEmoji = '⚽';
   let selectedPhoto = null; // base64 string or null
   let avatarMode = 'emoji'; // 'emoji' | 'photo'
+  // Track selected player id for interactive card picker
+  let selectedPlayerId = state.players.length > 0 ? state.players[0].id : null;
 
   // ---- Tab switching (only if tabs exist) ----
   const btnLogin = document.getElementById('btn-tab-login');
@@ -148,6 +150,18 @@ function initLogin(state) {
 
   if (btnLogin) btnLogin.addEventListener('click', () => switchTab('login'));
   if (btnSignup) btnSignup.addEventListener('click', () => switchTab('signup'));
+
+  // ---- Interactive player card picker ----
+  document.querySelectorAll('#login-players-grid .login-player-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('#login-players-grid .login-player-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      selectedPlayerId = parseInt(card.dataset.playerId);
+    });
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') card.click();
+    });
+  });
 
   // ---- Emoji picker selection ----
   document.querySelectorAll('#signup-emoji-picker .emoji-picker-item').forEach(btn => {
@@ -228,17 +242,18 @@ function initLogin(state) {
     });
   }
 
-  // ---- Log In Form Submission ----
+  // ---- Log In Form Submission (uses card selection) ----
   const btnSubmitLogin = document.getElementById('btn-submit-login');
   if (btnSubmitLogin) {
     btnSubmitLogin.addEventListener('click', () => {
-      const selectEl = document.getElementById('login-select');
-      if (!selectEl || !selectEl.value) return;
+      if (!selectedPlayerId) {
+        showToast('⚠️ Selecciona un jugador per continuar');
+        return;
+      }
 
-      const pid = parseInt(selectEl.value);
-      const player = state.players.find(p => p.id === pid);
+      const player = state.players.find(p => p.id === selectedPlayerId);
       if (player) {
-        state.currentUserId = pid;
+        state.currentUserId = selectedPlayerId;
         state.isFirstVisit = false;
         saveState(state);
         translateStaticElements();

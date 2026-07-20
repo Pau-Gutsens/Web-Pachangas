@@ -1,197 +1,297 @@
 // ============================================================
-//  COMPONENTS/HOME.JS — Pàgina d'inici
+//  COMPONENTS/HOME.JS — Pàgina d'inici (minimalista)
 // ============================================================
 
 function renderHome(state) {
   const { players, matches } = state;
-  const sorted = [...matches].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const lastMatch = sorted[0];
-  const topScorer = getTopScorer(players);
-  const topAssist = getTopAssist(players);
-  const bestStreak = getBestStreak(players);
+
+  // Find the next upcoming match from the calendar (matchId null = not played yet)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const playedIds = new Set(matches.map(m => m.id));
+  const upcomingJornada = SEASON_CALENDAR
+    .filter(j => !j.matchId || !playedIds.has(j.matchId))
+    .filter(j => !j.matchId) // truly unplayed (no matchId linked)
+    .map(j => ({ ...j, dateObj: new Date(j.date) }))
+    .sort((a, b) => a.dateObj - b.dateObj)
+    .find(j => j.dateObj >= today); // next future one
+
+  // Also look for the most recent past unplayed entry (already past but not registered)
+  const pastPending = SEASON_CALENDAR
+    .filter(j => !j.matchId)
+    .map(j => ({ ...j, dateObj: new Date(j.date) }))
+    .sort((a, b) => b.dateObj - a.dateObj)
+    .find(j => j.dateObj < today);
+
+  // Priority: upcoming future > past unregistered > last played
+  const pendingJornada = upcomingJornada || pastPending || null;
+
+  const lastMatch = pendingJornada
+    ? null
+    : [...matches].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
   return `
     <!-- Note: header is now globally rendered by app shell -->
-    
-    ${renderLastMatchHero(lastMatch, players)}
-
-    <div class="section">
-      <p class="section-title">${t('hall_of_fame')}</p>
-      ${renderHallOfFame(topScorer, topAssist, bestStreak)}
-    </div>
-
-    <div class="section">
-      <p class="section-title">${t('podium_title')}</p>
-      ${renderEloPodium(players)}
-    </div>
+    ${pendingJornada
+      ? renderUpcomingCard(pendingJornada)
+      : renderLastMatchHero(lastMatch, players)
+    }
   `;
 }
 
-function renderLastMatchHero(match, players) {
-  if (!match) {
-    return `
-      <div class="last-match-hero" style="cursor: default;">
-        <p class="lmh-label">⚽ ${t('last_match')}</p>
-        <p style="color:var(--text-muted);text-align:center;padding:10px 0;">${t('no_matches')}</p>
-      </div>
-    `;
-  }
-  const result = getMatchResult(match.score);
-  const badgeCls = result === 'W' ? 'badge-w' : result === 'D' ? 'badge-d' : 'badge-l';
-  const badgeTxt = result === 'W' ? t('victory') : result === 'D' ? t('draw') : t('defeat');
-  const mvpPlayer = match.mvp ? getPlayerById(players, match.mvp) : null;
-
-  const scorersText = match.goals.length
-    ? match.goals.map(g => {
-        const p = getPlayerById(players, g.player);
-        return p ? `${p.emoji} ${p.name} ${g.minute}'` : '';
-      }).filter(Boolean).join(' · ')
-    : t('no_participation'); // "Sense gols" / "No goals"
+/* ---- Upcoming match card ---- */
+function renderUpcomingCard(jornada) {
+  const dateObj = new Date(jornada.date);
+  const isPast = dateObj < new Date();
+  const daysLabel = isPast ? 'Pendent de registrar' : daysUntil(dateObj);
 
   return `
-    <div class="last-match-hero" id="lmh-card" data-match-id="${match.id}" role="button" tabindex="0" aria-label="Veure detalls de l'últim partit">
-      <p class="lmh-label">⚽ ${t('last_match')}</p>
-      <p class="lmh-rival">vs ${match.rival}</p>
-      <div class="lmh-score">
-        <span class="us">${match.score[0]}</span>
-        <span class="sep">–</span>
-        <span class="them">${match.score[1]}</span>
+    <div class="last-match-hero upcoming-card"
+         id="upcoming-match-card"
+         data-rival="${jornada.rival}"
+         data-date="${jornada.date}"
+         role="button"
+         tabindex="0"
+         style="cursor:pointer;"
+         aria-label="Registrar el partit vs ${jornada.rival}">
+      <div class="lmh-top-row">
+        <p class="lmh-label">📅 Pròxim Partit</p>
+        <span class="match-badge badge-upcoming">J${jornada.jornada}</span>
       </div>
-      <div class="lmh-meta">
-        <span class="match-badge ${badgeCls}">${badgeTxt}</span>
-        ${mvpPlayer ? `<span class="match-mvp">⭐ MVP: ${mvpPlayer.name}</span>` : ''}
-        <span class="lmh-date">${formatDate(match.date)}</span>
+      <p class="lmh-rival">vs <strong>${jornada.rival}</strong></p>
+      <div class="upcoming-date-block">
+        <span class="upcoming-date-main">${formatDate(jornada.date)}</span>
+        <span class="upcoming-days-left">${daysLabel}</span>
       </div>
-      <p style="font-size:0.75rem;color:var(--text-muted);margin-top:10px;">${scorersText}</p>
-      <div class="lmh-cta">
-        <span>${t('tap_for_details')}</span>
+      <div class="upcoming-cta">
+        <span>Toca per registrar el resultat</span>
         <span class="lmh-cta-arrow">→</span>
       </div>
     </div>
   `;
 }
 
-function renderHallOfFame(topScorer, topAssist, bestStreak) {
-  const streakWins = bestStreak.streak.filter(s => s === 'W').length;
-
-  return `
-    <div class="hof-grid">
-      <div class="hof-card card-glow" id="hof-scorer" role="button" tabindex="0" data-player-id="${topScorer.id}" aria-label="Top Golejador: ${topScorer.name}">
-        <span class="hof-icon">🏆</span>
-        <p class="hof-label">${t('top_scorer')}</p>
-        <div class="hof-player-emoji">${topScorer.emoji}</div>
-        <p class="hof-player-name">${topScorer.name}</p>
-        <p class="hof-value">${topScorer.goals} ${t('goals_count')}</p>
-      </div>
-      <div class="hof-card card-glow" id="hof-assist" role="button" tabindex="0" data-player-id="${topAssist.id}" aria-label="Top Assistent: ${topAssist.name}">
-        <span class="hof-icon">🎯</span>
-        <p class="hof-label">${t('top_assist')}</p>
-        <div class="hof-player-emoji">${topAssist.emoji}</div>
-        <p class="hof-player-name">${topAssist.name}</p>
-        <p class="hof-value">${topAssist.assists} ${t('assists_count')}</p>
-      </div>
-      <div class="hof-card card-glow" id="hof-streak" role="button" tabindex="0" data-player-id="${bestStreak.id}" aria-label="Millor Ratxa: ${bestStreak.name}">
-        <span class="hof-icon">🔥</span>
-        <p class="hof-label">${t('best_streak')}</p>
-        <div class="hof-player-emoji">${bestStreak.emoji}</div>
-        <p class="hof-player-name">${bestStreak.name}</p>
-        <p class="hof-value">${streakWins} ${t('consecutive_wins')}</p>
-      </div>
-    </div>
-  `;
+function daysUntil(dateObj) {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const diff = Math.round((dateObj - now) / (1000 * 60 * 60 * 24));
+  if (diff === 0) return 'Avui!';
+  if (diff === 1) return 'Demà';
+  return `En ${diff} dies`;
 }
 
-function renderEloPodium(players) {
-  const sorted = [...players].sort((a, b) => b.elo - a.elo);
-  const p1 = sorted[0];
-  const p2 = sorted[1];
-  const p3 = sorted[2];
+/* ---- Last played match hero (minimal) ---- */
+function renderLastMatchHero(match, players) {
+  if (!match) {
+    return `
+      <div class="last-match-hero" style="cursor:default;">
+        <p class="lmh-label">⚽ Últim Partit</p>
+        <p style="color:var(--text-muted);text-align:center;padding:20px 0 14px;font-size:0.85rem;">Cap partit registrat</p>
+        <p style="text-align:center;font-size:0.7rem;color:var(--text-muted);opacity:.5;">Registra el primer partit a la secció Partits</p>
+      </div>
+    `;
+  }
 
-  if (!p1) return '';
-
-  const avatar1 = p1.photo ? `<img src="${p1.photo}" alt="${p1.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : p1.emoji;
-  const avatar2 = p2 ? (p2.photo ? `<img src="${p2.photo}" alt="${p2.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : p2.emoji) : '👤';
-  const avatar3 = p3 ? (p3.photo ? `<img src="${p3.photo}" alt="${p3.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : p3.emoji) : '👤';
+  const result   = getMatchResult(match.score);
+  const badgeCls = result === 'W' ? 'badge-w' : result === 'D' ? 'badge-d' : 'badge-l';
+  const badgeTxt = result === 'W' ? 'Victòria' : result === 'D' ? 'Empat' : 'Derrota';
+  const mvpPlayer = match.mvp ? getPlayerById(players, match.mvp) : null;
+  const resultColor = result === 'W' ? 'var(--neon)' : result === 'L' ? 'var(--red)' : 'var(--text-secondary)';
 
   return `
-    <div class="podium-section">
-      <div class="podium-container">
-        
-        <!-- 2nd Place -->
-        ${p2 ? `
-        <div class="podium-column" data-player-id="${p2.id}" id="podium-player-${p2.id}" role="button" tabindex="0" aria-label="2n lloc: ${p2.name}">
-          <div class="podium-player-emoji player-avatar" style="width:40px;height:40px;font-size:1.2rem;">${avatar2}</div>
-          <p class="podium-player-name">${p2.name}</p>
-          <p class="podium-player-elo">${p2.elo} ELO</p>
-          <div class="podium-step rank-2">
-            <span class="podium-rank">2</span>
-          </div>
-        </div>
-        ` : '<div style="flex:1;"></div>'}
+    <div class="last-match-hero" id="lmh-card" data-match-id="${match.id}" role="button" tabindex="0" aria-label="Veure detalls de l'últim partit">
 
-        <!-- 1st Place -->
-        <div class="podium-column" data-player-id="${p1.id}" id="podium-player-${p1.id}" role="button" tabindex="0" aria-label="1r lloc: ${p1.name}">
-          <div class="podium-player-emoji player-avatar" style="width:50px;height:50px;font-size:1.5rem;">
-            <span class="podium-crown">👑</span>
-            ${avatar1}
-          </div>
-          <p class="podium-player-name" style="font-size:0.92rem;font-weight:800;color:var(--neon);">${p1.name}</p>
-          <p class="podium-player-elo">${p1.elo} ELO</p>
-          <div class="podium-step rank-1">
-            <span class="podium-rank">1</span>
-          </div>
-        </div>
-
-        <!-- 3rd Place -->
-        ${p3 ? `
-        <div class="podium-column" data-player-id="${p3.id}" id="podium-player-${p3.id}" role="button" tabindex="0" aria-label="3r lloc: ${p3.name}">
-          <div class="podium-player-emoji player-avatar" style="width:36px;height:36px;font-size:1.1rem;">${avatar3}</div>
-          <p class="podium-player-name">${p3.name}</p>
-          <p class="podium-player-elo">${p3.elo} ELO</p>
-          <div class="podium-step rank-3">
-            <span class="podium-rank">3</span>
-          </div>
-        </div>
-        ` : '<div style="flex:1;"></div>'}
-
+      <div class="lmh-top-row">
+        <p class="lmh-label">⚽ Últim Partit</p>
+        <span class="match-badge ${badgeCls}">${badgeTxt}</span>
       </div>
-      
-      <button class="home-btn-view-all" id="home-btn-view-all">${t('view_all_players')}</button>
+
+      <p class="lmh-rival">FC Colla vs <strong>${match.rival}</strong></p>
+
+      <!-- Scoreboard: two teams + score -->
+      <div class="lmh-scoreboard">
+        <div class="lmh-team-block">
+          <span class="lmh-team-name">FC Colla</span>
+          <span class="lmh-team-score" style="color:${resultColor};">${match.score[0]}</span>
+        </div>
+        <div class="lmh-score-sep">–</div>
+        <div class="lmh-team-block lmh-team-right">
+          <span class="lmh-team-score" style="color:var(--text-secondary);">${match.score[1]}</span>
+          <span class="lmh-team-name">${match.rival}</span>
+        </div>
+      </div>
+
+      ${mvpPlayer ? `
+        <div class="lmh-mvp-row">
+          <div class="lmh-mvp-pill">
+            <span class="lmh-mvp-avatar">${mvpPlayer.photo
+              ? `<img src="${mvpPlayer.photo}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+              : mvpPlayer.emoji
+            }</span>
+            <span>⭐ MVP: <strong>${mvpPlayer.name}</strong></span>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="lmh-cta">
+        <span>Toca per veure el resum</span>
+        <span class="lmh-cta-arrow">→</span>
+      </div>
     </div>
   `;
 }
 
 function initHome(state) {
-  // Last match hero click
+  // Last match hero click → open match detail modal
   const lmhCard = document.getElementById('lmh-card');
   if (lmhCard) {
     const matchId = parseInt(lmhCard.dataset.matchId);
     lmhCard.addEventListener('click', () => {
       const match = state.matches.find(m => m.id === matchId);
-      if (match) openMatchModal(match, state.players);
+      if (match) openMatchDetailModal(match, state.players);
     });
     lmhCard.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') lmhCard.click();
     });
   }
 
-  // HoF cards & Podium cards → open player modal
-  document.querySelectorAll('#page-home [data-player-id]').forEach(el => {
-    el.addEventListener('click', () => {
-      const pid = parseInt(el.dataset.playerId);
-      const player = state.players.find(p => p.id === pid);
-      if (player) openPlayerModal(player, state.players, state.matches);
-    });
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') el.click();
-    });
-  });
-
-  // View all players button
-  const btnViewAll = document.getElementById('home-btn-view-all');
-  if (btnViewAll) {
-    btnViewAll.addEventListener('click', () => {
-      navigate('perfil');
+  // Upcoming match card click → navigate to register tab with prefilled data
+  const upcomingCard = document.getElementById('upcoming-match-card');
+  if (upcomingCard) {
+    const handleUpcomingClick = () => {
+      const rival = upcomingCard.dataset.rival || '';
+      const date  = upcomingCard.dataset.date  || '';
+      state.partitsTab = 'registrar';
+      navigate('partits');
+      // navigate() is sync but DOM paint may lag — use rAF to prefill safely
+      requestAnimationFrame(() => {
+        const rivalInput = document.getElementById('reg-rival');
+        const dateInput  = document.getElementById('reg-date');
+        if (rivalInput) rivalInput.value = rival;
+        if (dateInput)  dateInput.value  = date;
+      });
+    };
+    upcomingCard.addEventListener('click', handleUpcomingClick);
+    upcomingCard.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') handleUpcomingClick();
     });
   }
+}
+
+/* ---- Match detail modal (new, rich version) ---- */
+function openMatchDetailModal(match, players) {
+  const result = getMatchResult(match.score);
+  const badgeCls = result === 'W' ? 'badge-w' : result === 'D' ? 'badge-d' : 'badge-l';
+  const badgeTxt = result === 'W' ? 'Victòria' : result === 'D' ? 'Empat' : 'Derrota';
+  const resultColor = result === 'W' ? 'var(--neon)' : result === 'L' ? 'var(--red)' : 'var(--text-secondary)';
+  const mvpPlayer = match.mvp ? getPlayerById(players, match.mvp) : null;
+
+  // Duration: optional field on match object
+  const duration = match.duration ? `${match.duration}'` : '—';
+
+  // Goals by our team (all registered goals belong to FC Colla)
+  const ourGoals = [...match.goals].sort((a, b) => a.minute - b.minute);
+  const ourGoalsHTML = ourGoals.length > 0
+    ? ourGoals.map(g => {
+        const p = getPlayerById(players, g.player);
+        const assist = match.assists.find(a => a.minute === g.minute && a.player !== g.player);
+        const assistP = assist ? getPlayerById(players, assist.player) : null;
+        return `
+          <div class="match-detail-goal-row">
+            <span class="mdg-minute">${g.minute}'</span>
+            <span class="mdg-ball">⚽</span>
+            <div class="mdg-info">
+              <span class="mdg-scorer">${p ? (p.emoji + ' ' + p.name) : 'Desconegut'}</span>
+              ${assistP ? `<span class="mdg-assist">🎯 ${assistP.name}</span>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')
+    : `<p class="match-detail-no-goals">Cap gol registrat</p>`;
+
+  // Rival goals count (we only know the number, not who scored)
+  const rivalGoalCount = match.score[1];
+  const rivalGoalsHTML = rivalGoalCount > 0
+    ? Array.from({ length: rivalGoalCount }, (_, i) => `
+        <div class="match-detail-goal-row" style="opacity:0.6;">
+          <span class="mdg-minute">—'</span>
+          <span class="mdg-ball">⚽</span>
+          <div class="mdg-info">
+            <span class="mdg-scorer">${match.rival}</span>
+          </div>
+        </div>
+      `).join('')
+    : `<p class="match-detail-no-goals">Cap gol encaixat</p>`;
+
+  const mvpAvatarInner = mvpPlayer
+    ? (mvpPlayer.photo
+        ? `<img src="${mvpPlayer.photo}" alt="${mvpPlayer.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+        : `<span style="font-size:1.4rem;">${mvpPlayer.emoji}</span>`)
+    : '';
+
+  const content = `
+    <!-- Modal header: scoreboard -->
+    <div class="modal-header" style="background:linear-gradient(160deg,var(--bg-elevated) 0%,var(--bg-base) 100%);border-bottom:1px solid var(--border-subtle);flex-direction:column;align-items:stretch;gap:0;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="font-size:0.6rem;font-weight:700;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--font-display);margin-bottom:12px;">⚽ Resum del Partit</div>
+        <button class="modal-close" id="modal-close-btn" aria-label="Tancar">✕</button>
+      </div>
+
+      <!-- Big scoreboard -->
+      <div class="modal-scoreboard">
+        <div class="modal-team-block">
+          <span class="modal-team-name">FC Colla</span>
+          <span class="modal-team-score" style="color:${resultColor};">${match.score[0]}</span>
+        </div>
+        <div class="modal-score-sep">–</div>
+        <div class="modal-team-block modal-team-right">
+          <span class="modal-team-score" style="color:var(--text-secondary);">${match.score[1]}</span>
+          <span class="modal-team-name">${match.rival}</span>
+        </div>
+      </div>
+
+      <!-- Match meta info -->
+      <div class="modal-match-meta">
+        <span class="match-badge ${badgeCls}" style="font-size:0.6rem;">${badgeTxt}</span>
+        <span class="modal-meta-item">📅 ${formatDate(match.date)}</span>
+        <span class="modal-meta-item">⏱ ${duration}</span>
+      </div>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- MVP -->
+      ${mvpPlayer ? `
+        <div class="modal-mvp-banner">
+          <div class="modal-mvp-avatar">${mvpAvatarInner}</div>
+          <div>
+            <p class="modal-mvp-label">⭐ MVP del Partit</p>
+            <p class="modal-mvp-name">${mvpPlayer.name}</p>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Goals: FC Colla -->
+      <div class="match-detail-team-section">
+        <div class="match-detail-team-header team-us">
+          <span>FC Colla</span>
+          <span class="match-detail-team-score-badge" style="background:var(--neon-dim);color:var(--neon);">${match.score[0]}</span>
+        </div>
+        ${ourGoalsHTML}
+      </div>
+
+      <!-- Goals: Rival -->
+      <div class="match-detail-team-section">
+        <div class="match-detail-team-header team-rival">
+          <span>${match.rival}</span>
+          <span class="match-detail-team-score-badge" style="background:rgba(255,100,100,0.1);color:var(--red);">${match.score[1]}</span>
+        </div>
+        ${rivalGoalsHTML}
+      </div>
+
+    </div>
+  `;
+
+  openModal(content);
 }

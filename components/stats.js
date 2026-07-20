@@ -82,20 +82,39 @@ function renderRivalryView(players, comparison) {
   const pA = players.find(p => p.id === comparison.player1) || players[0];
   const pB = players.find(p => p.id === comparison.player2) || players[1];
 
+  // Build player cards for picker
+  const pickerCards = players.map(p => {
+    const avatarInner = p.photo
+      ? `<img src="${p.photo}" alt="${p.name}">`
+      : p.emoji;
+    const isA = pA && p.id === pA.id;
+    const isB = pB && p.id === pB.id;
+    const activeClass = isA ? 'active-a' : isB ? 'active-b' : '';
+    return `
+      <div class="rivalry-picker-card ${activeClass}" data-player-id="${p.id}" id="rivalry-pick-${p.id}" role="button" tabindex="0" aria-label="Seleccionar ${p.name}">
+        <div class="rivalry-picker-avatar">${avatarInner}</div>
+        <div class="rivalry-picker-name">${p.name}</div>
+      </div>
+    `;
+  }).join('');
+
   return `
     <div class="card">
-      <div class="rivalry-selectors">
-        <select class="rivalry-select" id="rivalry-select-a" aria-label="Jugador A">
-          ${players.map(p => `<option value="${p.id}" ${p.id === pA.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}
-        </select>
-        <div class="rivalry-vs">${t('rivalry_vs')}</div>
-        <select class="rivalry-select" id="rivalry-select-b" aria-label="Jugador B">
-          ${players.map(p => `<option value="${p.id}" ${p.id === pB.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}
-        </select>
+      <div class="rivalry-picker-instructions">
+        <span class="rivalry-picker-hint-a">
+          <span style="width:10px;height:10px;border-radius:50%;background:var(--neon);flex-shrink:0;display:inline-block;"></span>
+          1er toc → Jugador A
+        </span>
+        <span class="rivalry-picker-hint-b">
+          <span style="width:10px;height:10px;border-radius:50%;background:var(--cyan);flex-shrink:0;display:inline-block;"></span>
+          2n toc → Jugador B
+        </span>
       </div>
-
+      <div class="rivalry-player-picker-grid" id="rivalry-picker-grid">
+        ${pickerCards}
+      </div>
       <div id="rivalry-content-wrapper">
-        ${renderRivalryContent(pA, pB)}
+        ${pA && pB ? renderRivalryContent(pA, pB) : '<p style="text-align:center;color:var(--text-muted);padding:20px 0;font-size:0.82rem;">Selecciona dos jugadors per comparar</p>'}
       </div>
     </div>
   `;
@@ -154,22 +173,52 @@ function renderRivalryContent(pA, pB) {
 function initStats(state) {
   const { players } = state;
 
-  // Rivalry selects
-  const selA = document.getElementById('rivalry-select-a');
-  const selB = document.getElementById('rivalry-select-b');
-  if (selA && selB) {
-    const refresh = () => {
-      state.comparison.player1 = parseInt(selA.value);
-      state.comparison.player2 = parseInt(selB.value);
-      const wrapper = document.getElementById('rivalry-content-wrapper');
-      if (wrapper) {
-        const pA = players.find(p => p.id === state.comparison.player1) || players[0];
-        const pB = players.find(p => p.id === state.comparison.player2) || players[1];
-        wrapper.innerHTML = renderRivalryContent(pA, pB);
-      }
-    };
-    selA.addEventListener('change', refresh);
-    selB.addEventListener('change', refresh);
+  // ---- Visual rivalry card picker ----
+  // Track A/B selection state
+  let selectionStep = 'a'; // next click picks A or B
+
+  const grid = document.getElementById('rivalry-picker-grid');
+  if (grid) {
+    grid.querySelectorAll('.rivalry-picker-card').forEach(card => {
+      const handlePick = () => {
+        const pid = parseInt(card.dataset.playerId);
+
+        if (selectionStep === 'a') {
+          state.comparison.player1 = pid;
+          selectionStep = 'b';
+        } else {
+          state.comparison.player2 = pid;
+          selectionStep = 'a';
+        }
+
+        // Re-render section
+        const section = document.getElementById('page-stats');
+        if (section) {
+          const rivalrySection = grid.closest('.section') || grid.closest('.card')?.parentElement;
+          // Refresh just the rivalry part
+          const wrapper = document.getElementById('rivalry-content-wrapper');
+          const newGrid = document.getElementById('rivalry-picker-grid');
+          if (newGrid) {
+            newGrid.querySelectorAll('.rivalry-picker-card').forEach(c => {
+              const cid = parseInt(c.dataset.playerId);
+              c.classList.remove('active-a', 'active-b');
+              if (cid === state.comparison.player1) c.classList.add('active-a');
+              else if (cid === state.comparison.player2) c.classList.add('active-b');
+            });
+          }
+          if (wrapper) {
+            const pA = players.find(p => p.id === state.comparison.player1) || players[0];
+            const pB = players.find(p => p.id === state.comparison.player2) || players[1];
+            if (pA && pB && pA.id !== pB.id) {
+              wrapper.innerHTML = renderRivalryContent(pA, pB);
+            }
+          }
+        }
+      };
+
+      card.addEventListener('click', handlePick);
+      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') handlePick(); });
+    });
   }
 
   // Goals Chart

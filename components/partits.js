@@ -177,7 +177,7 @@ function renderRegistrarForm(state) {
   return `
     <div class="section">
       <div class="card">
-        <form id="register-match-form" novalidate>
+        <form id="register-match-form" novalidate onsubmit="return false">
           <div class="form-group">
             <label class="form-label" for="reg-rival">${t('reg_rival')}</label>
             <input type="text" class="form-input" id="reg-rival" placeholder="${t('reg_rival')}..." required aria-required="true">
@@ -186,6 +186,11 @@ function renderRegistrarForm(state) {
           <div class="form-group">
             <label class="form-label" for="reg-date">${t('reg_date')}</label>
             <input type="date" class="form-input" id="reg-date" value="${new Date().toISOString().split('T')[0]}" required aria-required="true">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg-duration">Durada del Partit (minuts) <span style="color:var(--text-muted);font-weight:400;">(opcional)</span></label>
+            <input type="number" class="form-input" id="reg-duration" placeholder="ex: 90" min="1" max="200" aria-label="Durada en minuts" style="max-width:140px;">
           </div>
 
           <div class="form-group">
@@ -223,7 +228,7 @@ function renderRegistrarForm(state) {
             </button>
           </div>
 
-          <button type="submit" class="btn-primary" id="btn-register-match">
+          <button type="button" class="btn-primary" id="btn-register-match">
             ⚽ ${t('reg_submit')}
           </button>
         </form>
@@ -535,66 +540,78 @@ function initCalendari(state) {
 }
 
 function initRegistrar(state) {
-  const btnAddGoal   = document.getElementById('btn-add-goal');
-  const btnAddAssist = document.getElementById('btn-add-assist');
-  const form         = document.getElementById('register-match-form');
+  const btnAddGoal    = document.getElementById('btn-add-goal');
+  const btnAddAssist  = document.getElementById('btn-add-assist');
+  const btnRegister   = document.getElementById('btn-register-match');
 
-  if (btnAddGoal)   btnAddGoal.addEventListener('click', () => addGoalEntry('goals-list', state.players, 'goal'));
+  if (btnAddGoal)   btnAddGoal.addEventListener('click',   () => addGoalEntry('goals-list',   state.players, 'goal'));
   if (btnAddAssist) btnAddAssist.addEventListener('click', () => addGoalEntry('assists-list', state.players, 'assist'));
 
-  if (form) {
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const rival  = document.getElementById('reg-rival')?.value.trim();
-      const date   = document.getElementById('reg-date')?.value;
-      const us     = parseInt(document.getElementById('reg-score-us')?.value);
-      const them   = parseInt(document.getElementById('reg-score-them')?.value);
-      const mvpVal = document.getElementById('reg-mvp')?.value;
+  // Use button click instead of form submit to avoid file:// URL navigation restrictions
+  if (btnRegister) {
+    btnRegister.addEventListener('click', () => {
+      try {
+        const rival  = document.getElementById('reg-rival')?.value.trim();
+        const date   = document.getElementById('reg-date')?.value;
+        const us     = parseInt(document.getElementById('reg-score-us')?.value);
+        const them   = parseInt(document.getElementById('reg-score-them')?.value);
+        const mvpVal = document.getElementById('reg-mvp')?.value;
 
-      if (!rival || !date || isNaN(us) || isNaN(them)) {
-        showToast(t('reg_fill_fields'));
-        return;
+        console.log('[Registrar] submit - rival:', rival, 'date:', date, 'us:', us, 'them:', them);
+
+        if (!rival || !date || isNaN(us) || isNaN(them)) {
+          showToast(t('reg_fill_fields'));
+          return;
+        }
+
+        const goals = [];
+        document.querySelectorAll('#goals-list .goal-entry').forEach(entry => {
+          const pid = parseInt(entry.querySelector('.goal-player')?.value);
+          const min = parseInt(entry.querySelector('.goal-minute')?.value) || 0;
+          if (pid) goals.push({ player: pid, minute: min });
+        });
+
+        const assists = [];
+        document.querySelectorAll('#assists-list .goal-entry').forEach(entry => {
+          const pid = parseInt(entry.querySelector('.goal-player')?.value);
+          const min = parseInt(entry.querySelector('.goal-minute')?.value) || 0;
+          if (pid) assists.push({ player: pid, minute: min });
+        });
+
+        const durRaw = parseInt(document.getElementById('reg-duration')?.value);
+        const newMatch = {
+          id: Date.now(),
+          rival,
+          date,
+          score: [us, them],
+          mvp: mvpVal ? parseInt(mvpVal) : null,
+          goals,
+          assists,
+          duration: isNaN(durRaw) ? null : durRaw,
+        };
+
+        console.log('[Registrar] newMatch:', newMatch);
+
+        // Add match and update ELO
+        state.matches.push(newMatch);
+        state.players = ELO.processMatch(state.players, newMatch);
+        saveState(state);
+
+        showToast(`✅ ${t('reg_success')}`);
+        state.partitsTab = 'historial';
+
+        // Re-render partits page
+        const page = document.getElementById('page-partits');
+        page.innerHTML = renderPartits(state);
+        initPartits(state);
+      } catch (err) {
+        console.error('[Registrar] Error al registrar partit:', err);
+        showToast('❌ Error al registrar. Revisa la consola.');
       }
-
-      const goals = [];
-      document.querySelectorAll('#goals-list .goal-entry').forEach(entry => {
-        const pid = parseInt(entry.querySelector('.goal-player')?.value);
-        const min = parseInt(entry.querySelector('.goal-minute')?.value) || 0;
-        if (pid) goals.push({ player: pid, minute: min });
-      });
-
-      const assists = [];
-      document.querySelectorAll('#assists-list .goal-entry').forEach(entry => {
-        const pid = parseInt(entry.querySelector('.goal-player')?.value);
-        const min = parseInt(entry.querySelector('.goal-minute')?.value) || 0;
-        if (pid) assists.push({ player: pid, minute: min });
-      });
-
-      const newMatch = {
-        id: Date.now(),
-        rival,
-        date,
-        score: [us, them],
-        mvp: mvpVal ? parseInt(mvpVal) : null,
-        goals,
-        assists,
-      };
-
-      // Add match and update ELO
-      state.matches.push(newMatch);
-      state.players = ELO.processMatch(state.players, newMatch);
-      saveState(state);
-
-      showToast(`✅ ${t('reg_success')}`);
-      state.partitsTab = 'historial';
-
-      // Re-render partits page
-      const page = document.getElementById('page-partits');
-      page.innerHTML = renderPartits(state);
-      initPartits(state);
     });
   }
 }
+
 
 function initAlineacio(state) {
   const tabEl = document.getElementById('tab-content-alineacio');

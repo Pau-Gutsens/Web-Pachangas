@@ -64,6 +64,7 @@ function loadState() {
 function updateHeader(page, state) {
   const titleEl = document.getElementById('app-title');
   const badgeEl = document.getElementById('header-badge');
+  const userStatusEl = document.getElementById('header-user-status');
   if (!titleEl || !badgeEl) return;
 
   // Remove previous classes
@@ -90,6 +91,49 @@ function updateHeader(page, state) {
       badgeEl.textContent = `${state.players.length} ${t('players_count')}`;
       badgeEl.classList.add('badge-gold');
       break;
+  }
+
+  // Update active user status in header
+  if (userStatusEl) {
+    if (state.currentUserId) {
+      if (state.currentUserId === 'guest') {
+        userStatusEl.innerHTML = `
+          <div class="header-user-pill" style="cursor: default;">
+            <div class="header-user-avatar">👤</div>
+            <div class="header-user-info">
+              <span class="header-user-name">${t('login_guest_btn')}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        const player = state.players.find(p => p.id === state.currentUserId);
+        if (player) {
+          userStatusEl.innerHTML = `
+            <div class="header-user-pill" id="header-user-pill-btn" role="button" tabindex="0" aria-label="Veure el meu perfil">
+              <div class="header-user-avatar">
+                ${player.photo ? `<img src="${player.photo}">` : player.emoji}
+              </div>
+              <div class="header-user-info">
+                <span class="header-user-name">${player.name}</span>
+                <span class="header-user-elo">${player.elo} ELO</span>
+              </div>
+            </div>
+          `;
+          const btn = document.getElementById('header-user-pill-btn');
+          if (btn) {
+            btn.addEventListener('click', () => {
+              if (typeof openPlayerModal === 'function') {
+                openPlayerModal(player, state.players, state.matches);
+              }
+            });
+          }
+        } else {
+          userStatusEl.innerHTML = '';
+        }
+      }
+    } else {
+      userStatusEl.innerHTML = '';
+    }
   }
 }
 
