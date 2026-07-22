@@ -65,31 +65,28 @@ function updateHeader(page, state) {
   const titleEl = document.getElementById('app-title');
   const badgeEl = document.getElementById('header-badge');
   const userStatusEl = document.getElementById('header-user-status');
-  if (!titleEl || !badgeEl) return;
+  if (!titleEl) return;
 
-  // Remove previous classes
-  badgeEl.className = 'header-badge';
+  if (badgeEl) {
+    badgeEl.className = 'header-badge';
+  }
 
   switch (page) {
     case 'home':
       titleEl.textContent = 'FC😎';
-      badgeEl.textContent = `${t('season')} 26`;
-      badgeEl.classList.add('badge-neon');
+      if (badgeEl) { badgeEl.textContent = `${t('season')} 26`; badgeEl.classList.add('badge-neon'); }
       break;
     case 'stats':
       titleEl.textContent = t('stats_title');
-      badgeEl.textContent = 'ELO · Gols';
-      badgeEl.classList.add('badge-cyan');
+      if (badgeEl) { badgeEl.textContent = 'ELO · Gols'; badgeEl.classList.add('badge-cyan'); }
       break;
     case 'partits':
       titleEl.textContent = t('matches_title');
-      badgeEl.textContent = `${state.matches.length} ${t('played')}`;
-      badgeEl.classList.add('badge-orange');
+      if (badgeEl) { badgeEl.textContent = `${state.matches.length} ${t('played')}`; badgeEl.classList.add('badge-orange'); }
       break;
     case 'perfil':
       titleEl.textContent = t('players_title');
-      badgeEl.textContent = `${state.players.length} ${t('players_count')}`;
-      badgeEl.classList.add('badge-gold');
+      if (badgeEl) { badgeEl.textContent = `${state.players.length} ${t('players_count')}`; badgeEl.classList.add('badge-gold'); }
       break;
   }
 
@@ -101,7 +98,7 @@ function updateHeader(page, state) {
           <div class="header-user-pill" style="cursor: default;">
             <div class="header-user-avatar">👤</div>
             <div class="header-user-info">
-              <span class="header-user-name">${t('login_guest_btn')}</span>
+              <span class="header-user-name">${t('guest_short') || 'Convidat'}</span>
             </div>
           </div>
         `;
