@@ -4838,3 +4838,52 @@ a { text-decoration: none; color: inherit; }
   font-weight: 700;
   color: var(--neon);
 }
+
+/* ---- Multiple Upcoming Matches Grid ---- */
+.multiple-upcoming-container {
+  padding: 4px 0;
+}
+
+.muc-title {
+  font-size: 0.72rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.upcoming-matches-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* When multiple cards: make them slightly more compact */
+.upcoming-matches-grid .last-match-hero {
+  margin: 0;
+}
+
+.upcoming-matches-grid .upcoming-date-main {
+  font-size: 1.5rem;
+}
+
+/* Lineup match selector wrapper */
+.lineup-match-selector-wrapper select {
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 10px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.lineup-match-selector-wrapper select:focus {
+  outline: none;
+  border-color: var(--neon);
+  box-shadow: 0 0 0 3px rgba(179, 142, 255, 0.15);
+}

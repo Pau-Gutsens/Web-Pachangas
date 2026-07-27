@@ -312,19 +312,43 @@ function getActivePositions(state) {
 
 function renderAlineacio(state) {
   syncDragStateTeam();
-  const upcoming = getUpcomingJornada(state);
+  const upcomingJornades = getUpcomingJornades(state);
+  const upcoming = (state.activeLineupJornada && upcomingJornades.find(j => String(j.jornada) === String(state.activeLineupJornada)))
+    || upcomingJornades[0]
+    || getUpcomingJornada(state);
+
   const isCollaMode = DRAG_STATE.viewMode === 'colla_proposals';
 
   const proposalsForJornada = (state.lineupProposals && state.lineupProposals[upcoming.jornada]) || {};
   const proposalCount = Object.keys(proposalsForJornada).length;
 
+  const hasSpecificRival = upcoming.rival && upcoming.rival.trim().toLowerCase() !== 'rival' && upcoming.rival.trim() !== '';
+
+  const matchSelectHTML = upcomingJornades.length > 1 ? `
+    <div class="lineup-match-selector-wrapper" style="margin-bottom: 10px;">
+      <label for="lineup-match-select" style="font-size: 0.7rem; font-family: var(--font-display); font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">
+        🎯 Seleccionar Partit Programat:
+      </label>
+      <select id="lineup-match-select" class="form-select" style="padding: 8px 12px; font-size: 0.85rem; font-weight: 600; background: var(--bg-card); color: var(--text-primary); border-color: var(--border-subtle); width: 100%;">
+        ${upcomingJornades.map(j => {
+          const rStr = j.rival && j.rival.trim().toLowerCase() !== 'rival' ? 'vs ' + j.rival : 'Partit';
+          return `
+            <option value="${j.jornada}" ${String(j.jornada) === String(upcoming.jornada) ? 'selected' : ''}>
+              ${rStr} (${formatDate(j.date)})
+            </option>
+          `;
+        }).join('')}
+      </select>
+    </div>
+  ` : '';
+
   const bannerHTML = `
     <div class="lineup-match-banner">
+      ${matchSelectHTML}
       <div class="lmb-top">
-        <span class="match-badge badge-upcoming">J${upcoming.jornada}</span>
         <div class="lmb-title-group">
-          <h3 class="lmb-title">vs <strong>${upcoming.rival}</strong></h3>
-          <span class="lmb-date">📅 ${formatDate(upcoming.date)}</span>
+          <h3 class="lmb-title">${hasSpecificRival ? 'vs <strong>' + upcoming.rival + '</strong>' : 'Partit Programat'}</h3>
+          <span class="lmb-date">📅 ${formatDate(upcoming.date)}${upcoming.time ? ' ⏱ ' + upcoming.time : ''}</span>
         </div>
       </div>
       <div class="lmb-mode-selector">
@@ -397,7 +421,7 @@ function renderAlineacio(state) {
     <div class="tactical-wrapper">
       ${bannerHTML}
 
-      <!-- Team Selector Switcher -->
+      <!-- Team Selector Switcher & AI Balance Button -->
       <div class="team-selector-card">
         <span class="tsc-label">${t('select_team_label')}</span>
         <div class="tsc-tabs">
@@ -408,6 +432,9 @@ function renderAlineacio(state) {
             ⬛ ${t('team_b')} <span class="tsc-badge">${DRAG_STATE.teamFormations.teamB || '4-3-3'}</span>
           </button>
         </div>
+        <button class="btn-secondary" id="btn-suggest-balanced-teams" style="margin-top: 8px; font-size: 0.8rem; font-weight: 700; background: linear-gradient(135deg, rgba(103, 232, 249, 0.12) 0%, rgba(167, 139, 250, 0.12) 100%); border: 1px solid var(--neon-dim); color: var(--text-primary); border-radius: 8px; padding: 8px 12px; cursor: pointer;">
+          ${t('suggest_balanced_teams')}
+        </button>
       </div>
 
       <div class="tactical-formation-selector" id="formation-selector">
@@ -885,6 +912,80 @@ function initRegistrar(state) {
 }
 
 
+function getActivePositionsForTeam(teamKey, state) {
+  const customFormations = (state && state.customFormations) || window.APP_STATE.customFormations || {};
+  const formationKey = (DRAG_STATE.teamFormations && DRAG_STATE.teamFormations[teamKey]) || '4-3-3';
+  if (customFormations[formationKey]) {
+    return JSON.parse(JSON.stringify(customFormations[formationKey]));
+  } else if (FORMATIONS[formationKey]) {
+    return JSON.parse(JSON.stringify(FORMATIONS[formationKey]));
+  }
+  return JSON.parse(JSON.stringify(FORMATIONS['4-3-3']));
+}
+
+function suggestBalancedTeams(state) {
+  const players = state.players || [];
+  if (players.length < 2) return;
+
+  // Calculate composite skill score incorporating ELO, goals/game, assists/game, winRate
+  const scoredPlayers = players.map(p => {
+    const pj = p.matches || 1;
+    const goalsPerGame = p.goals / pj;
+    const assistsPerGame = p.assists / pj;
+    const winRate = getWinRate(p);
+    const score = p.elo + (goalsPerGame * 50) + (assistsPerGame * 40) + (winRate * 2);
+    return { ...p, score };
+  });
+
+  // Sort by composite skill score descending
+  scoredPlayers.sort((a, b) => b.score - a.score);
+
+  // Snake draft partitioning into Team A and Team B to equalize average ELO/score
+  const teamAPlayers = [];
+  const teamBPlayers = [];
+  let sumA = 0;
+  let sumB = 0;
+
+  scoredPlayers.forEach((p, idx) => {
+    if (sumA <= sumB) {
+      teamAPlayers.push(p);
+      sumA += p.score;
+    } else {
+      teamBPlayers.push(p);
+      sumB += p.score;
+    }
+  });
+
+  const posA = getActivePositionsForTeam('teamA', state);
+  const posB = getActivePositionsForTeam('teamB', state);
+
+  const teamAPositionsMap = {};
+  posA.forEach((posObj, idx) => {
+    if (teamAPlayers[idx]) {
+      teamAPositionsMap[posObj.pos] = teamAPlayers[idx].id;
+    }
+  });
+
+  const teamBPositionsMap = {};
+  posB.forEach((posObj, idx) => {
+    if (teamBPlayers[idx]) {
+      teamBPositionsMap[posObj.pos] = teamBPlayers[idx].id;
+    }
+  });
+
+  if (!DRAG_STATE.teamPositions) DRAG_STATE.teamPositions = {};
+  DRAG_STATE.teamPositions.teamA = teamAPositionsMap;
+  DRAG_STATE.teamPositions.teamB = teamBPositionsMap;
+
+  syncDragStateTeam();
+
+  const avgEloA = Math.round(teamAPlayers.reduce((sum, p) => sum + p.elo, 0) / (teamAPlayers.length || 1));
+  const avgEloB = Math.round(teamBPlayers.reduce((sum, p) => sum + p.elo, 0) / (teamBPlayers.length || 1));
+
+  showToast(`⚖️ Equips equilibrats generats! (Elo mitjà: ⚪ ${avgEloA} vs ⬛ ${avgEloB})`);
+}
+
+
 function initAlineacio(state) {
   const tabEl = document.getElementById('tab-content-alineacio');
 
@@ -893,6 +994,30 @@ function initAlineacio(state) {
       tabEl.innerHTML = renderAlineacio(state);
       initAlineacio(state);
     }
+  }
+
+  // --- Smart Balanced Team Generator ---
+  const btnSuggestTeams = document.getElementById('btn-suggest-balanced-teams');
+  if (btnSuggestTeams) {
+    btnSuggestTeams.addEventListener('click', () => {
+      suggestBalancedTeams(state);
+      DRAG_STATE.activePositions = null;
+      rerender();
+    });
+  }
+
+  // --- Match Selector (when multiple upcoming matches exist) ---
+  const matchSelect = document.getElementById('lineup-match-select');
+  if (matchSelect) {
+    matchSelect.addEventListener('change', () => {
+      state.activeLineupJornada = matchSelect.value;
+      // Reset team drag state when switching matches
+      DRAG_STATE.activePositions = null;
+      DRAG_STATE.teamPositions = { teamA: {}, teamB: {} };
+      DRAG_STATE.currentTeam = 'teamA';
+      syncDragStateTeam();
+      rerender();
+    });
   }
 
   // --- View Mode Switcher (My proposal vs Colla proposals) ---
@@ -917,7 +1042,10 @@ function initAlineacio(state) {
   const btnSaveProposal = document.getElementById('btn-save-proposal');
   if (btnSaveProposal) {
     btnSaveProposal.addEventListener('click', () => {
-      const upcoming = getUpcomingJornada(state);
+      const upcomingList = getUpcomingJornades(state);
+      const upcoming = (state.activeLineupJornada && upcomingList.find(j => String(j.jornada) === String(state.activeLineupJornada)))
+        || upcomingList[0]
+        || getUpcomingJornada(state);
       const jornadaKey = upcoming.jornada;
       if (!state.lineupProposals) state.lineupProposals = {};
       if (!state.lineupProposals[jornadaKey]) state.lineupProposals[jornadaKey] = {};
@@ -951,7 +1079,10 @@ function initAlineacio(state) {
   document.querySelectorAll('[data-load-proposal]').forEach(btn => {
     btn.addEventListener('click', () => {
       const targetUserId = btn.dataset.loadProposal;
-      const upcoming = getUpcomingJornada(state);
+      const upcomingList = getUpcomingJornades(state);
+      const upcoming = (state.activeLineupJornada && upcomingList.find(j => String(j.jornada) === String(state.activeLineupJornada)))
+        || upcomingList[0]
+        || getUpcomingJornada(state);
       const proposals = (state.lineupProposals && state.lineupProposals[upcoming.jornada]) || {};
       const prop = proposals[targetUserId];
 

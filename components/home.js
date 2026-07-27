@@ -4,88 +4,105 @@
 
 function renderHome(state) {
   const { players, matches } = state;
+  const upcomingJornades = getUpcomingJornades(state);
 
-  // Find the next upcoming match from the calendar (matchId null = not played yet)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const playedIds = new Set(matches.map(m => m.id));
-  const fullCalendar = getFullCalendar(state);
-  const upcomingJornada = fullCalendar
-    .filter(j => !j.matchId || !playedIds.has(j.matchId))
-    .filter(j => !j.matchId) // truly unplayed (no matchId linked)
-    .map(j => ({ ...j, dateObj: new Date(j.date) }))
-    .sort((a, b) => a.dateObj - b.dateObj)
-    .find(j => j.dateObj >= today); // next future one
-
-  // Also look for the most recent past unplayed entry (already past but not registered)
-  const pastPending = fullCalendar
-    .filter(j => !j.matchId)
-    .map(j => ({ ...j, dateObj: new Date(j.date) }))
-    .sort((a, b) => b.dateObj - a.dateObj)
-    .find(j => j.dateObj < today);
-
-  // Priority: upcoming future > past unregistered > last played
-  const pendingJornada = upcomingJornada || pastPending || null;
-
-  const lastMatch = pendingJornada
+  const lastMatch = upcomingJornades.length > 0
     ? null
     : [...matches].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
 
+  if (upcomingJornades.length === 0) {
+    return renderLastMatchHero(lastMatch, players);
+  }
+
+  if (upcomingJornades.length === 1) {
+    return renderUpcomingCard(upcomingJornades[0]);
+  }
+
+  // Multiple upcoming matches: render all in a grid/list
+  const cardsHTML = upcomingJornades.map(j => renderUpcomingCard(j)).join('');
+
   return `
-    <!-- Note: header is now globally rendered by app shell -->
-    ${pendingJornada
-      ? renderUpcomingCard(pendingJornada)
-      : renderLastMatchHero(lastMatch, players)
-    }
+    <div class="multiple-upcoming-container">
+      <h3 class="muc-title">📅 Pròxims Partits Programats (${upcomingJornades.length})</h3>
+      <div class="upcoming-matches-grid">
+        ${cardsHTML}
+      </div>
+    </div>
   `;
 }
 
 /* ---- Upcoming match card ---- */
 function renderUpcomingCard(jornada) {
   const dateObj = new Date(jornada.date);
+  const timeStr = jornada.time || '20:00';
+  const daysLabel = daysUntil(dateObj, timeStr);
+
   const now = new Date();
   now.setHours(0, 0, 0, 0);
+  const matchDay = new Date(jornada.date);
+  matchDay.setHours(0, 0, 0, 0);
+  const isFuture = matchDay >= now;
 
-  const isFuture = dateObj >= now;
-  const daysLabel = !isFuture ? 'Pendent de registrar' : daysUntil(dateObj);
+  const hasSpecificRival = jornada.rival && jornada.rival.trim().toLowerCase() !== 'rival' && jornada.rival.trim() !== '';
   const ctaTitle = isFuture ? (t('prepare_lineup_cta') || 'Preparar Alineació') : 'Toca per registrar el resultat';
 
   return `
     <div class="last-match-hero upcoming-card"
          id="upcoming-match-card"
-         data-rival="${jornada.rival}"
+         data-rival="${jornada.rival || ''}"
          data-date="${jornada.date}"
          data-jornada="${jornada.jornada}"
          data-is-future="${isFuture}"
          role="button"
          tabindex="0"
          style="cursor:pointer;"
-         aria-label="${ctaTitle} vs ${jornada.rival}">
+         aria-label="${ctaTitle} ${hasSpecificRival ? 'vs ' + jornada.rival : ''}">
       <div class="lmh-top-row">
         <p class="lmh-label">${isFuture ? '📅 Pròxim Partit' : '⏳ Partit Pendent'}</p>
-        <span class="match-badge badge-upcoming">J${jornada.jornada}</span>
       </div>
-      <p class="lmh-rival">vs <strong>${jornada.rival}</strong></p>
-      <div class="upcoming-date-block">
+      ${hasSpecificRival ? `<p class="lmh-rival">vs <strong>${jornada.rival}</strong></p>` : ''}
+      <div class="upcoming-date-block" style="${!hasSpecificRival ? 'margin-top:10px;' : ''}">
         <span class="upcoming-date-main">${formatDate(jornada.date)}</span>
         <span class="upcoming-days-left">${daysLabel}</span>
       </div>
       <div class="upcoming-cta">
-        <span>${isFuture ? `📐 <strong>${ctaTitle}</strong> (Suggeriment)` : '⚽ Toca per registrar el resultat'}</span>
+        <span>${isFuture ? `<strong>${ctaTitle}</strong>` : 'Toca per registrar el resultat'}</span>
         <span class="lmh-cta-arrow">→</span>
       </div>
     </div>
   `;
 }
 
-function daysUntil(dateObj) {
+function daysUntil(dateObj, timeStr) {
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const diff = Math.round((dateObj - now) / (1000 * 60 * 60 * 24));
-  if (diff === 0) return 'Avui!';
-  if (diff === 1) return 'Demà';
-  return `En ${diff} dies`;
+  const matchDate = new Date(dateObj);
+
+  if (timeStr) {
+    const parts = timeStr.split(':').map(Number);
+    matchDate.setHours(parts[0] || 20, parts[1] || 0, 0, 0);
+  } else {
+    matchDate.setHours(20, 0, 0, 0);
+  }
+
+  const diffMs = matchDate - now;
+
+  if (diffMs <= 0) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dOnly = new Date(dateObj);
+    dOnly.setHours(0, 0, 0, 0);
+    if (dOnly.getTime() === today.getTime()) return 'Avui!';
+    return 'Pendent de registrar';
+  }
+
+  const hoursLeft = Math.ceil(diffMs / (1000 * 60 * 60));
+  if (hoursLeft < 24) {
+    return hoursLeft === 1 ? 'En 1 hora' : `En ${hoursLeft} hores`;
+  }
+
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 1) return 'Demà';
+  return `En ${diffDays} dies`;
 }
 
 /* ---- Last played match hero (minimal) ---- */
@@ -163,20 +180,22 @@ function initHome(state) {
     });
   }
 
-  // Upcoming match card click → navigate to lineup selection if before match date, or register tab if past
-  const upcomingCard = document.getElementById('upcoming-match-card');
-  if (upcomingCard) {
+  // Upcoming match cards click → set active match and navigate to lineup selection if future, or register tab if past
+  document.querySelectorAll('.upcoming-card').forEach(card => {
     const handleUpcomingClick = () => {
-      const isFuture = upcomingCard.dataset.isFuture === 'true';
+      const isFuture = card.dataset.isFuture === 'true';
+      const jornadaVal = card.dataset.jornada;
+      if (jornadaVal) {
+        state.activeLineupJornada = jornadaVal;
+      }
       if (isFuture) {
         state.partitsTab = 'alineacio';
         navigate('partits');
       } else {
-        const rival = upcomingCard.dataset.rival || '';
-        const date  = upcomingCard.dataset.date  || '';
+        const rival = card.dataset.rival || '';
+        const date  = card.dataset.date  || '';
         state.partitsTab = 'registrar';
         navigate('partits');
-        // navigate() is sync but DOM paint may lag — use rAF to prefill safely
         requestAnimationFrame(() => {
           const rivalInput = document.getElementById('reg-rival');
           const dateInput  = document.getElementById('reg-date');
@@ -185,11 +204,11 @@ function initHome(state) {
         });
       }
     };
-    upcomingCard.addEventListener('click', handleUpcomingClick);
-    upcomingCard.addEventListener('keydown', e => {
+    card.addEventListener('click', handleUpcomingClick);
+    card.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') handleUpcomingClick();
     });
-  }
+  });
 }
 
 /* ---- Match detail modal (new, rich version) ---- */

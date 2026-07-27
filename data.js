@@ -321,3 +321,22 @@ function getAvgAssists(players) {
   const total = players.reduce((sum, p) => sum + p.assists, 0);
   return (total / players.length).toFixed(1);
 }
+
+// ---- Calendar Helpers (available globally before components load) ----
+function getFullCalendar(state) {
+  const base = typeof SEASON_CALENDAR !== 'undefined' ? SEASON_CALENDAR : [];
+  const custom = (state && state.customCalendar) || [];
+  const combined = [...base, ...custom];
+  return combined.sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+// Returns all unplayed calendar entries (future + past unregistered), sorted by date ascending
+function getUpcomingJornades(state) {
+  const fullCalendar = getFullCalendar(state);
+  const playedIds = new Set(((state && state.matches) || []).map(m => String(m.id)));
+  return fullCalendar
+    .filter(j => !j.matchId || !playedIds.has(String(j.matchId)))
+    .filter(j => !j.matchId)
+    .map(j => ({ ...j, dateObj: new Date(j.date) }))
+    .sort((a, b) => a.dateObj - b.dateObj);
+}

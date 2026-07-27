@@ -21,13 +21,6 @@ window.APP_STATE = {
   currentUserId: null,    // Logged player ID or 'guest' or null
 };
 
-// Global helper to get merged calendar (SEASON_CALENDAR + custom scheduled matches)
-function getFullCalendar(state) {
-  const base = typeof SEASON_CALENDAR !== 'undefined' ? SEASON_CALENDAR : [];
-  const custom = (state && state.customCalendar) || (window.APP_STATE && window.APP_STATE.customCalendar) || [];
-  const combined = [...base, ...custom];
-  return combined.sort((a, b) => new Date(a.date) - new Date(b.date));
-}
 
 // ---- Persistence ----
 function saveState(state) {
@@ -38,6 +31,7 @@ function saveState(state) {
       customCalendar: state.customCalendar || [],
       customFormations: state.customFormations || {},
       lineupProposals: state.lineupProposals || {},
+      activeLineupJornada: state.activeLineupJornada || null,
       lang: state.lang || 'ca',
       currentUserId: state.currentUserId,
     };
@@ -58,6 +52,7 @@ function loadState() {
         customCalendar: parsed.customCalendar || [],
         customFormations: parsed.customFormations || {},
         lineupProposals: parsed.lineupProposals || {},
+        activeLineupJornada: parsed.activeLineupJornada || null,
         lang: parsed.lang || 'ca',
         currentUserId: parsed.currentUserId !== undefined ? parsed.currentUserId : null,
       };
@@ -71,6 +66,7 @@ function loadState() {
     customCalendar: [],
     customFormations: {},
     lineupProposals: {},
+    activeLineupJornada: null,
     lang: 'ca',
     currentUserId: null,
   };
