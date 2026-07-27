@@ -77,7 +77,7 @@ window.TRANSLATIONS = {
     reg_success: "Partit registrat correctament!",
     reg_fill_fields: "Omple tots els camps obligatoris",
 
-    // Lineup
+    // Lineup & Proposals
     assign_players: "Assignar jugadors a posicions",
     edit_positions: "Editar posicions",
     add_position: "Afegir",
@@ -89,6 +89,29 @@ window.TRANSLATIONS = {
     edit_mode_active: "Mode edició actiu — arrossega les posicions al camp",
     edit_mode_hint: "🖱️ Arrossega les posicions al camp per moure-les.<br>✏️ Fes clic als noms per editar-los.<br>✕ Elimina posicions amb el botó vermell.",
     no_assign: "— Sense assignar —",
+    upcoming_lineup_title: "Suggeriment d'Alineació per al Partit",
+    prepare_lineup_cta: "Preparar Alineació",
+    prepare_lineup_sub: "Toca per triar equip, formació i posició",
+    select_team_label: "Selecciona el teu equip:",
+    team_a: "Equip A (Blanc)",
+    team_b: "Equip B (Negre)",
+    save_proposal_btn: "💾 Desar el meu suggeriment",
+    proposal_saved_toast: "✅ El teu suggeriment d'alineació s'ha desat!",
+    colla_proposals_title: "👥 Suggeriments de la Colla",
+    view_my_proposal: "El meu suggeriment",
+    view_colla_proposals: "Suggeriments dels companys",
+    no_proposals_yet: "Encara cap company ha desat el seu suggeriment.",
+    suggested_by: "Proposat per",
+    most_voted_formation: "Formació més votada",
+
+    // Schedule Match
+    schedule_match: "Programar Partit",
+    schedule_match_title: "📅 Programar Nou Partit",
+    match_time: "Hora del Partit (opcional)",
+    match_location: "Lloc / Camp (opcional)",
+    match_notes: "Observacions / Format (opcional)",
+    schedule_submit: "Programar Partit",
+    schedule_success: "Partit programat correctament!",
 
     // Players
     search_player: "Cercar jugador...",
@@ -224,7 +247,7 @@ window.TRANSLATIONS = {
     reg_success: "¡Partido registrado correctamente!",
     reg_fill_fields: "Rellena todos los campos obligatorios",
 
-    // Lineup
+    // Lineup & Proposals
     assign_players: "Asignar jugadores a posiciones",
     edit_positions: "Editar posiciones",
     add_position: "Añadir",
@@ -236,6 +259,29 @@ window.TRANSLATIONS = {
     edit_mode_active: "Modo edición activo — arrastra las posiciones en el campo",
     edit_mode_hint: "🖱️ Arrastra las posiciones en el campo para moverlas.<br>✏️ Haz clic en los nombres para editarlos.<br>✕ Elimina posiciones con el botón rojo.",
     no_assign: "— Sin asignar —",
+    upcoming_lineup_title: "Sugerencia de Alineación para el Partido",
+    prepare_lineup_cta: "Preparar Alineación",
+    prepare_lineup_sub: "Toca para elegir equipo, formación y posición",
+    select_team_label: "Selecciona tu equipo:",
+    team_a: "Equipo A (Blanco)",
+    team_b: "Equipo B (Negro)",
+    save_proposal_btn: "💾 Guardar mi sugerencia",
+    proposal_saved_toast: "✅ ¡Tu sugerencia de alineación ha sido guardada!",
+    colla_proposals_title: "👥 Sugerencias del Grupo",
+    view_my_proposal: "Mi sugerencia",
+    view_colla_proposals: "Sugerencias de los compañeros",
+    no_proposals_yet: "Ningún compañero ha guardado su sugerencia todavía.",
+    suggested_by: "Propuesto por",
+    most_voted_formation: "Formación más votada",
+
+    // Schedule Match
+    schedule_match: "Programar Partido",
+    schedule_match_title: "📅 Programar Nuevo Partido",
+    match_time: "Hora del Partido (opcional)",
+    match_location: "Lugar / Campo (opcional)",
+    match_notes: "Observaciones / Formato (opcional)",
+    schedule_submit: "Programar Partido",
+    schedule_success: "¡Partido programado correctamente!",
 
     // Players
     search_player: "Buscar jugador...",
@@ -368,7 +414,7 @@ window.TRANSLATIONS = {
     reg_success: "Match registered successfully!",
     reg_fill_fields: "Fill in all required fields",
 
-    // Lineup
+    // Lineup & Proposals
     assign_players: "Assign players to positions",
     edit_positions: "Edit positions",
     add_position: "Add",
@@ -380,6 +426,29 @@ window.TRANSLATIONS = {
     edit_mode_active: "Edit mode active — drag positions on the field",
     edit_mode_hint: "🖱️ Drag positions on the field to move them.<br>✏️ Click names to edit them.<br>✕ Remove positions with the red button.",
     no_assign: "— Unassigned —",
+    upcoming_lineup_title: "Match Lineup Suggestion",
+    prepare_lineup_cta: "Prepare Lineup",
+    prepare_lineup_sub: "Tap to choose team, formation, and position",
+    select_team_label: "Select your team:",
+    team_a: "Team A (White)",
+    team_b: "Team B (Black)",
+    save_proposal_btn: "💾 Save my suggestion",
+    proposal_saved_toast: "✅ Your lineup suggestion has been saved!",
+    colla_proposals_title: "👥 Teammates' Suggestions",
+    view_my_proposal: "My suggestion",
+    view_colla_proposals: "Teammates' suggestions",
+    no_proposals_yet: "No teammate has saved a suggestion yet.",
+    suggested_by: "Suggested by",
+    most_voted_formation: "Most voted formation",
+
+    // Schedule Match
+    schedule_match: "Schedule Match",
+    schedule_match_title: "📅 Schedule New Match",
+    match_time: "Match Time (optional)",
+    match_location: "Location / Field (optional)",
+    match_notes: "Notes / Format (optional)",
+    schedule_submit: "Schedule Match",
+    schedule_success: "Match scheduled successfully!",
 
     // Players
     search_player: "Search player...",

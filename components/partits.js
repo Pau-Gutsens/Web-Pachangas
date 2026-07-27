@@ -2,15 +2,44 @@
 //  COMPONENTS/PARTITS.JS — Pàgina de partits (4 tabs)
 // ============================================================
 
-// Drag state for tactical editor
+// Drag state for tactical editor & lineup proposal system
 const DRAG_STATE = {
   dragging: null,
-  playerPositions: {},   // { posId: playerId }
-  formation: '4-3-3',
+  currentTeam: 'teamA',   // 'teamA' or 'teamB'
+  viewMode: 'my_proposal', // 'my_proposal' or 'colla_proposals'
+  teamFormations: { teamA: '4-3-3', teamB: '4-3-3' },
+  teamPositions: { teamA: {}, teamB: {} },
+  playerPositions: {},   // points to DRAG_STATE.teamPositions[DRAG_STATE.currentTeam]
+  formation: '4-3-3',     // points to DRAG_STATE.teamFormations[DRAG_STATE.currentTeam]
   activePositions: null, // working copy of positions array [{pos,x,y,label}]
   editMode: false,       // true = editing positions
   nextPosId: 100,        // auto-increment for new custom positions
 };
+
+function syncDragStateTeam() {
+  if (!DRAG_STATE.currentTeam) DRAG_STATE.currentTeam = 'teamA';
+  if (!DRAG_STATE.teamFormations) DRAG_STATE.teamFormations = { teamA: '4-3-3', teamB: '4-3-3' };
+  if (!DRAG_STATE.teamPositions) DRAG_STATE.teamPositions = { teamA: {}, teamB: {} };
+  if (!DRAG_STATE.teamPositions.teamA) DRAG_STATE.teamPositions.teamA = {};
+  if (!DRAG_STATE.teamPositions.teamB) DRAG_STATE.teamPositions.teamB = {};
+
+  const team = DRAG_STATE.currentTeam;
+  DRAG_STATE.formation = DRAG_STATE.teamFormations[team] || '4-3-3';
+  DRAG_STATE.playerPositions = DRAG_STATE.teamPositions[team];
+}
+
+function getUpcomingJornada(state) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const playedIds = new Set((state.matches || []).map(m => m.id));
+  const fullCalendar = getFullCalendar(state);
+  return fullCalendar
+    .filter(j => !j.matchId || !playedIds.has(j.matchId))
+    .filter(j => !j.matchId)
+    .map(j => ({ ...j, dateObj: new Date(j.date) }))
+    .sort((a, b) => a.dateObj - b.dateObj)
+    .find(j => j.dateObj >= today) || fullCalendar[fullCalendar.length - 1];
+}
 
 function renderPartits(state) {
   const activeTab = state.partitsTab || 'historial';
@@ -111,9 +140,10 @@ function renderMatchCard(match, players) {
 function renderCalendari(state) {
   const { matches } = state;
   const played = matches.reduce((acc, m) => { acc[m.id] = m; return acc; }, {});
+  const fullCalendar = getFullCalendar(state);
 
   let wins = 0, draws = 0, losses = 0, gf = 0, ga = 0;
-  SEASON_CALENDAR.forEach(j => {
+  fullCalendar.forEach(j => {
     if (j.matchId && played[j.matchId]) {
       const m = played[j.matchId];
       const r = getMatchResult(m.score);
@@ -127,15 +157,16 @@ function renderCalendari(state) {
   const pj = wins + draws + losses;
   const pts = wins * 3 + draws;
 
-  const calItems = SEASON_CALENDAR.map(j => {
+  const calItems = fullCalendar.map(j => {
     const match = j.matchId ? played[j.matchId] : null;
     if (!match) {
       const isPast = new Date(j.date) < new Date();
+      const metaStr = j.time ? ` ⏱ ${j.time}` : '';
       return `
         <div class="cal-jornada pending" id="cal-j-${j.jornada}" aria-label="${t('jornada')} ${j.jornada} pendent">
           <p class="cal-j-num">J${j.jornada}</p>
           <p class="cal-j-rival">${j.rival}</p>
-          <p class="cal-j-date">${formatDate(j.date)}</p>
+          <p class="cal-j-date">${formatDate(j.date)}${metaStr}</p>
           <p class="cal-j-score pend">${isPast ? '? – ?' : t('pending')}</p>
         </div>
       `;
@@ -155,6 +186,13 @@ function renderCalendari(state) {
 
   return `
     <div class="section">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="font-family:var(--font-display); font-size:0.9rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary); margin:0;">📅 ${t('tab_calendar')}</h3>
+        <button class="btn-primary" id="btn-open-schedule-modal" style="padding: 8px 14px; font-size: 0.8rem; border-radius: var(--radius-md); max-width: fit-content;">
+          ➕ ${t('schedule_match')}
+        </button>
+      </div>
+
       <div class="season-stats-bar">
         <div><div class="ss-stat-val">${pj}</div><div class="ss-stat-lbl">${t('played').toUpperCase()}</div></div>
         <div><div class="ss-stat-val">${wins}–${draws}–${losses}</div><div class="ss-stat-lbl">${t('v_e_d')}</div></div>
@@ -259,6 +297,7 @@ function addGoalEntry(containerId, players, type = 'goal') {
 
 // ---- ALINEACIÓ ----
 function getActivePositions(state) {
+  syncDragStateTeam();
   if (DRAG_STATE.activePositions) return DRAG_STATE.activePositions;
   const customFormations = (state && state.customFormations) || window.APP_STATE.customFormations || {};
   if (customFormations[DRAG_STATE.formation]) {
@@ -272,6 +311,43 @@ function getActivePositions(state) {
 }
 
 function renderAlineacio(state) {
+  syncDragStateTeam();
+  const upcoming = getUpcomingJornada(state);
+  const isCollaMode = DRAG_STATE.viewMode === 'colla_proposals';
+
+  const proposalsForJornada = (state.lineupProposals && state.lineupProposals[upcoming.jornada]) || {};
+  const proposalCount = Object.keys(proposalsForJornada).length;
+
+  const bannerHTML = `
+    <div class="lineup-match-banner">
+      <div class="lmb-top">
+        <span class="match-badge badge-upcoming">J${upcoming.jornada}</span>
+        <div class="lmb-title-group">
+          <h3 class="lmb-title">vs <strong>${upcoming.rival}</strong></h3>
+          <span class="lmb-date">📅 ${formatDate(upcoming.date)}</span>
+        </div>
+      </div>
+      <div class="lmb-mode-selector">
+        <button class="lmb-mode-btn ${!isCollaMode ? 'active' : ''}" data-view-mode="my_proposal">
+          🙋 ${t('view_my_proposal')}
+        </button>
+        <button class="lmb-mode-btn ${isCollaMode ? 'active' : ''}" data-view-mode="colla_proposals">
+          👥 ${t('view_colla_proposals')} <span class="proposal-count-pill">${proposalCount}</span>
+        </button>
+      </div>
+    </div>
+  `;
+
+  if (isCollaMode) {
+    return `
+      <div class="tactical-wrapper">
+        ${bannerHTML}
+        ${renderCollaProposalsView(state, upcoming, proposalsForJornada)}
+      </div>
+    `;
+  }
+
+  const currentTeam = DRAG_STATE.currentTeam || 'teamA';
   const formation = DRAG_STATE.formation;
   const positions = getActivePositions(state);
   const editMode = DRAG_STATE.editMode;
@@ -319,6 +395,21 @@ function renderAlineacio(state) {
 
   return `
     <div class="tactical-wrapper">
+      ${bannerHTML}
+
+      <!-- Team Selector Switcher -->
+      <div class="team-selector-card">
+        <span class="tsc-label">${t('select_team_label')}</span>
+        <div class="tsc-tabs">
+          <button class="tsc-tab ${currentTeam === 'teamA' ? 'active' : ''}" data-team="teamA">
+            ⚪ ${t('team_a')} <span class="tsc-badge">${DRAG_STATE.teamFormations.teamA || '4-3-3'}</span>
+          </button>
+          <button class="tsc-tab ${currentTeam === 'teamB' ? 'active' : ''}" data-team="teamB">
+            ⬛ ${t('team_b')} <span class="tsc-badge">${DRAG_STATE.teamFormations.teamB || '4-3-3'}</span>
+          </button>
+        </div>
+      </div>
+
       <div class="tactical-formation-selector" id="formation-selector">
         ${formationBtns}
       </div>
@@ -331,11 +422,102 @@ function renderAlineacio(state) {
         ${renderTacticalPositions(positions, state.players, editMode)}
       </div>
 
+      <div style="margin-top: 14px; margin-bottom: 18px;">
+        <button class="btn-primary btn-save-proposal" id="btn-save-proposal">
+          ${t('save_proposal_btn')}
+        </button>
+      </div>
+
       <div class="tactical-player-selector">
-        <h4>${editMode ? `✏️ ${t('edit_mode_active')}` : t('assign_players')}</h4>
+        <h4>${editMode ? `✏️ ${t('edit_mode_active')}` : t('assign_players')} (${currentTeam === 'teamA' ? t('team_a') : t('team_b')})</h4>
         <div id="tactical-positions-list">
           ${editMode ? renderEditPositionsList(positions) : renderPositionAssignments(positions, state.players)}
         </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCollaProposalsView(state, upcoming, proposals) {
+  const proposalList = Object.values(proposals);
+
+  if (proposalList.length === 0) {
+    return `
+      <div class="empty-state" style="padding: 40px 20px;">
+        <div class="empty-state-icon">👥</div>
+        <p class="empty-state-text">${t('no_proposals_yet')}</p>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
+          Sigues el primer a crear i desar el teu suggeriment per a aquest partit!
+        </p>
+      </div>
+    `;
+  }
+
+  // Count formation votes
+  const votesA = {};
+  const votesB = {};
+  proposalList.forEach(p => {
+    const fA = p.teamA ? p.teamA.formation : '4-3-3';
+    const fB = p.teamB ? p.teamB.formation : '4-3-3';
+    votesA[fA] = (votesA[fA] || 0) + 1;
+    votesB[fB] = (votesB[fB] || 0) + 1;
+  });
+
+  const topFormA = Object.entries(votesA).sort((a, b) => b[1] - a[1])[0];
+  const topFormB = Object.entries(votesB).sort((a, b) => b[1] - a[1])[0];
+
+  const cardsHTML = proposalList.map(p => {
+    const timeStr = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    const avatar = p.userPhoto
+      ? `<img src="${p.userPhoto}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+      : `<span style="font-size:1.2rem;">${p.userEmoji || '👤'}</span>`;
+
+    return `
+      <div class="colla-proposal-card">
+        <div class="cpc-header">
+          <div class="cpc-user">
+            <div class="cpc-avatar">${avatar}</div>
+            <div>
+              <span class="cpc-name">${p.userName}</span>
+              <span class="cpc-time">${timeStr}</span>
+            </div>
+          </div>
+          <button class="btn-secondary btn-sm" data-load-proposal="${p.userId}">
+            🔍 Carregar suggeriment
+          </button>
+        </div>
+        <div class="cpc-formations-summary">
+          <div class="cpc-team-summary">
+            <span class="cpc-team-tag">⚪ Equip A</span>
+            <span class="cpc-form-val">${p.teamA ? p.teamA.formation : '4-3-3'}</span>
+          </div>
+          <div class="cpc-team-summary">
+            <span class="cpc-team-tag">⬛ Equip B</span>
+            <span class="cpc-form-val">${p.teamB ? p.teamB.formation : '4-3-3'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="colla-proposals-container">
+      <div class="colla-summary-stats">
+        <div class="css-stat-card">
+          <span class="css-stat-lbl">⚪ ${t('most_voted_formation')} (Equip A)</span>
+          <span class="css-stat-val">${topFormA ? `${topFormA[0]} (${topFormA[1]} vots)` : '—'}</span>
+        </div>
+        <div class="css-stat-card">
+          <span class="css-stat-lbl">⬛ ${t('most_voted_formation')} (Equip B)</span>
+          <span class="css-stat-val">${topFormB ? `${topFormB[0]} (${topFormB[1]} vots)` : '—'}</span>
+        </div>
+      </div>
+
+      <h4 style="margin: 18px 0 10px; font-family: var(--font-display); font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted);">
+        ${t('colla_proposals_title')} (${proposalList.length})
+      </h4>
+      <div class="colla-proposals-list">
+        ${cardsHTML}
       </div>
     </div>
   `;
@@ -526,7 +708,97 @@ function refreshHistorial(state) {
   initHistorial(state);
 }
 
+function openScheduleMatchModal(state) {
+  const defaultDate = new Date();
+  defaultDate.setDate(defaultDate.getDate() + 7);
+  const defaultDateStr = defaultDate.toISOString().split('T')[0];
+
+  const content = `
+    <div class="modal-header">
+      <div class="modal-title">${t('schedule_match_title')}</div>
+      <button class="modal-close" id="modal-close-btn" aria-label="${t('close')}">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="schedule-match-form" novalidate onsubmit="return false">
+        <div class="form-group">
+          <label class="form-label" for="sched-rival">${t('reg_rival')} *</label>
+          <input type="text" class="form-input" id="sched-rival" placeholder="ex: FC Rival" required aria-required="true">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="sched-date">${t('reg_date')} *</label>
+          <input type="date" class="form-input" id="sched-date" value="${defaultDateStr}" required aria-required="true">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="sched-time">${t('match_time')}</label>
+          <input type="time" class="form-input" id="sched-time" value="20:00" style="max-width:140px;">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="sched-location">${t('match_location')}</label>
+          <input type="text" class="form-input" id="sched-location" placeholder="ex: Camp Municipal Pista 2">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="sched-notes">${t('match_notes')}</label>
+          <input type="text" class="form-input" id="sched-notes" placeholder="ex: Pachanga 7v7 (Equips Blancs vs Negres)">
+        </div>
+
+        <button type="button" class="btn-primary" id="btn-submit-schedule" style="margin-top:10px;">
+          📅 ${t('schedule_submit')}
+        </button>
+      </form>
+    </div>
+  `;
+
+  openModal(content);
+
+  const btnSubmit = document.getElementById('btn-submit-schedule');
+  if (btnSubmit) {
+    btnSubmit.addEventListener('click', () => {
+      const rival = document.getElementById('sched-rival')?.value.trim();
+      const date = document.getElementById('sched-date')?.value;
+      const time = document.getElementById('sched-time')?.value || '';
+      const location = document.getElementById('sched-location')?.value.trim() || '';
+      const notes = document.getElementById('sched-notes')?.value.trim() || '';
+
+      if (!rival || !date) {
+        showToast(t('reg_fill_fields'));
+        return;
+      }
+
+      if (!state.customCalendar) state.customCalendar = [];
+      const nextJornadaNum = getFullCalendar(state).length + 1;
+
+      const newScheduledMatch = {
+        id: 'sched_' + Date.now(),
+        jornada: nextJornadaNum,
+        date,
+        rival,
+        time,
+        location,
+        notes,
+        matchId: null
+      };
+
+      state.customCalendar.push(newScheduledMatch);
+      saveState(state);
+      closeModal();
+      showToast(`✅ ${t('schedule_success')}`);
+
+      // Re-render current page
+      renderPage(state.currentPage, state);
+    });
+  }
+}
+
 function initCalendari(state) {
+  const btnSchedule = document.getElementById('btn-open-schedule-modal');
+  if (btnSchedule) {
+    btnSchedule.addEventListener('click', () => openScheduleMatchModal(state));
+  }
+
   document.querySelectorAll('#tab-content-calendari .cal-jornada[data-match-id]').forEach(el => {
     el.addEventListener('click', () => {
       const mid = parseInt(el.dataset.matchId);
@@ -623,6 +895,84 @@ function initAlineacio(state) {
     }
   }
 
+  // --- View Mode Switcher (My proposal vs Colla proposals) ---
+  document.querySelectorAll('[data-view-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      DRAG_STATE.viewMode = btn.dataset.viewMode;
+      rerender();
+    });
+  });
+
+  // --- Team Selector Switcher (Equip A vs Equip B) ---
+  document.querySelectorAll('[data-team]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      DRAG_STATE.currentTeam = btn.dataset.team;
+      syncDragStateTeam();
+      DRAG_STATE.activePositions = null;
+      rerender();
+    });
+  });
+
+  // --- Save Proposal Button ---
+  const btnSaveProposal = document.getElementById('btn-save-proposal');
+  if (btnSaveProposal) {
+    btnSaveProposal.addEventListener('click', () => {
+      const upcoming = getUpcomingJornada(state);
+      const jornadaKey = upcoming.jornada;
+      if (!state.lineupProposals) state.lineupProposals = {};
+      if (!state.lineupProposals[jornadaKey]) state.lineupProposals[jornadaKey] = {};
+
+      const userIdKey = state.currentUserId || 'guest';
+      const currentUser = state.players.find(p => p.id === state.currentUserId);
+
+      state.lineupProposals[jornadaKey][userIdKey] = {
+        userId: userIdKey,
+        userName: currentUser ? currentUser.name : (t('guest_short') || 'Convidat'),
+        userEmoji: currentUser ? (currentUser.emoji || '👤') : '👤',
+        userPhoto: currentUser ? currentUser.photo : null,
+        updatedAt: new Date().toISOString(),
+        teamA: {
+          formation: DRAG_STATE.teamFormations.teamA || '4-3-3',
+          positions: { ...(DRAG_STATE.teamPositions.teamA || {}) }
+        },
+        teamB: {
+          formation: DRAG_STATE.teamFormations.teamB || '4-3-3',
+          positions: { ...(DRAG_STATE.teamPositions.teamB || {}) }
+        }
+      };
+
+      saveState(state);
+      showToast(t('proposal_saved_toast') || '✅ El teu suggeriment s\'ha desat!');
+      rerender();
+    });
+  }
+
+  // --- Load Teammate Proposal Button ---
+  document.querySelectorAll('[data-load-proposal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetUserId = btn.dataset.loadProposal;
+      const upcoming = getUpcomingJornada(state);
+      const proposals = (state.lineupProposals && state.lineupProposals[upcoming.jornada]) || {};
+      const prop = proposals[targetUserId];
+
+      if (prop) {
+        if (!DRAG_STATE.teamFormations) DRAG_STATE.teamFormations = {};
+        if (!DRAG_STATE.teamPositions) DRAG_STATE.teamPositions = {};
+
+        DRAG_STATE.teamFormations.teamA = prop.teamA ? prop.teamA.formation : '4-3-3';
+        DRAG_STATE.teamFormations.teamB = prop.teamB ? prop.teamB.formation : '4-3-3';
+        DRAG_STATE.teamPositions.teamA = prop.teamA ? JSON.parse(JSON.stringify(prop.teamA.positions)) : {};
+        DRAG_STATE.teamPositions.teamB = prop.teamB ? JSON.parse(JSON.stringify(prop.teamB.positions)) : {};
+
+        DRAG_STATE.viewMode = 'my_proposal';
+        syncDragStateTeam();
+        DRAG_STATE.activePositions = null;
+        rerender();
+        showToast(`📐 Carregat el suggeriment de ${prop.userName}!`);
+      }
+    });
+  });
+
   // --- Formation selector ---
   document.querySelectorAll('.formation-btn').forEach(btn => {
     // Delete custom formation button inside
@@ -634,6 +984,8 @@ function initAlineacio(state) {
         delete state.customFormations[fname];
         saveState(state);
         if (DRAG_STATE.formation === fname) {
+          const team = DRAG_STATE.currentTeam || 'teamA';
+          DRAG_STATE.teamFormations[team] = '4-3-3';
           DRAG_STATE.formation = '4-3-3';
           DRAG_STATE.activePositions = null;
         }
@@ -645,8 +997,11 @@ function initAlineacio(state) {
     btn.addEventListener('click', (e) => {
       if (e.target.closest('[data-delete-formation]')) return;
       const f = btn.dataset.formation;
+      const team = DRAG_STATE.currentTeam || 'teamA';
+      DRAG_STATE.teamFormations[team] = f;
       DRAG_STATE.formation = f;
-      DRAG_STATE.playerPositions = {};
+      DRAG_STATE.teamPositions[team] = {};
+      DRAG_STATE.playerPositions = DRAG_STATE.teamPositions[team];
       DRAG_STATE.activePositions = null;
       DRAG_STATE.editMode = false;
       rerender();
@@ -686,6 +1041,8 @@ function initAlineacio(state) {
       }
       const positions = getActivePositions(state);
       state.customFormations[fname] = JSON.parse(JSON.stringify(positions));
+      const team = DRAG_STATE.currentTeam || 'teamA';
+      DRAG_STATE.teamFormations[team] = fname;
       DRAG_STATE.formation = fname;
       DRAG_STATE.activePositions = null;
       DRAG_STATE.editMode = false;

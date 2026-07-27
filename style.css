@@ -4559,3 +4559,282 @@ a { text-decoration: none; color: inherit; }
 .login-guest-btn:hover {
   color: #94a3b8;
 }
+
+/* ============================================================
+   LINEUP PROPOSALS & TEAM SELECTOR STYLES
+   ============================================================ */
+
+.lineup-match-banner {
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(103, 232, 249, 0.08) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lmb-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lmb-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.lmb-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.lmb-date {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.lmb-mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--bg-card);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.lmb-mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.lmb-mode-btn.active {
+  background: var(--neon);
+  color: #000;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(167, 139, 250, 0.3);
+}
+
+.proposal-count-pill {
+  background: rgba(0, 0, 0, 0.15);
+  color: currentColor;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+}
+
+/* Team Selector Card */
+.team-selector-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tsc-label {
+  font-size: 0.72rem;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.tsc-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.tsc-tab {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tsc-tab.active {
+  background: var(--bg-surface);
+  border-color: var(--neon);
+  color: var(--text-primary);
+  box-shadow: 0 0 10px rgba(167, 139, 250, 0.15);
+}
+
+.tsc-badge {
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--neon);
+}
+
+.btn-save-proposal {
+  width: 100%;
+  padding: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--neon) 0%, #8b5cf6 100%);
+  color: #000;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(167, 139, 250, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-save-proposal:active {
+  transform: scale(0.98);
+}
+
+/* Colla Proposals View */
+.colla-proposals-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.colla-summary-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.css-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.css-stat-lbl {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.css-stat-val {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--neon);
+}
+
+.colla-proposals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.colla-proposal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s ease;
+}
+
+.colla-proposal-card:hover {
+  border-color: var(--border-hover);
+}
+
+.cpc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cpc-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cpc-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.cpc-name {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+}
+
+.cpc-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+.cpc-formations-summary {
+  display: flex;
+  gap: 12px;
+  background: var(--bg-elevated);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.cpc-team-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+}
+
+.cpc-team-tag {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cpc-form-val {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--neon);
+}

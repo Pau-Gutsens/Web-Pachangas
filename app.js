@@ -9,7 +9,9 @@ window.APP_STATE = {
   currentPage: 'home',
   players: [],
   matches: [],
+  customCalendar: [],     // [ { jornada, date, rival, matchId, time, location, notes }, ... ]
   customFormations: {},   // { name: [ {pos, x, y, label}, ... ] }
+  lineupProposals: {},    // { [jornadaId]: { [userId]: { teamA: {formation, positions}, teamB: {formation, positions} } } }
   partitsTab: 'historial',
   historialFilters: { rival: '', dateFrom: '', dateTo: '', result: 'all' },
   comparison: { player1: 1, player2: 2 },
@@ -19,13 +21,23 @@ window.APP_STATE = {
   currentUserId: null,    // Logged player ID or 'guest' or null
 };
 
+// Global helper to get merged calendar (SEASON_CALENDAR + custom scheduled matches)
+function getFullCalendar(state) {
+  const base = typeof SEASON_CALENDAR !== 'undefined' ? SEASON_CALENDAR : [];
+  const custom = (state && state.customCalendar) || (window.APP_STATE && window.APP_STATE.customCalendar) || [];
+  const combined = [...base, ...custom];
+  return combined.sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
 // ---- Persistence ----
 function saveState(state) {
   try {
     const toSave = {
       players: state.players,
       matches: state.matches,
+      customCalendar: state.customCalendar || [],
       customFormations: state.customFormations || {},
+      lineupProposals: state.lineupProposals || {},
       lang: state.lang || 'ca',
       currentUserId: state.currentUserId,
     };
@@ -43,7 +55,9 @@ function loadState() {
       return {
         players: parsed.players || DEFAULT_PLAYERS,
         matches: parsed.matches || DEFAULT_MATCHES,
+        customCalendar: parsed.customCalendar || [],
         customFormations: parsed.customFormations || {},
+        lineupProposals: parsed.lineupProposals || {},
         lang: parsed.lang || 'ca',
         currentUserId: parsed.currentUserId !== undefined ? parsed.currentUserId : null,
       };
@@ -54,7 +68,9 @@ function loadState() {
   return {
     players: JSON.parse(JSON.stringify(DEFAULT_PLAYERS)),
     matches: JSON.parse(JSON.stringify(DEFAULT_MATCHES)),
+    customCalendar: [],
     customFormations: {},
+    lineupProposals: {},
     lang: 'ca',
     currentUserId: null,
   };
@@ -403,7 +419,9 @@ function init() {
   const saved = loadState();
   state.players = saved.players;
   state.matches = saved.matches;
+  state.customCalendar = saved.customCalendar || [];
   state.customFormations = saved.customFormations || {};
+  state.lineupProposals = saved.lineupProposals || {};
   state.lang = saved.lang || 'ca';
   state.currentUserId = saved.currentUserId;
 

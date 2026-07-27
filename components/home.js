@@ -10,7 +10,8 @@ function renderHome(state) {
   today.setHours(0, 0, 0, 0);
 
   const playedIds = new Set(matches.map(m => m.id));
-  const upcomingJornada = SEASON_CALENDAR
+  const fullCalendar = getFullCalendar(state);
+  const upcomingJornada = fullCalendar
     .filter(j => !j.matchId || !playedIds.has(j.matchId))
     .filter(j => !j.matchId) // truly unplayed (no matchId linked)
     .map(j => ({ ...j, dateObj: new Date(j.date) }))
@@ -18,7 +19,7 @@ function renderHome(state) {
     .find(j => j.dateObj >= today); // next future one
 
   // Also look for the most recent past unplayed entry (already past but not registered)
-  const pastPending = SEASON_CALENDAR
+  const pastPending = fullCalendar
     .filter(j => !j.matchId)
     .map(j => ({ ...j, dateObj: new Date(j.date) }))
     .sort((a, b) => b.dateObj - a.dateObj)
@@ -43,20 +44,26 @@ function renderHome(state) {
 /* ---- Upcoming match card ---- */
 function renderUpcomingCard(jornada) {
   const dateObj = new Date(jornada.date);
-  const isPast = dateObj < new Date();
-  const daysLabel = isPast ? 'Pendent de registrar' : daysUntil(dateObj);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const isFuture = dateObj >= now;
+  const daysLabel = !isFuture ? 'Pendent de registrar' : daysUntil(dateObj);
+  const ctaTitle = isFuture ? (t('prepare_lineup_cta') || 'Preparar Alineació') : 'Toca per registrar el resultat';
 
   return `
     <div class="last-match-hero upcoming-card"
          id="upcoming-match-card"
          data-rival="${jornada.rival}"
          data-date="${jornada.date}"
+         data-jornada="${jornada.jornada}"
+         data-is-future="${isFuture}"
          role="button"
          tabindex="0"
          style="cursor:pointer;"
-         aria-label="Registrar el partit vs ${jornada.rival}">
+         aria-label="${ctaTitle} vs ${jornada.rival}">
       <div class="lmh-top-row">
-        <p class="lmh-label">📅 Pròxim Partit</p>
+        <p class="lmh-label">${isFuture ? '📅 Pròxim Partit' : '⏳ Partit Pendent'}</p>
         <span class="match-badge badge-upcoming">J${jornada.jornada}</span>
       </div>
       <p class="lmh-rival">vs <strong>${jornada.rival}</strong></p>
@@ -65,7 +72,7 @@ function renderUpcomingCard(jornada) {
         <span class="upcoming-days-left">${daysLabel}</span>
       </div>
       <div class="upcoming-cta">
-        <span>Toca per registrar el resultat</span>
+        <span>${isFuture ? `📐 <strong>${ctaTitle}</strong> (Suggeriment)` : '⚽ Toca per registrar el resultat'}</span>
         <span class="lmh-cta-arrow">→</span>
       </div>
     </div>
@@ -156,21 +163,27 @@ function initHome(state) {
     });
   }
 
-  // Upcoming match card click → navigate to register tab with prefilled data
+  // Upcoming match card click → navigate to lineup selection if before match date, or register tab if past
   const upcomingCard = document.getElementById('upcoming-match-card');
   if (upcomingCard) {
     const handleUpcomingClick = () => {
-      const rival = upcomingCard.dataset.rival || '';
-      const date  = upcomingCard.dataset.date  || '';
-      state.partitsTab = 'registrar';
-      navigate('partits');
-      // navigate() is sync but DOM paint may lag — use rAF to prefill safely
-      requestAnimationFrame(() => {
-        const rivalInput = document.getElementById('reg-rival');
-        const dateInput  = document.getElementById('reg-date');
-        if (rivalInput) rivalInput.value = rival;
-        if (dateInput)  dateInput.value  = date;
-      });
+      const isFuture = upcomingCard.dataset.isFuture === 'true';
+      if (isFuture) {
+        state.partitsTab = 'alineacio';
+        navigate('partits');
+      } else {
+        const rival = upcomingCard.dataset.rival || '';
+        const date  = upcomingCard.dataset.date  || '';
+        state.partitsTab = 'registrar';
+        navigate('partits');
+        // navigate() is sync but DOM paint may lag — use rAF to prefill safely
+        requestAnimationFrame(() => {
+          const rivalInput = document.getElementById('reg-rival');
+          const dateInput  = document.getElementById('reg-date');
+          if (rivalInput) rivalInput.value = rival;
+          if (dateInput)  dateInput.value  = date;
+        });
+      }
     };
     upcomingCard.addEventListener('click', handleUpcomingClick);
     upcomingCard.addEventListener('keydown', e => {
