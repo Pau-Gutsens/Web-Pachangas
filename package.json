@@ -1,0 +1,10 @@
+{
+  "name": "web-pachangas-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FC Colla Web App & Vercel Serverless API Backend",
+  "main": "api/auth.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.8"
+  }
+}
