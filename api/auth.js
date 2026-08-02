@@ -5,26 +5,19 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || proce
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// ID fix del grup principal
-const MAIN_GROUP_NAME = 'FC😎';
-
-async function getOrCreateMainGroup() {
-  const { data: group } = await supabase
+// Obtenir el grup únic de la base de dades
+async function getMainGroup() {
+  const { data: group, error } = await supabase
     .from('groups')
     .select('*')
     .limit(1)
     .maybeSingle();
 
-  if (group) return group;
+  if (error || !group) {
+    throw new Error('No s\'ha trobat cap grup a la base de dades.');
+  }
 
-  const { data: newGroup, error } = await supabase
-    .from('groups')
-    .insert({ name: MAIN_GROUP_NAME, invite_code: 'COLLA' })
-    .select()
-    .single();
-
-  if (error) throw new Error('Error al crear el grup principal: ' + error.message);
-  return newGroup;
+  return group;
 }
 
 module.exports = async function handler(req, res) {
@@ -41,7 +34,7 @@ module.exports = async function handler(req, res) {
   const { action } = req.query;
 
   try {
-    const mainGroup = await getOrCreateMainGroup();
+    const mainGroup = await getMainGroup();
 
     // 1. LOG IN
     if (action === 'login') {
@@ -50,25 +43,16 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'Correu i contrasenya requerits' });
       }
 
-      // Intentar login
       const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (authErr) {
-        // Comprovar si el correu existeix a la llista d'usuaris/perfils per especificar quin camp falla
-        const { data: existingUser } = await supabase
-          .from('profiles')
-          .select('id')
-          .limit(100);
-
-        // Si tenim usuaris, podem fer una comprovació aproximada
-        let userMessage = 'La contrasenya és incorrecta';
+        let userMessage = 'El correu o la contrasenya són incorrectes';
         if (authErr.message.includes('Invalid login credentials')) {
           userMessage = 'El correu no està registrat o la contrasenya és incorrecta';
         }
-
         return res.status(401).json({ error: userMessage });
       }
 
@@ -86,7 +70,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // 2. SIGN UP (Registre)
+    // 2. SIGN UP (Registre directe al grup principal)
     if (action === 'signup') {
       const { displayName, email, password } = req.body || {};
       if (!displayName || !email || !password) {
@@ -108,7 +92,7 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: userMessage });
       }
 
-      // Crea el perfil vinculat al grup principal
+      // Crea el perfil de l'usuari vinculat al grup existent
       const { data: profile, error: profileErr } = await supabase.from('profiles').insert({
         id: authData.user.id,
         group_id: mainGroup.id,
