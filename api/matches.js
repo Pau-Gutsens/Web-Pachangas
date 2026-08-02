@@ -23,13 +23,12 @@ module.exports = async function handler(req, res) {
   try {
     // 1. REGISTER PLAYED MATCH
     if (action === 'register') {
-      const { groupId, matchObj } = req.body || {};
-      if (!groupId || !matchObj) {
-        return res.status(400).json({ error: 'groupId i matchObj són requerits' });
+      const { matchObj } = req.body || {};
+      if (!matchObj) {
+        return res.status(400).json({ error: 'matchObj és requerit' });
       }
 
       const { data, error } = await supabase.from('matches').insert({
-        group_id: groupId,
         date: matchObj.date,
         rival: matchObj.rival,
         score: Array.isArray(matchObj.score) ? matchObj.score.join('-') : matchObj.score,
@@ -50,13 +49,12 @@ module.exports = async function handler(req, res) {
 
     // 2. SCHEDULE UPCOMING MATCH
     if (action === 'schedule') {
-      const { groupId, scheduledObj } = req.body || {};
-      if (!groupId || !scheduledObj) {
-        return res.status(400).json({ error: 'groupId i scheduledObj són requerits' });
+      const { scheduledObj } = req.body || {};
+      if (!scheduledObj) {
+        return res.status(400).json({ error: 'scheduledObj és requerit' });
       }
 
       const { data, error } = await supabase.from('scheduled_matches').insert({
-        group_id: groupId,
         jornada: scheduledObj.jornada || 99,
         date: scheduledObj.date,
         time: scheduledObj.time || null,

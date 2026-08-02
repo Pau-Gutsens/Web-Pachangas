@@ -18,38 +18,28 @@ module.exports = async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const { groupId } = req.query;
-
-  if (!groupId) {
-    return res.status(400).json({ error: 'groupId és requerit' });
-  }
-
   try {
     // 1. Fetch Profiles
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('*')
-      .eq('group_id', groupId);
+      .select('*');
 
     // 2. Fetch Played Matches
     const { data: matches } = await supabase
       .from('matches')
       .select('*')
-      .eq('group_id', groupId)
       .order('date', { ascending: false });
 
     // 3. Fetch Scheduled Matches
     const { data: scheduled } = await supabase
       .from('scheduled_matches')
       .select('*')
-      .eq('group_id', groupId)
       .order('date', { ascending: true });
 
     // 4. Fetch Lineup Proposals
     const { data: proposals } = await supabase
       .from('lineup_proposals')
-      .select('*')
-      .eq('group_id', groupId);
+      .select('*');
 
     // Format profiles
     const formattedPlayers = (profiles || []).map(p => ({

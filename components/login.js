@@ -215,16 +215,13 @@ function initLogin(state) {
         if (!res || !res.user) throw new Error('Resposta invàlida del servidor');
 
         state.currentUserId = res.user.id;
-        state.userGroup = res.group || null;
 
-        if (res.group && res.group.id) {
-          const gData = await fetchGroupData(res.group.id);
-          if (gData) {
-            state.players = gData.players;
-            state.matches = gData.matches;
-            state.customCalendar = gData.customCalendar;
-            state.lineupProposals = gData.lineupProposals;
-          }
+        const gData = await fetchGroupData();
+        if (gData) {
+          state.players = gData.players;
+          state.matches = gData.matches;
+          state.customCalendar = gData.customCalendar;
+          state.lineupProposals = gData.lineupProposals;
         }
 
         saveState(state);
@@ -258,16 +255,13 @@ function initLogin(state) {
         if (!res || !res.user) throw new Error('Resposta invàlida del servidor');
 
         state.currentUserId = res.user.id;
-        state.userGroup = res.group || null;
 
-        if (res.group && res.group.id) {
-          const gData = await fetchGroupData(res.group.id);
-          if (gData) {
-            state.players = gData.players;
-            state.matches = gData.matches;
-            state.customCalendar = gData.customCalendar;
-            state.lineupProposals = gData.lineupProposals;
-          }
+        const gData = await fetchGroupData();
+        if (gData) {
+          state.players = gData.players;
+          state.matches = gData.matches;
+          state.customCalendar = gData.customCalendar;
+          state.lineupProposals = gData.lineupProposals;
         }
 
         saveState(state);

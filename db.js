@@ -1,5 +1,5 @@
 // ============================================================
-//  DB.JS — Database Abstraction Layer via Vercel Serverless API
+//  DB.JS — Capa d'Abstracció via Vercel Serverless API
 // ============================================================
 
 async function signUpUser({ displayName, email, password }) {
@@ -22,21 +22,20 @@ async function fetchUserProfile(userId) {
   return null;
 }
 
-async function fetchGroupData(groupId) {
-  if (!groupId) return null;
-  return await ApiClient.fetchGroupData(groupId);
+async function fetchGroupData() {
+  return await ApiClient.fetchGroupData();
 }
 
-async function saveMatchToDB(groupId, matchObj) {
-  return await ApiClient.registerMatch(groupId, matchObj);
+async function saveMatchToDB(matchObj) {
+  return await ApiClient.registerMatch(matchObj);
 }
 
-async function scheduleMatchToDB(groupId, scheduledObj) {
-  return await ApiClient.scheduleMatch(groupId, scheduledObj);
+async function scheduleMatchToDB(scheduledObj) {
+  return await ApiClient.scheduleMatch(scheduledObj);
 }
 
-async function saveProposalToDB(groupId, matchJornada, userId, proposalData) {
-  return await ApiClient.saveProposal(groupId, matchJornada, userId, proposalData);
+async function saveProposalToDB(matchJornada, userId, proposalData) {
+  return await ApiClient.saveProposal(matchJornada, userId, proposalData);
 }
 
 function subscribeToRealtime(groupId, onUpdate) {

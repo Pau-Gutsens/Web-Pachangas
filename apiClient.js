@@ -1,5 +1,5 @@
 // ============================================================
-//  APICLIENT.JS — Frontend API Client for Vercel Serverless API
+//  APICLIENT.JS — Frontend API Client per a Vercel Serverless API
 // ============================================================
 
 const ApiClient = {
@@ -41,22 +41,22 @@ const ApiClient = {
   },
 
   // Data Fetching
-  fetchGroupData(groupId) {
-    return this.get(`/api/data?groupId=${encodeURIComponent(groupId)}`);
+  fetchGroupData() {
+    return this.get(`/api/data`);
   },
 
   // Match Writing
-  registerMatch(groupId, matchObj) {
-    return this.post('/api/matches?action=register', { groupId, matchObj });
+  registerMatch(matchObj) {
+    return this.post('/api/matches?action=register', { matchObj });
   },
 
-  scheduleMatch(groupId, scheduledObj) {
-    return this.post('/api/matches?action=schedule', { groupId, scheduledObj });
+  scheduleMatch(scheduledObj) {
+    return this.post('/api/matches?action=schedule', { scheduledObj });
   },
 
   // Proposal Writing
-  saveProposal(groupId, matchJornada, userId, proposalData) {
-    return this.post('/api/proposals', { groupId, matchJornada, userId, proposalData });
+  saveProposal(matchJornada, userId, proposalData) {
+    return this.post('/api/proposals', { matchJornada, userId, proposalData });
   }
 };
 
