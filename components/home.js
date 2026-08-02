@@ -131,12 +131,12 @@ function renderLastMatchHero(match, players) {
         <span class="match-badge ${badgeCls}">${badgeTxt}</span>
       </div>
 
-      <p class="lmh-rival">FC Colla vs <strong>${match.rival}</strong></p>
+      <p class="lmh-rival">FC😎 vs <strong>${match.rival}</strong></p>
 
       <!-- Scoreboard: two teams + score -->
       <div class="lmh-scoreboard">
         <div class="lmh-team-block">
-          <span class="lmh-team-name">FC Colla</span>
+          <span class="lmh-team-name">FC😎</span>
           <span class="lmh-team-score" style="color:${resultColor};">${match.score[0]}</span>
         </div>
         <div class="lmh-score-sep">–</div>
@@ -273,7 +273,7 @@ function openMatchDetailModal(match, players) {
       <!-- Big scoreboard -->
       <div class="modal-scoreboard">
         <div class="modal-team-block">
-          <span class="modal-team-name">FC Colla</span>
+          <span class="modal-team-name">FC😎</span>
           <span class="modal-team-score" style="color:${resultColor};">${match.score[0]}</span>
         </div>
         <div class="modal-score-sep">–</div>
@@ -307,7 +307,7 @@ function openMatchDetailModal(match, players) {
       <!-- Goals: FC Colla -->
       <div class="match-detail-team-section">
         <div class="match-detail-team-header team-us">
-          <span>FC Colla</span>
+          <span>FC😎</span>
           <span class="match-detail-team-score-badge" style="background:var(--neon-dim);color:var(--neon);">${match.score[0]}</span>
         </div>
         ${ourGoalsHTML}

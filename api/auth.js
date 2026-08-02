@@ -6,7 +6,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || proce
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ID fix del grup principal de la colla
-const MAIN_GROUP_NAME = 'FC Colla';
+const MAIN_GROUP_NAME = 'FC😎';
 
 async function getOrCreateMainGroup() {
   const { data: group } = await supabase
