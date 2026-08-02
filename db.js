@@ -2,12 +2,8 @@
 //  DB.JS — Database Abstraction Layer via Vercel Serverless API
 // ============================================================
 
-async function signUpCreateGroup({ displayName, email, password, groupName }) {
-  return await ApiClient.createGroup(displayName, email, password, groupName);
-}
-
-async function signUpJoinGroup({ displayName, email, password, inviteCode }) {
-  return await ApiClient.joinGroup(displayName, email, password, inviteCode);
+async function signUpUser({ displayName, email, password }) {
+  return await ApiClient.signUp(displayName, email, password);
 }
 
 async function signInUser({ email, password }) {
@@ -44,7 +40,6 @@ async function saveProposalToDB(groupId, matchJornada, userId, proposalData) {
 }
 
 function subscribeToRealtime(groupId, onUpdate) {
-  // Polling every 10s for realtime-like updates when deployed
   const interval = setInterval(async () => {
     if (onUpdate) onUpdate();
   }, 10000);

@@ -1,92 +1,76 @@
 // ============================================================
-//  COMPONENTS/LOGIN.JS — Pantalla de Log In / Sign Up
+//  COMPONENTS/LOGIN.JS — Auth via Vercel Serverless API
 // ============================================================
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 function renderLogin(state) {
-  const isFirstVisit = state.isFirstVisit;
-  const hasPlayers = state.players.length > 0;
-  const defaultTab = isFirstVisit || !hasPlayers ? 'signup' : 'login';
+  const currentTab = state.authTab || 'login';
 
   return `
     <div class="login-container">
       <div class="login-card">
 
-        <!-- Title -->
-        <h2 class="auth-card-title" id="auth-card-title">
-          ${defaultTab === 'signup' ? t('login_title_signup') : t('login_title_login')}
-        </h2>
-
-        <!-- Log In Form Content -->
-        <div class="login-tab-content ${defaultTab === 'login' ? 'active' : ''}" id="content-tab-login">
-
-          <div class="auth-field-group">
-            <div class="auth-input-wrapper">
-              <input type="text" class="auth-input" id="login-identifier" placeholder="${t('login_name_placeholder')}" autocomplete="username">
-            </div>
-          </div>
-
-          <div class="auth-field-group">
-            <div class="auth-input-wrapper">
-              <input type="password" class="auth-input" id="login-password" placeholder="${t('login_password_placeholder')}" autocomplete="current-password">
-              <button type="button" class="password-toggle-btn" data-target="login-password" aria-label="Mostrar contrasenya">
-                <svg class="eye-icon eye-off" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
-                  <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
-                  <path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
-                  <line x1="2" y1="2" x2="22" y2="22"/>
-                </svg>
-                <svg class="eye-icon eye-on" style="display:none;" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <button class="btn-auth-primary" id="btn-submit-login">${t('login_title_login')}</button>
-
-          <div class="auth-footer-toggle">
-            ${t('login_no_account')} <button type="button" class="auth-toggle-link" id="link-to-signup">${t('login_title_signup')}</button>
-          </div>
+        <div class="auth-header">
+          <h2 class="auth-card-title">FC😎 Colla</h2>
+          <p class="auth-card-sub">Gestió privada de partits, ELO i alineacions</p>
         </div>
 
-        <!-- Sign Up Form Content -->
-        <div class="login-tab-content ${defaultTab === 'signup' ? 'active' : ''}" id="content-tab-signup">
-
-          <div class="auth-field-group">
-            <div class="auth-input-wrapper">
-              <input type="text" class="auth-input" id="signup-name" placeholder="${t('login_name_placeholder')}" required autocomplete="username">
-            </div>
-          </div>
-
-          <div class="auth-field-group">
-            <div class="auth-input-wrapper">
-              <input type="password" class="auth-input" id="signup-password" placeholder="${t('login_password_placeholder')}" required autocomplete="new-password">
-              <button type="button" class="password-toggle-btn" data-target="signup-password" aria-label="Mostrar contrasenya">
-                <svg class="eye-icon eye-off" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
-                  <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
-                  <path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
-                  <line x1="2" y1="2" x2="22" y2="22"/>
-                </svg>
-                <svg class="eye-icon eye-on" style="display:none;" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <button class="btn-auth-primary" id="btn-submit-signup">${t('login_title_signup')}</button>
-
-          <div class="auth-footer-toggle">
-            ${t('login_already_account')} <button type="button" class="auth-toggle-link" id="link-to-login">${t('login_title_login')}</button>
-          </div>
+        <!-- Auth Tabs Navigation -->
+        <div class="auth-nav-tabs">
+          <button class="auth-nav-btn ${currentTab === 'login' ? 'active' : ''}" data-authtab="login">
+            🔑 Iniciar Sessió
+          </button>
+          <button class="auth-nav-btn ${currentTab === 'signup' ? 'active' : ''}" data-authtab="signup">
+            ✨ Registrar-me
+          </button>
         </div>
 
-        <!-- Guest Entry -->
+        <!-- 1. LOG IN -->
+        <div class="login-tab-content ${currentTab === 'login' ? 'active' : ''}" id="tab-auth-login">
+          <div class="auth-field-group">
+            <label class="auth-label">Correu Electrònic</label>
+            <div class="auth-input-wrapper">
+              <input type="email" class="auth-input" id="login-email" placeholder="pau@exemple.com" autocomplete="email">
+            </div>
+          </div>
+          <div class="auth-field-group">
+            <label class="auth-label">Contrasenya</label>
+            <div class="auth-input-wrapper">
+              <input type="password" class="auth-input" id="login-password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+          </div>
+          <button class="btn-auth-primary" id="btn-submit-login">Entrar →</button>
+        </div>
+
+        <!-- 2. SIGN UP -->
+        <div class="login-tab-content ${currentTab === 'signup' ? 'active' : ''}" id="tab-auth-signup">
+          <div class="auth-field-group">
+            <label class="auth-label">El teu nom de jugador/a</label>
+            <div class="auth-input-wrapper">
+              <input type="text" class="auth-input" id="signup-name" placeholder="Marc / Pau / Laura..." autocomplete="name">
+            </div>
+          </div>
+          <div class="auth-field-group">
+            <label class="auth-label">Correu Electrònic</label>
+            <div class="auth-input-wrapper">
+              <input type="email" class="auth-input" id="signup-email" placeholder="correu@exemple.com" autocomplete="email">
+            </div>
+          </div>
+          <div class="auth-field-group">
+            <label class="auth-label">Contrasenya (mínim 6 caràcters)</label>
+            <div class="auth-input-wrapper">
+              <input type="password" class="auth-input" id="signup-password" placeholder="••••••••" autocomplete="new-password">
+            </div>
+          </div>
+          <button class="btn-auth-primary" id="btn-submit-signup">Crear compte i entrar ✨</button>
+        </div>
+
+        <!-- Guest -->
         <div class="login-footer">
-          <button class="login-guest-btn" id="btn-submit-guest">${t('login_guest_btn')} →</button>
+          <button class="login-guest-btn" id="btn-submit-guest">Entrar com a Convidat (Mode Demo) →</button>
         </div>
 
       </div>
@@ -95,157 +79,109 @@ function renderLogin(state) {
 }
 
 function initLogin(state) {
-  const titleEl = document.getElementById('auth-card-title');
-  const contentLogin = document.getElementById('content-tab-login');
-  const contentSignup = document.getElementById('content-tab-signup');
-  const linkToSignup = document.getElementById('link-to-signup');
-  const linkToLogin = document.getElementById('link-to-login');
-  const loginIdentifier = document.getElementById('login-identifier');
 
-  const switchTab = (tab) => {
-    if (tab === 'login') {
-      if (titleEl) titleEl.textContent = t('login_title_login');
-      if (contentLogin) contentLogin.classList.add('active');
-      if (contentSignup) contentSignup.classList.remove('active');
-    } else if (tab === 'signup') {
-      if (titleEl) titleEl.textContent = t('login_title_signup');
-      if (contentSignup) contentSignup.classList.add('active');
-      if (contentLogin) contentLogin.classList.remove('active');
-    }
-  };
-
-  if (linkToSignup) linkToSignup.addEventListener('click', () => switchTab('signup'));
-  if (linkToLogin) linkToLogin.addEventListener('click', () => switchTab('login'));
-
-  // ---- Password Visibility Toggles ----
-  document.querySelectorAll('.password-toggle-btn').forEach(btn => {
+  // ---- Tab Switcher ----
+  document.querySelectorAll('[data-authtab]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const targetId = btn.dataset.target;
-      const input = document.getElementById(targetId);
-      if (!input) return;
-
-      const eyeOff = btn.querySelector('.eye-off');
-      const eyeOn = btn.querySelector('.eye-on');
-
-      if (input.type === 'password') {
-        input.type = 'text';
-        if (eyeOff) eyeOff.style.display = 'none';
-        if (eyeOn) eyeOn.style.display = 'block';
-      } else {
-        input.type = 'password';
-        if (eyeOff) eyeOff.style.display = 'block';
-        if (eyeOn) eyeOn.style.display = 'none';
-      }
+      state.authTab = btn.dataset.authtab;
+      const container = document.getElementById('page-login');
+      if (container) { container.innerHTML = renderLogin(state); initLogin(state); }
     });
   });
 
-  // ---- Log In Form Submission ----
-  const btnSubmitLogin = document.getElementById('btn-submit-login');
-  if (btnSubmitLogin) {
-    btnSubmitLogin.addEventListener('click', () => {
-      const typedId = loginIdentifier ? loginIdentifier.value.trim().toLowerCase() : '';
+  // ---- 1. LOG IN ----
+  const btnLogin = document.getElementById('btn-submit-login');
+  if (btnLogin) {
+    btnLogin.addEventListener('click', async () => {
+      const email = document.getElementById('login-email')?.value.trim();
+      const password = document.getElementById('login-password')?.value;
 
-      if (!typedId) {
-        showToast('⚠️ Introduïu el vostre correu o nom de jugador');
-        if (loginIdentifier) loginIdentifier.focus();
-        return;
-      }
+      if (!email || !password) { showToast('⚠️ Omple el correu i la contrasenya'); return; }
+      if (!isValidEmail(email)) { showToast('⚠️ Correu no vàlid (ex: nom@domini.com)'); return; }
 
-      let player = state.players.find(p => p.name.toLowerCase() === typedId);
+      btnLogin.disabled = true;
+      btnLogin.textContent = 'Verificant...';
 
-      // If no player profile exists with exact name, create or login first player
-      if (!player && state.players.length > 0) {
-        player = state.players[0];
-      }
+      try {
+        const res = await signInUser({ email, password });
+        if (!res || !res.user) throw new Error('Resposta invàlida del servidor');
 
-      if (player) {
-        state.currentUserId = player.id;
-        state.isFirstVisit = false;
+        state.currentUserId = res.user.id;
+        state.userGroup = res.group || null;
+
+        if (res.group && res.group.id) {
+          const gData = await fetchGroupData(res.group.id);
+          if (gData) {
+            state.players = gData.players;
+            state.matches = gData.matches;
+            state.customCalendar = gData.customCalendar;
+            state.lineupProposals = gData.lineupProposals;
+          }
+        }
+
         saveState(state);
-        translateStaticElements();
         navigate('home');
-        showToast(`⚽ ${t('login_welcome_back')} ${player.name}!`);
-      } else {
-        // Create new player with this identifier
-        const newId = state.players.length > 0 ? Math.max(...state.players.map(p => p.id)) + 1 : 1;
-        const newPlayer = {
-          id: newId,
-          name: typedId,
-          emoji: '⚽',
-          photo: null,
-          elo: 1400,
-          goals: 0,
-          assists: 0,
-          matches: 0,
-          wins: 0,
-          draws: 0,
-          losses: 0,
-          streak: [],
-          eloHistory: [1400]
-        };
-        state.players.push(newPlayer);
-        state.currentUserId = newId;
-        state.isFirstVisit = false;
-        saveState(state);
-        translateStaticElements();
-        navigate('home');
-        showToast(`✨ Benvingut/da ${typedId}!`);
+        showToast('⚽ Benvingut/da de nou!');
+      } catch (err) {
+        showToast('❌ Error d\'accés: ' + (err.message || 'Credencials incorrectes'));
+        btnLogin.disabled = false;
+        btnLogin.textContent = 'Entrar →';
       }
     });
   }
 
-  // ---- Sign Up Form Submission ----
-  const btnSubmitSignup = document.getElementById('btn-submit-signup');
-  if (btnSubmitSignup) {
-    btnSubmitSignup.addEventListener('click', () => {
-      const nameInput = document.getElementById('signup-name');
-      const name = nameInput ? nameInput.value.trim() : '';
+  // ---- 2. SIGN UP ----
+  const btnSignup = document.getElementById('btn-submit-signup');
+  if (btnSignup) {
+    btnSignup.addEventListener('click', async () => {
+      const name = document.getElementById('signup-name')?.value.trim();
+      const email = document.getElementById('signup-email')?.value.trim();
+      const password = document.getElementById('signup-password')?.value;
 
-      if (!name) {
-        showToast(t('login_error_empty'));
-        if (nameInput) nameInput.focus();
-        return;
+      if (!name || !email || !password) { showToast('⚠️ Omple tots els camps'); return; }
+      if (!isValidEmail(email)) { showToast('⚠️ Correu no vàlid (ex: nom@domini.com)'); return; }
+      if (password.length < 6) { showToast('⚠️ La contrasenya ha de tenir mínim 6 caràcters'); return; }
+
+      btnSignup.disabled = true;
+      btnSignup.textContent = 'Creant compte...';
+
+      try {
+        const res = await signUpUser({ displayName: name, email, password });
+        if (!res || !res.user) throw new Error('Resposta invàlida del servidor');
+
+        state.currentUserId = res.user.id;
+        state.userGroup = res.group || null;
+
+        if (res.group && res.group.id) {
+          const gData = await fetchGroupData(res.group.id);
+          if (gData) {
+            state.players = gData.players;
+            state.matches = gData.matches;
+            state.customCalendar = gData.customCalendar;
+            state.lineupProposals = gData.lineupProposals;
+          }
+        }
+
+        saveState(state);
+        navigate('home');
+        showToast('✨ Compte creat amb èxit!');
+      } catch (err) {
+        showToast('❌ Error en registrar-se: ' + (err.message || 'Error del servidor'));
+        btnSignup.disabled = false;
+        btnSignup.textContent = 'Crear compte i entrar ✨';
       }
-
-      // Create new player profile
-      const newId = state.players.length > 0 ? Math.max(...state.players.map(p => p.id)) + 1 : 1;
-      const newPlayer = {
-        id: newId,
-        name: name,
-        emoji: '⚽',
-        photo: null,
-        elo: 1400,
-        goals: 0,
-        assists: 0,
-        matches: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        streak: [],
-        eloHistory: [1400]
-      };
-
-      state.players.push(newPlayer);
-      state.currentUserId = newId;
-      state.isFirstVisit = false;
-      saveState(state);
-
-      translateStaticElements();
-      navigate('home');
-      showToast(`✨ Benvingut/da ${name}! Ara formes part de FC😎`);
     });
   }
 
-  // ---- Guest Entrance Submission ----
-  const btnSubmitGuest = document.getElementById('btn-submit-guest');
-  if (btnSubmitGuest) {
-    btnSubmitGuest.addEventListener('click', () => {
+  // ---- 3. GUEST ----
+  const btnGuest = document.getElementById('btn-submit-guest');
+  if (btnGuest) {
+    btnGuest.addEventListener('click', () => {
       state.currentUserId = 'guest';
-      state.isFirstVisit = false;
+      state.userGroup = { name: 'FC Colla', invite_code: 'DEMO' };
       saveState(state);
-      translateStaticElements();
       navigate('home');
-      showToast(`🔑 ${t('login_guest_btn')}`);
+      showToast('🔑 Mode Convidat activat');
     });
   }
 }

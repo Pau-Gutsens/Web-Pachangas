@@ -2,7 +2,7 @@
 //  APP.JS — FC Colla · Router, State & Init
 // ============================================================
 
-const STORAGE_KEY = 'fc-colla-state-v1';
+const STORAGE_KEY = 'fc-colla-state-v2';
 
 // ---- Global State ----
 window.APP_STATE = {

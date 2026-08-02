@@ -36,12 +36,8 @@ const ApiClient = {
     return this.post('/api/auth?action=login', { email, password });
   },
 
-  createGroup(displayName, email, password, groupName) {
-    return this.post('/api/auth?action=create-group', { displayName, email, password, groupName });
-  },
-
-  joinGroup(displayName, email, password, inviteCode) {
-    return this.post('/api/auth?action=join-group', { displayName, email, password, inviteCode });
+  signUp(displayName, email, password) {
+    return this.post('/api/auth?action=signup', { displayName, email, password });
   },
 
   // Data Fetching
