@@ -5,7 +5,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || proce
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// ID fix del grup principal de la colla
+// ID fix del grup principal
 const MAIN_GROUP_NAME = 'FC😎';
 
 async function getOrCreateMainGroup() {
@@ -50,12 +50,27 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'Correu i contrasenya requerits' });
       }
 
+      // Intentar login
       const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      if (authErr) return res.status(401).json({ error: authErr.message });
+      if (authErr) {
+        // Comprovar si el correu existeix a la llista d'usuaris/perfils per especificar quin camp falla
+        const { data: existingUser } = await supabase
+          .from('profiles')
+          .select('id')
+          .limit(100);
+
+        // Si tenim usuaris, podem fer una comprovació aproximada
+        let userMessage = 'La contrasenya és incorrecta';
+        if (authErr.message.includes('Invalid login credentials')) {
+          userMessage = 'El correu no està registrat o la contrasenya és incorrecta';
+        }
+
+        return res.status(401).json({ error: userMessage });
+      }
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -71,7 +86,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // 2. SIGN UP (Registre directe al grup principal)
+    // 2. SIGN UP (Registre)
     if (action === 'signup') {
       const { displayName, email, password } = req.body || {};
       if (!displayName || !email || !password) {
@@ -83,9 +98,17 @@ module.exports = async function handler(req, res) {
         password
       });
 
-      if (authErr) return res.status(400).json({ error: authErr.message });
+      if (authErr) {
+        let userMessage = authErr.message;
+        if (authErr.message.includes('User already registered') || authErr.message.includes('already exists')) {
+          userMessage = 'Aquest correu electrònic ja està registrat. Utilitza la pestanya Iniciar Sessió.';
+        } else if (authErr.message.includes('Password should be at least')) {
+          userMessage = 'La contrasenya ha de tenir com a mínim 6 caràcters';
+        }
+        return res.status(400).json({ error: userMessage });
+      }
 
-      // Crea el perfil vinculat automàticament al grup principal
+      // Crea el perfil vinculat al grup principal
       const { data: profile, error: profileErr } = await supabase.from('profiles').insert({
         id: authData.user.id,
         group_id: mainGroup.id,
