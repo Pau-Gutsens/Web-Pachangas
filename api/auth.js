@@ -18,83 +18,80 @@ module.exports = async function handler(req, res) {
 
   const { action } = req.query;
 
-  try {
-    // 1. LOG IN
-    if (action === 'login') {
-      const { email, password } = req.body || {};
-      if (!email || !password) {
-        return res.status(400).json({ error: 'Correu i contrasenya requerits' });
-      }
-
-      const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (authErr) {
-        let userMessage = 'El correu o la contrasenya són incorrectes';
-        if (authErr.message.includes('Invalid login credentials')) {
-          userMessage = 'El correu no està registrat o la contrasenya és incorrecta';
-        }
-        return res.status(401).json({ error: userMessage });
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .maybeSingle();
-
-      return res.status(200).json({
-        user: authData.user,
-        session: authData.session,
-        profile: profile || null
-      });
+  // ---- 1. LOG IN ----
+  if (action === 'login') {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Correu i contrasenya requerits' });
     }
 
-    // 2. SIGN UP (Registre net de l'usuari)
-    if (action === 'signup') {
-      const { displayName, email, password } = req.body || {};
-      if (!displayName || !email || !password) {
-        return res.status(400).json({ error: 'Tots els camps són obligatoris' });
-      }
+    const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
-      const { data: authData, error: authErr } = await supabase.auth.signUp({
-        email,
-        password
-      });
-
-      if (authErr) {
-        let userMessage = authErr.message;
-        if (authErr.message.includes('User already registered') || authErr.message.includes('already exists')) {
-          userMessage = 'Aquest correu electrònic ja està registrat. Utilitza la pestanya Iniciar Sessió.';
-        } else if (authErr.message.includes('Password should be at least')) {
-          userMessage = 'La contrasenya ha de tenir com a mínim 6 caràcters';
-        }
-        return res.status(400).json({ error: userMessage });
-      }
-
-      // Crea el perfil de l'usuari
-      const { data: profile, error: profileErr } = await supabase.from('profiles').insert({
-        id: authData.user.id,
-        display_name: displayName,
-        role: 'member',
-        elo: 1400,
-        emoji: '⚽'
-      }).select().single();
-
-      if (profileErr) console.warn('Error al crear perfil:', profileErr);
-
-      return res.status(200).json({
-        user: authData.user,
-        session: authData.session,
-        profile: profile || null
-      });
+    if (authErr) {
+      const msg = authErr.message.includes('Invalid login credentials')
+        ? 'El correu no està registrat o la contrasenya és incorrecta'
+        : authErr.message;
+      return res.status(401).json({ error: msg });
     }
 
-    return res.status(400).json({ error: 'Acció no vàlida' });
-  } catch (err) {
-    console.error('[API Auth Error]:', err);
-    return res.status(500).json({ error: err.message || 'Error del servidor' });
+    // Recupera el perfil creat pel trigger
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authData.user.id)
+      .maybeSingle();
+
+    return res.status(200).json({
+      user: authData.user,
+      session: authData.session,
+      profile: profile || null
+    });
   }
+
+  // ---- 2. SIGN UP ----
+  if (action === 'signup') {
+    const { displayName, email, password } = req.body || {};
+    if (!displayName || !email || !password) {
+      return res.status(400).json({ error: 'Tots els camps són obligatoris' });
+    }
+
+    // Passem el nom com a metadata → el trigger de Supabase el llegirà automàticament
+    const { data: authData, error: authErr } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: displayName }
+      }
+    });
+
+    if (authErr) {
+      let msg = authErr.message;
+      if (msg.includes('User already registered') || msg.includes('already exists')) {
+        msg = 'Aquest correu ja està registrat. Utilitza la pestanya Iniciar Sessió.';
+      } else if (msg.includes('Password should be at least')) {
+        msg = 'La contrasenya ha de tenir com a mínim 6 caràcters';
+      }
+      return res.status(400).json({ error: msg });
+    }
+
+    // El trigger ha creat el perfil automàticament, el llegim
+    const { data: profile, error: profileReadErr } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authData.user.id)
+      .maybeSingle();
+
+    return res.status(200).json({
+      user: authData.user,
+      session: authData.session,
+      profile: profile || null,
+      // Debug: eliminar quan funcioni
+      _debug: profileReadErr ? profileReadErr.message : 'ok'
+    });
+  }
+
+  return res.status(400).json({ error: 'Acció no vàlida' });
 };
