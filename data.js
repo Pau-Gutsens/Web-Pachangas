@@ -1,342 +1,532 @@
 // ============================================================
-//  DATA.JS — FC Colla · Dades de jugadors i partits
+//  DATA.JS — Motor de Datos, Estadísticas y SR para Pachangas
 // ============================================================
 
-const DEFAULT_PLAYERS = [
-  {
-    id: 1, name: "Marc", emoji: "⚡", elo: 1485, goals: 22, assists: 9,
-    matches: 28, wins: 17, draws: 5, losses: 6,
-    streak: ["W","W","W","L","W"], value: 95, photo: null,
-    eloHistory: [1340, 1365, 1390, 1410, 1430, 1455, 1468, 1485]
-  },
-  {
-    id: 2, name: "Pau", emoji: "🔥", elo: 1462, goals: 18, assists: 12,
-    matches: 26, wins: 15, draws: 4, losses: 7,
-    streak: ["W","L","W","W","D"], value: 88, photo: null,
-    eloHistory: [1320, 1345, 1380, 1402, 1420, 1438, 1450, 1462]
-  },
-  {
-    id: 3, name: "Jordi", emoji: "💪", elo: 1431, goals: 14, assists: 8,
-    matches: 25, wins: 13, draws: 6, losses: 6,
-    streak: ["D","W","W","L","W"], value: 82, photo: null,
-    eloHistory: [1310, 1328, 1355, 1372, 1390, 1408, 1420, 1431]
-  },
-  {
-    id: 4, name: "Xavi", emoji: "🎯", elo: 1418, goals: 11, assists: 15,
-    matches: 27, wins: 14, draws: 5, losses: 8,
-    streak: ["W","D","L","W","W"], value: 79, photo: null,
-    eloHistory: [1300, 1318, 1342, 1360, 1378, 1395, 1408, 1418]
-  },
-  {
-    id: 5, name: "Dani", emoji: "🦁", elo: 1395, goals: 9, assists: 6,
-    matches: 24, wins: 12, draws: 5, losses: 7,
-    streak: ["L","W","W","D","W"], value: 72, photo: null,
-    eloHistory: [1290, 1305, 1325, 1345, 1362, 1378, 1388, 1395]
-  },
-  {
-    id: 6, name: "Toni", emoji: "🌊", elo: 1378, goals: 7, assists: 11,
-    matches: 23, wins: 11, draws: 4, losses: 8,
-    streak: ["W","L","D","W","L"], value: 68, photo: null,
-    eloHistory: [1280, 1295, 1312, 1330, 1348, 1360, 1370, 1378]
-  },
-  {
-    id: 7, name: "Sergi", emoji: "🎪", elo: 1352, goals: 13, assists: 4,
-    matches: 22, wins: 10, draws: 6, losses: 6,
-    streak: ["W","W","L","L","W"], value: 65, photo: null,
-    eloHistory: [1270, 1282, 1298, 1315, 1328, 1340, 1348, 1352]
-  },
-  {
-    id: 8, name: "Pol", emoji: "🏔️", elo: 1330, goals: 6, assists: 7,
-    matches: 20, wins: 9, draws: 5, losses: 6,
-    streak: ["D","L","W","W","D"], value: 61, photo: null,
-    eloHistory: [1260, 1270, 1285, 1298, 1310, 1320, 1326, 1330]
-  },
-  {
-    id: 9, name: "Roger", emoji: "⭐", elo: 1308, goals: 5, assists: 9,
-    matches: 19, wins: 8, draws: 4, losses: 7,
-    streak: ["L","D","W","L","W"], value: 57, photo: null,
-    eloHistory: [1250, 1258, 1272, 1285, 1295, 1302, 1306, 1308]
-  },
-  {
-    id: 10, name: "Nil", emoji: "🎭", elo: 1285, goals: 4, assists: 3,
-    matches: 18, wins: 7, draws: 3, losses: 8,
-    streak: ["L","L","W","D","L"], value: 52, photo: null,
-    eloHistory: [1240, 1248, 1258, 1268, 1275, 1280, 1283, 1285]
-  }
-];
+const STORAGE_KEY = 'pachangas_data_v1';
 
-const DEFAULT_MATCHES = [
-  {
-    id: 1, rival: "FC Rival", date: "2026-06-08", score: [4, 1], mvp: 1,
-    goals: [
-      {player: 1, minute: 12}, {player: 2, minute: 28},
-      {player: 1, minute: 45}, {player: 3, minute: 67}
-    ],
-    assists: [
-      {player: 4, minute: 12}, {player: 1, minute: 28}, {player: 2, minute: 67}
-    ]
-  },
-  {
-    id: 2, rival: "Los Cracks", date: "2026-06-01", score: [2, 2], mvp: 4,
-    goals: [
-      {player: 7, minute: 22}, {player: 4, minute: 88}
-    ],
-    assists: [
-      {player: 2, minute: 22}, {player: 6, minute: 88}
-    ]
-  },
-  {
-    id: 3, rival: "Team Astra", date: "2026-05-25", score: [3, 0], mvp: 2,
-    goals: [
-      {player: 2, minute: 15}, {player: 5, minute: 33}, {player: 1, minute: 71}
-    ],
-    assists: [
-      {player: 3, minute: 15}, {player: 4, minute: 33}
-    ]
-  },
-  {
-    id: 4, rival: "Deportivo Sol", date: "2026-05-18", score: [1, 3], mvp: 8,
-    goals: [
-      {player: 3, minute: 44}
-    ],
-    assists: [
-      {player: 7, minute: 44}
-    ]
-  },
-  {
-    id: 5, rival: "FC Rival", date: "2026-05-11", score: [5, 2], mvp: 1,
-    goals: [
-      {player: 1, minute: 8}, {player: 1, minute: 35},
-      {player: 2, minute: 52}, {player: 6, minute: 63}, {player: 3, minute: 80}
-    ],
-    assists: [
-      {player: 4, minute: 8}, {player: 5, minute: 35},
-      {player: 1, minute: 52}, {player: 2, minute: 63}
-    ]
-  },
-  {
-    id: 6, rival: "Los Meteoros", date: "2026-05-04", score: [2, 1], mvp: 6,
-    goals: [
-      {player: 6, minute: 18}, {player: 4, minute: 76}
-    ],
-    assists: [
-      {player: 2, minute: 18}, {player: 6, minute: 76}
-    ]
-  },
-  {
-    id: 7, rival: "Team Astra", date: "2026-04-27", score: [0, 2], mvp: null,
-    goals: [],
-    assists: []
-  },
-  {
-    id: 8, rival: "Deportivo Sol", date: "2026-04-20", score: [3, 3], mvp: 3,
-    goals: [
-      {player: 3, minute: 10}, {player: 7, minute: 55}, {player: 2, minute: 90}
-    ],
-    assists: [
-      {player: 1, minute: 10}, {player: 3, minute: 55}
-    ]
-  },
-  {
-    id: 9, rival: "Los Cracks", date: "2026-04-13", score: [4, 0], mvp: 5,
-    goals: [
-      {player: 5, minute: 20}, {player: 1, minute: 40},
-      {player: 4, minute: 60}, {player: 8, minute: 78}
-    ],
-    assists: [
-      {player: 2, minute: 20}, {player: 5, minute: 40}, {player: 1, minute: 60}
-    ]
-  },
-  {
-    id: 10, rival: "Galàxia FC", date: "2026-04-06", score: [1, 1], mvp: 9,
-    goals: [
-      {player: 9, minute: 65}
-    ],
-    assists: [
-      {player: 4, minute: 65}
-    ]
-  },
-  {
-    id: 11, rival: "Los Meteoros", date: "2026-03-30", score: [3, 1], mvp: 2,
-    goals: [
-      {player: 2, minute: 5}, {player: 3, minute: 32}, {player: 1, minute: 89}
-    ],
-    assists: [
-      {player: 1, minute: 5}, {player: 2, minute: 32}
-    ]
-  },
-  {
-    id: 12, rival: "Galàxia FC", date: "2026-03-23", score: [2, 0], mvp: 7,
-    goals: [
-      {player: 7, minute: 25}, {player: 5, minute: 68}
-    ],
-    assists: [
-      {player: 3, minute: 25}, {player: 7, minute: 68}
-    ]
-  },
-  {
-    id: 13, rival: "FC Rival", date: "2026-03-16", score: [1, 2], mvp: null,
-    goals: [
-      {player: 4, minute: 50}
-    ],
-    assists: []
-  },
-  {
-    id: 14, rival: "Deportivo Sol", date: "2026-03-09", score: [4, 2], mvp: 1,
-    goals: [
-      {player: 1, minute: 7}, {player: 2, minute: 30},
-      {player: 1, minute: 55}, {player: 6, minute: 82}
-    ],
-    assists: [
-      {player: 3, minute: 7}, {player: 4, minute: 30}, {player: 2, minute: 55}
-    ]
-  },
-  {
-    id: 15, rival: "Team Astra", date: "2026-03-02", score: [2, 2], mvp: 6,
-    goals: [
-      {player: 6, minute: 15}, {player: 9, minute: 78}
-    ],
-    assists: [
-      {player: 2, minute: 15}
-    ]
-  }
-];
-
-// Season calendar: 20 jornades
-const SEASON_CALENDAR = [
-  { jornada: 1,  date: "2026-03-02", rival: "Team Astra",   matchId: 15 },
-  { jornada: 2,  date: "2026-03-09", rival: "Deportivo Sol", matchId: 14 },
-  { jornada: 3,  date: "2026-03-16", rival: "FC Rival",     matchId: 13 },
-  { jornada: 4,  date: "2026-03-23", rival: "Galàxia FC",   matchId: 12 },
-  { jornada: 5,  date: "2026-03-30", rival: "Los Meteoros",  matchId: 11 },
-  { jornada: 6,  date: "2026-04-06", rival: "Galàxia FC",   matchId: 10 },
-  { jornada: 7,  date: "2026-04-13", rival: "Los Cracks",   matchId: 9  },
-  { jornada: 8,  date: "2026-04-20", rival: "Deportivo Sol", matchId: 8  },
-  { jornada: 9,  date: "2026-04-27", rival: "Team Astra",   matchId: 7  },
-  { jornada: 10, date: "2026-05-04", rival: "Los Meteoros",  matchId: 6  },
-  { jornada: 11, date: "2026-05-11", rival: "FC Rival",     matchId: 5  },
-  { jornada: 12, date: "2026-05-18", rival: "Deportivo Sol", matchId: 4  },
-  { jornada: 13, date: "2026-05-25", rival: "Team Astra",   matchId: 3  },
-  { jornada: 14, date: "2026-06-01", rival: "Los Cracks",   matchId: 2  },
-  { jornada: 15, date: "2026-06-08", rival: "FC Rival",     matchId: 1  },
-  { jornada: 16, date: "2026-06-15", rival: "Galàxia FC",   matchId: null },
-  { jornada: 17, date: "2026-06-22", rival: "Los Meteoros",  matchId: null },
-  { jornada: 18, date: "2026-06-29", rival: "Los Cracks",   matchId: null },
-  { jornada: 19, date: "2026-07-06", rival: "Deportivo Sol", matchId: null },
-  { jornada: 20, date: "2026-07-13", rival: "Team Astra",   matchId: null }
-];
-
-// Formation presets (positions as % of field, origin top-left)
-const FORMATIONS = {
-  "4-3-3": [
-    { pos: "GK", x: 50, y: 88, label: "GK" },
-    { pos: "RB", x: 80, y: 72, label: "RD" },
-    { pos: "CB1", x: 62, y: 72, label: "DC" },
-    { pos: "CB2", x: 38, y: 72, label: "DC" },
-    { pos: "LB", x: 20, y: 72, label: "LE" },
-    { pos: "CM1", x: 25, y: 52, label: "MC" },
-    { pos: "CM2", x: 50, y: 48, label: "MC" },
-    { pos: "CM3", x: 75, y: 52, label: "MC" },
-    { pos: "RW", x: 78, y: 28, label: "ED" },
-    { pos: "ST", x: 50, y: 18, label: "DC" },
-    { pos: "LW", x: 22, y: 28, label: "EE" }
-  ],
-  "4-4-2": [
-    { pos: "GK", x: 50, y: 88, label: "GK" },
-    { pos: "RB", x: 80, y: 72, label: "RD" },
-    { pos: "CB1", x: 62, y: 72, label: "DC" },
-    { pos: "CB2", x: 38, y: 72, label: "DC" },
-    { pos: "LB", x: 20, y: 72, label: "LE" },
-    { pos: "RM", x: 80, y: 50, label: "MD" },
-    { pos: "CM1", x: 60, y: 50, label: "MC" },
-    { pos: "CM2", x: 40, y: 50, label: "MC" },
-    { pos: "LM", x: 20, y: 50, label: "ME" },
-    { pos: "ST1", x: 62, y: 22, label: "DC" },
-    { pos: "ST2", x: 38, y: 22, label: "DC" }
-  ],
-  "3-5-2": [
-    { pos: "GK", x: 50, y: 88, label: "GK" },
-    { pos: "CB1", x: 70, y: 72, label: "DC" },
-    { pos: "CB2", x: 50, y: 72, label: "DC" },
-    { pos: "CB3", x: 30, y: 72, label: "DC" },
-    { pos: "RM", x: 85, y: 52, label: "CD" },
-    { pos: "CM1", x: 65, y: 50, label: "MC" },
-    { pos: "CM2", x: 50, y: 46, label: "MC" },
-    { pos: "CM3", x: 35, y: 50, label: "MC" },
-    { pos: "LM", x: 15, y: 52, label: "CE" },
-    { pos: "ST1", x: 62, y: 22, label: "DC" },
-    { pos: "ST2", x: 38, y: 22, label: "DC" }
-  ]
+// Posiciones válidas en el fútbol pachanga
+const POSITIONS = {
+  PORTERO: 'portero',
+  DEFENSA: 'defensa',
+  CENTROCAMPISTA: 'centrocampista',
+  DELANTERO: 'delantero'
 };
 
-// ---- Utility helpers ----
+const POSITION_LABELS = {
+  portero: { label: 'Portero', short: 'POR', emoji: '🧤' },
+  defensa: { label: 'Defensa', short: 'DEF', emoji: '🛡️' },
+  centrocampista: { label: 'Centrocampista', short: 'MED', emoji: '⚙️' },
+  delantero: { label: 'Delantero', short: 'DEL', emoji: '⚡' }
+};
 
-function getPlayerById(players, id) {
-  return players.find(p => p.id === id) || null;
+// Jugadores iniciales por defecto (amigos de la pachanga)
+const SEED_PLAYERS = [
+  { id: 'p1', name: 'Pau', emoji: '🔥', positions: ['delantero', 'centrocampista'] },
+  { id: 'p2', name: 'Marc', emoji: '⚡', positions: ['centrocampista', 'delantero'] },
+  { id: 'p3', name: 'Jordi', emoji: '🧤', positions: ['portero', 'defensa'] },
+  { id: 'p4', name: 'Xavi', emoji: '🎯', positions: ['centrocampista', 'defensa'] },
+  { id: 'p5', name: 'Dani', emoji: '🛡️', positions: ['defensa', 'centrocampista'] },
+  { id: 'p6', name: 'Toni', emoji: '🦁', positions: ['delantero', 'centrocampista'] },
+  { id: 'p7', name: 'Sergi', emoji: '🧱', positions: ['defensa', 'portero'] },
+  { id: 'p8', name: 'Pol', emoji: '🌪️', positions: ['centrocampista', 'delantero'] },
+  { id: 'p9', name: 'Roger', emoji: '🎩', positions: ['delantero', 'defensa'] },
+  { id: 'p10', name: 'Nil', emoji: '🧤', positions: ['portero'] },
+  { id: 'p11', name: 'Álex', emoji: '🚀', positions: ['defensa', 'delantero'] },
+  { id: 'p12', name: 'Adri', emoji: '💪', positions: ['centrocampista', 'defensa'] }
+];
+
+// Partidos históricos iniciales para arrancar con datos reales y consistentes
+const SEED_MATCHES = [
+  {
+    id: 'm1',
+    date: '2026-03-08',
+    teamA: {
+      name: 'Equipo Petos',
+      score: 6,
+      players: ['p1', 'p2', 'p5', 'p8', 'p10']
+    },
+    teamB: {
+      name: 'Equipo Sin Peto',
+      score: 4,
+      players: ['p3', 'p4', 'p6', 'p7', 'p9']
+    },
+    playerStats: {
+      p1: { team: 'A', isGoalkeeper: false, goals: 3, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p2: { team: 'A', isGoalkeeper: false, goals: 2, assists: 2, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p5: { team: 'A', isGoalkeeper: false, goals: 0, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p8: { team: 'A', isGoalkeeper: false, goals: 1, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p10: { team: 'A', isGoalkeeper: true, goals: 0, assists: 0, saves: 7, goalsConceded: 4, ownGoals: 0 },
+      
+      p3: { team: 'B', isGoalkeeper: true, goals: 0, assists: 0, saves: 5, goalsConceded: 6, ownGoals: 0 },
+      p4: { team: 'B', isGoalkeeper: false, goals: 1, assists: 2, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p6: { team: 'B', isGoalkeeper: false, goals: 2, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p7: { team: 'B', isGoalkeeper: false, goals: 0, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p9: { team: 'B', isGoalkeeper: false, goals: 1, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 }
+    },
+    mvp: 'p1',
+    mvpVotes: { p1: 'p2', p2: 'p1', p5: 'p1', p8: 'p1', p10: 'p1', p3: 'p1', p4: 'p6', p6: 'p1', p7: 'p10', p9: 'p4' }
+  },
+  {
+    id: 'm2',
+    date: '2026-03-15',
+    teamA: {
+      name: 'Equipo Petos',
+      score: 5,
+      players: ['p2', 'p4', 'p6', 'p11', 'p3']
+    },
+    teamB: {
+      name: 'Equipo Sin Peto',
+      score: 5,
+      players: ['p1', 'p5', 'p7', 'p9', 'p10']
+    },
+    playerStats: {
+      p2: { team: 'A', isGoalkeeper: false, goals: 2, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p4: { team: 'A', isGoalkeeper: false, goals: 1, assists: 2, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p6: { team: 'A', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p11: { team: 'A', isGoalkeeper: false, goals: 1, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p3: { team: 'A', isGoalkeeper: true, goals: 0, assists: 0, saves: 8, goalsConceded: 5, ownGoals: 0 },
+      
+      p1: { team: 'B', isGoalkeeper: false, goals: 3, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p5: { team: 'B', isGoalkeeper: false, goals: 0, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p7: { team: 'B', isGoalkeeper: false, goals: 1, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p9: { team: 'B', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p10: { team: 'B', isGoalkeeper: true, goals: 0, assists: 0, saves: 6, goalsConceded: 5, ownGoals: 0 }
+    },
+    mvp: 'p3',
+    mvpVotes: { p2: 'p3', p4: 'p3', p6: 'p1', p11: 'p3', p3: 'p1', p1: 'p3', p5: 'p3', p7: 'p1', p9: 'p3', p10: 'p3' }
+  },
+  {
+    id: 'm3',
+    date: '2026-03-21',
+    teamA: {
+      name: 'Equipo Petos',
+      score: 3,
+      players: ['p1', 'p3', 'p4', 'p12', 'p7']
+    },
+    teamB: {
+      name: 'Equipo Sin Peto',
+      score: 7,
+      players: ['p2', 'p6', 'p8', 'p10', 'p11']
+    },
+    playerStats: {
+      p1: { team: 'A', isGoalkeeper: false, goals: 2, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p3: { team: 'A', isGoalkeeper: true, goals: 0, assists: 0, saves: 4, goalsConceded: 7, ownGoals: 0 },
+      p4: { team: 'A', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p12: { team: 'A', isGoalkeeper: false, goals: 0, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p7: { team: 'A', isGoalkeeper: false, goals: 0, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 1 },
+      
+      p2: { team: 'B', isGoalkeeper: false, goals: 3, assists: 2, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p6: { team: 'B', isGoalkeeper: false, goals: 2, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p8: { team: 'B', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p11: { team: 'B', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
+      p10: { team: 'B', isGoalkeeper: true, goals: 0, assists: 0, saves: 9, goalsConceded: 3, ownGoals: 0 }
+    },
+    mvp: 'p2',
+    mvpVotes: { p1: 'p2', p3: 'p2', p4: 'p2', p12: 'p2', p7: 'p2', p2: 'p10', p6: 'p2', p8: 'p2', p10: 'p2', p11: 'p2' }
+  }
+];
+
+class DataStore {
+  constructor() {
+    this.players = [];
+    this.matches = [];
+    this.listeners = [];
+    this.load();
+  }
+
+  // Carga desde localStorage o si no existe, siembra los datos iniciales
+  load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        this.players = parsed.players || [];
+        this.matches = parsed.matches || [];
+        return;
+      }
+    } catch (e) {
+      console.error('Error cargando datos de localStorage:', e);
+    }
+    // Si está vacío o falla, inicializar con datos seed
+    this.players = JSON.parse(JSON.stringify(SEED_PLAYERS));
+    this.matches = JSON.parse(JSON.stringify(SEED_MATCHES));
+    this.save();
+  }
+
+  save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        players: this.players,
+        matches: this.matches
+      }));
+      this.notifyListeners();
+    } catch (e) {
+      console.error('Error guardando en localStorage:', e);
+    }
+  }
+
+  subscribe(callback) {
+    this.listeners.push(callback);
+    return () => {
+      this.listeners = this.listeners.filter(cb => cb !== callback);
+    };
+  }
+
+  notifyListeners() {
+    this.listeners.forEach(cb => {
+      try { cb(); } catch (e) { console.error(e); }
+    });
+  }
+
+  resetToDefaults() {
+    this.players = JSON.parse(JSON.stringify(SEED_PLAYERS));
+    this.matches = JSON.parse(JSON.stringify(SEED_MATCHES));
+    this.save();
+  }
+
+  // -------------------------------------------------------------
+  //  FÓRMULA ESTRICTA DE SR
+  // -------------------------------------------------------------
+  // Por cada partido:
+  //   Gol: +1
+  //   Asistencia: +1
+  //   Parada (portero): +1
+  //   Gol encajado (solo portero): -1
+  //   Autogol: -1
+  //   Victoria del equipo: +1
+  //   MVP del partido: +1 extra
+  // SR = total de puntos / partidos jugados (o 0 si no ha jugado ninguno)
+  calculateMatchPointsForPlayer(playerId, match) {
+    const stats = match.playerStats ? match.playerStats[playerId] : null;
+    if (!stats) return null; // No jugó este partido
+
+    const team = stats.team;
+    let teamWon = false;
+    if (team === 'A' && match.teamA.score > match.teamB.score) teamWon = true;
+    if (team === 'B' && match.teamB.score > match.teamA.score) teamWon = true;
+
+    const isMVP = (match.mvp === playerId);
+
+    let points = 0;
+    points += (stats.goals || 0) * 1;
+    points += (stats.assists || 0) * 1;
+    if (stats.isGoalkeeper) {
+      points += (stats.saves || 0) * 1;
+      points -= (stats.goalsConceded || 0) * 1;
+    }
+    points -= (stats.ownGoals || 0) * 1;
+    if (teamWon) {
+      points += 1;
+    }
+    if (isMVP) {
+      points += 1;
+    }
+
+    return {
+      points,
+      teamWon,
+      isMVP,
+      stats
+    };
+  }
+
+  // Obtiene estadísticas acumuladas y SR en tiempo real de un jugador
+  getPlayerStats(playerId) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return null;
+
+    let matchesPlayed = 0;
+    let wins = 0;
+    let draws = 0;
+    let losses = 0;
+    let goals = 0;
+    let assists = 0;
+    let saves = 0;
+    let goalsConceded = 0;
+    let ownGoals = 0;
+    let mvpCount = 0;
+    let totalPoints = 0;
+    const historyPoints = [];
+
+    // Recorrer partidos ordenados cronológicamente
+    const sortedMatches = [...this.matches].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    sortedMatches.forEach(m => {
+      const pData = this.calculateMatchPointsForPlayer(playerId, m);
+      if (pData) {
+        matchesPlayed++;
+        totalPoints += pData.points;
+        historyPoints.push(pData.points);
+
+        const isTeamA = pData.stats.team === 'A';
+        const myScore = isTeamA ? m.teamA.score : m.teamB.score;
+        const rivalScore = isTeamA ? m.teamB.score : m.teamA.score;
+
+        if (myScore > rivalScore) wins++;
+        else if (myScore === rivalScore) draws++;
+        else losses++;
+
+        goals += pData.stats.goals || 0;
+        assists += pData.stats.assists || 0;
+        saves += pData.stats.saves || 0;
+        goalsConceded += pData.stats.goalsConceded || 0;
+        ownGoals += pData.stats.ownGoals || 0;
+        if (pData.isMVP) mvpCount++;
+      }
+    });
+
+    const totalGroupMatches = this.matches.length;
+    const attendanceRate = totalGroupMatches > 0 ? (matchesPlayed / totalGroupMatches) * 100 : 0;
+    const sr = matchesPlayed > 0 ? (totalPoints / matchesPlayed) : 0.0;
+
+    return {
+      id: player.id,
+      name: player.name,
+      emoji: player.emoji || '⚽',
+      positions: player.positions || [],
+      matchesPlayed,
+      wins,
+      draws,
+      losses,
+      goals,
+      assists,
+      saves,
+      goalsConceded,
+      ownGoals,
+      mvpCount,
+      totalPoints,
+      sr: parseFloat(sr.toFixed(2)),
+      attendanceRate: parseFloat(attendanceRate.toFixed(1)),
+      winRate: matchesPlayed > 0 ? parseFloat(((wins / matchesPlayed) * 100).toFixed(1)) : 0,
+      historyPoints
+    };
+  }
+
+  // Obtiene ranking completo de todos los jugadores con sus estadísticas
+  getAllPlayersWithStats() {
+    return this.players.map(p => this.getPlayerStats(p.id));
+  }
+
+  // -------------------------------------------------------------
+  //  GESTIÓN DE JUGADORES
+  // -------------------------------------------------------------
+  addPlayer({ name, emoji, positions }) {
+    const id = 'p_' + Date.now();
+    const newPlayer = {
+      id,
+      name: name.trim(),
+      emoji: emoji || '⚽',
+      positions: positions && positions.length > 0 ? positions.slice(0, 3) : ['centrocampista']
+    };
+    this.players.push(newPlayer);
+    this.save();
+    return newPlayer;
+  }
+
+  updatePlayer(id, { name, emoji, positions }) {
+    const idx = this.players.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      if (name) this.players[idx].name = name.trim();
+      if (emoji) this.players[idx].emoji = emoji;
+      if (positions) this.players[idx].positions = positions.slice(0, 3);
+      this.save();
+      return this.players[idx];
+    }
+    return null;
+  }
+
+  deletePlayer(id) {
+    this.players = this.players.filter(p => p.id !== id);
+    this.save();
+  }
+
+  // -------------------------------------------------------------
+  //  GESTIÓN DE PARTIDOS Y VOTACIÓN MVP
+  // -------------------------------------------------------------
+  addMatch(matchData) {
+    const id = 'm_' + Date.now();
+    const match = {
+      id,
+      date: matchData.date || new Date().toISOString().split('T')[0],
+      teamA: {
+        name: matchData.teamA.name || 'Equipo Petos',
+        score: parseInt(matchData.teamA.score, 10) || 0,
+        players: matchData.teamA.players || []
+      },
+      teamB: {
+        name: matchData.teamB.name || 'Equipo Sin Peto',
+        score: parseInt(matchData.teamB.score, 10) || 0,
+        players: matchData.teamB.players || []
+      },
+      playerStats: matchData.playerStats || {},
+      mvp: matchData.mvp || null,
+      mvpVotes: matchData.mvpVotes || {}
+    };
+
+    this.matches.unshift(match); // Al inicio (más reciente primero)
+    this.save();
+    return match;
+  }
+
+  updateMatch(id, updatedFields) {
+    const idx = this.matches.findIndex(m => m.id === id);
+    if (idx !== -1) {
+      this.matches[idx] = { ...this.matches[idx], ...updatedFields };
+      this.save();
+      return this.matches[idx];
+    }
+    return null;
+  }
+
+  deleteMatch(id) {
+    this.matches = this.matches.filter(m => m.id !== id);
+    this.save();
+  }
+
+  recordMvpVote(matchId, voterPlayerId, candidatePlayerId) {
+    const match = this.matches.find(m => m.id === matchId);
+    if (!match) return false;
+
+    if (!match.mvpVotes) match.mvpVotes = {};
+    match.mvpVotes[voterPlayerId] = candidatePlayerId;
+
+    // Calcular si se define el MVP
+    const tally = {};
+    Object.values(match.mvpVotes).forEach(candId => {
+      tally[candId] = (tally[candId] || 0) + 1;
+    });
+
+    let topVotes = 0;
+    let topCandidate = null;
+    Object.entries(tally).forEach(([candId, count]) => {
+      if (count > topVotes) {
+        topVotes = count;
+        topCandidate = candId;
+      }
+    });
+
+    if (topCandidate) {
+      match.mvp = topCandidate;
+    }
+
+    this.save();
+    return { match, tally, topCandidate };
+  }
+
+  setMatchMvp(matchId, candidatePlayerId) {
+    const match = this.matches.find(m => m.id === matchId);
+    if (!match) return false;
+    match.mvp = candidatePlayerId;
+    this.save();
+    return match;
+  }
+
+  // -------------------------------------------------------------
+  //  FORMACIÓN AUTOMÁTICA DE EQUIPOS
+  // -------------------------------------------------------------
+  // Reparte equipos intentando:
+  // 1. Igualar el SR total/promedio de cada equipo
+  // 2. Respetar posiciones preferidas (portero por equipo, equilibrio de defensas/medios/delanteros)
+  balanceTeams(attendingPlayerIds) {
+    if (!attendingPlayerIds || attendingPlayerIds.length < 2) {
+      return { teamA: attendingPlayerIds || [], teamB: [], diffSR: 0 };
+    }
+
+    const playersData = attendingPlayerIds.map(id => this.getPlayerStats(id)).filter(Boolean);
+
+    // Separar porteros preferidos
+    const goalkeepers = playersData.filter(p => p.positions.includes(POSITIONS.PORTERO));
+    const others = playersData.filter(p => !p.positions.includes(POSITIONS.PORTERO));
+
+    // Ordenar de mayor a menor SR
+    goalkeepers.sort((a, b) => b.sr - a.sr);
+    others.sort((a, b) => b.sr - a.sr);
+
+    const teamA = [];
+    const teamB = [];
+    let srA = 0;
+    let srB = 0;
+
+    // 1. Si hay porteros, repartirlos equilibradamente
+    if (goalkeepers.length >= 2) {
+      teamA.push(goalkeepers[0].id);
+      srA += goalkeepers[0].sr;
+      teamB.push(goalkeepers[1].id);
+      srB += goalkeepers[1].sr;
+      for (let i = 2; i < goalkeepers.length; i++) {
+        others.push(goalkeepers[i]);
+      }
+      others.sort((a, b) => b.sr - a.sr);
+    } else if (goalkeepers.length === 1) {
+      teamA.push(goalkeepers[0].id);
+      srA += goalkeepers[0].sr;
+    }
+
+    // 2. Reparto balanceado con tamaño parejo
+    const targetSizePerTeam = Math.ceil(playersData.length / 2);
+
+    others.forEach(player => {
+      const canGoToA = teamA.length < targetSizePerTeam;
+      const canGoToB = teamB.length < targetSizePerTeam;
+
+      if (canGoToA && !canGoToB) {
+        teamA.push(player.id);
+        srA += player.sr;
+      } else if (!canGoToA && canGoToB) {
+        teamB.push(player.id);
+        srB += player.sr;
+      } else {
+        if (srA <= srB) {
+          teamA.push(player.id);
+          srA += player.sr;
+        } else {
+          teamB.push(player.id);
+          srB += player.sr;
+        }
+      }
+    });
+
+    const avgA = teamA.length > 0 ? (srA / teamA.length) : 0;
+    const avgB = teamB.length > 0 ? (srB / teamB.length) : 0;
+
+    return {
+      teamA,
+      teamB,
+      totalSRA: parseFloat(srA.toFixed(2)),
+      totalSRB: parseFloat(srB.toFixed(2)),
+      avgSRA: parseFloat(avgA.toFixed(2)),
+      avgSRB: parseFloat(avgB.toFixed(2)),
+      diffSR: parseFloat(Math.abs(avgA - avgB).toFixed(2))
+    };
+  }
+
+  // -------------------------------------------------------------
+  //  EXPORTAR / IMPORTAR
+  // -------------------------------------------------------------
+  exportBackup() {
+    return JSON.stringify({
+      version: 1,
+      timestamp: new Date().toISOString(),
+      players: this.players,
+      matches: this.matches
+    }, null, 2);
+  }
+
+  importBackup(jsonString) {
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (Array.isArray(parsed.players) && Array.isArray(parsed.matches)) {
+        this.players = parsed.players;
+        this.matches = parsed.matches;
+        this.save();
+        return true;
+      }
+    } catch (e) {
+      console.error('Error importando backup:', e);
+    }
+    return false;
+  }
 }
 
-function getMatchResult(score) {
-  if (score[0] > score[1]) return 'W';
-  if (score[0] < score[1]) return 'L';
-  return 'D';
-}
-
-function formatDate(dateStr) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('ca-ES', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function getTopScorer(players) {
-  return [...players].sort((a, b) => b.goals - a.goals)[0];
-}
-
-function getTopAssist(players) {
-  return [...players].sort((a, b) => b.assists - a.assists)[0];
-}
-
-function getBestStreak(players) {
-  // Best current winning streak
-  return [...players].sort((a, b) => {
-    const aWins = a.streak.filter(s => s === 'W').length;
-    const bWins = b.streak.filter(s => s === 'W').length;
-    return bWins - aWins;
-  })[0];
-}
-
-function getTopElo(players) {
-  return [...players].sort((a, b) => b.elo - a.elo)[0];
-}
-
-function getWinRate(player) {
-  if (player.matches === 0) return 0;
-  return Math.round((player.wins / player.matches) * 100);
-}
-
-function getAvgGoals(players) {
-  const total = players.reduce((sum, p) => sum + p.goals, 0);
-  return (total / players.length).toFixed(1);
-}
-
-function getAvgAssists(players) {
-  const total = players.reduce((sum, p) => sum + p.assists, 0);
-  return (total / players.length).toFixed(1);
-}
-
-// ---- Calendar Helpers (available globally before components load) ----
-function getFullCalendar(state) {
-  const base = typeof SEASON_CALENDAR !== 'undefined' ? SEASON_CALENDAR : [];
-  const custom = (state && state.customCalendar) || [];
-  const combined = [...base, ...custom];
-  return combined.sort((a, b) => new Date(a.date) - new Date(b.date));
-}
-
-// Returns all unplayed calendar entries (future + past unregistered), sorted by date ascending
-function getUpcomingJornades(state) {
-  const fullCalendar = getFullCalendar(state);
-  const playedIds = new Set(((state && state.matches) || []).map(m => String(m.id)));
-  return fullCalendar
-    .filter(j => !j.matchId || !playedIds.has(String(j.matchId)))
-    .filter(j => !j.matchId)
-    .map(j => ({ ...j, dateObj: new Date(j.date) }))
-    .sort((a, b) => a.dateObj - b.dateObj);
-}
+// Instancia global
+window.PachangasData = new DataStore();

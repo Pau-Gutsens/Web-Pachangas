@@ -1,468 +1,231 @@
 // ============================================================
-//  APP.JS — FC Colla · Router, State & Init
+//  APP.JS — Controlador Principal de la Web de Pachangas
 // ============================================================
 
-const STORAGE_KEY = 'fc-colla-state-v2';
+window.App = {
+  currentPage: 'ranking',
 
-// ---- Global State ----
-window.APP_STATE = {
-  currentPage: 'home',
-  players: [],
-  matches: [],
-  customCalendar: [],     // [ { jornada, date, rival, matchId, time, location, notes }, ... ]
-  customFormations: {},   // { name: [ {pos, x, y, label}, ... ] }
-  lineupProposals: {},    // { [jornadaId]: { [userId]: { teamA: {formation, positions}, teamB: {formation, positions} } } }
-  partitsTab: 'historial',
-  historialFilters: { rival: '', dateFrom: '', dateTo: '', result: 'all' },
-  comparison: { player1: 1, player2: 2 },
-  perfilSearch: '',
-  perfilSort: 'elo',
-  lang: 'ca',             // Localization ('ca', 'es', 'en')
-  currentUserId: null,    // Logged player ID or 'guest' or null
-};
+  init() {
+    console.log('⚽ Iniciando Web Pachangas...');
 
+    // Inicializar componentes que requieren setup
+    if (window.EquiposComponent?.init) window.EquiposComponent.init();
+    if (window.RegistroComponent?.init) window.RegistroComponent.init();
 
-// ---- Persistence ----
-function saveState(state) {
-  try {
-    const toSave = {
-      players: state.players,
-      matches: state.matches,
-      customCalendar: state.customCalendar || [],
-      customFormations: state.customFormations || {},
-      lineupProposals: state.lineupProposals || {},
-      activeLineupJornada: state.activeLineupJornada || null,
-      lang: state.lang || 'ca',
-      currentUserId: state.currentUserId,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-  } catch (e) {
-    console.warn('Could not save state:', e);
-  }
-}
+    // Enlazar navegación de pestañas
+    this.bindNavigation();
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        players: parsed.players || DEFAULT_PLAYERS,
-        matches: parsed.matches || DEFAULT_MATCHES,
-        customCalendar: parsed.customCalendar || [],
-        customFormations: parsed.customFormations || {},
-        lineupProposals: parsed.lineupProposals || {},
-        activeLineupJornada: parsed.activeLineupJornada || null,
-        lang: parsed.lang || 'ca',
-        currentUserId: parsed.currentUserId !== undefined ? parsed.currentUserId : null,
-      };
-    }
-  } catch (e) {
-    console.warn('Could not load state:', e);
-  }
-  return {
-    players: JSON.parse(JSON.stringify(DEFAULT_PLAYERS)),
-    matches: JSON.parse(JSON.stringify(DEFAULT_MATCHES)),
-    customCalendar: [],
-    customFormations: {},
-    lineupProposals: {},
-    activeLineupJornada: null,
-    lang: 'ca',
-    currentUserId: null,
-  };
-}
+    // Modal global
+    this.bindModalEvents();
 
-// ---- Dynamic Header Update ----
-function updateHeader(page, state) {
-  const titleEl = document.getElementById('app-title');
-  const badgeEl = document.getElementById('header-badge');
-  const userStatusEl = document.getElementById('header-user-status');
-  if (!titleEl) return;
+    // Escuchar cambios de datos reactivos
+    window.PachangasData.subscribe(() => {
+      this.refreshCurrentPage();
+    });
 
-  if (badgeEl) {
-    badgeEl.className = 'header-badge';
-  }
+    // Cargar página inicial
+    this.navigateTo('ranking');
+  },
 
-  switch (page) {
-    case 'home':
-      titleEl.textContent = 'FC😎';
-      if (badgeEl) { badgeEl.textContent = `${t('season')} 26`; badgeEl.classList.add('badge-neon'); }
-      break;
-    case 'stats':
-      titleEl.textContent = t('stats_title');
-      if (badgeEl) { badgeEl.textContent = 'ELO · Gols'; badgeEl.classList.add('badge-cyan'); }
-      break;
-    case 'partits':
-      titleEl.textContent = t('matches_title');
-      if (badgeEl) { badgeEl.textContent = `${state.matches.length} ${t('played')}`; badgeEl.classList.add('badge-orange'); }
-      break;
-    case 'perfil':
-      titleEl.textContent = t('players_title');
-      if (badgeEl) { badgeEl.textContent = `${state.players.length} ${t('players_count')}`; badgeEl.classList.add('badge-gold'); }
-      break;
-  }
+  navigateTo(pageName) {
+    this.currentPage = pageName;
 
-  // Update active user status in header
-  if (userStatusEl) {
-    if (state.currentUserId) {
-      if (state.currentUserId === 'guest') {
-        userStatusEl.innerHTML = `
-          <div class="header-user-pill" style="cursor: default;">
-            <div class="header-user-avatar">👤</div>
-            <div class="header-user-info">
-              <span class="header-user-name">${t('guest_short') || 'Convidat'}</span>
-            </div>
-          </div>
-        `;
-      } else {
-        const player = state.players.find(p => p.id === state.currentUserId);
-        if (player) {
-          userStatusEl.innerHTML = `
-            <div class="header-user-pill" id="header-user-pill-btn" role="button" tabindex="0" aria-label="Veure el meu perfil">
-              <div class="header-user-avatar">
-                ${player.photo ? `<img src="${player.photo}">` : player.emoji}
-              </div>
-              <div class="header-user-info">
-                <span class="header-user-name">${player.name}</span>
-                <span class="header-user-elo">${player.elo} ELO</span>
-              </div>
-            </div>
-          `;
-          const btn = document.getElementById('header-user-pill-btn');
-          if (btn) {
-            btn.addEventListener('click', () => {
-              if (typeof openPlayerModal === 'function') {
-                openPlayerModal(player, state.players, state.matches);
-              }
-            });
-          }
-        } else {
-          userStatusEl.innerHTML = '';
-        }
+    // Actualizar nav items
+    document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.page === pageName);
+    });
+
+    // Actualizar vistas
+    document.querySelectorAll('.app-page').forEach(pageEl => {
+      pageEl.classList.toggle('active', pageEl.id === `view-${pageName}`);
+    });
+
+    // Título y badge en cabecera
+    this.updateHeader(pageName);
+
+    // Renderizar componente en su contenedor
+    const container = document.getElementById(`view-${pageName}`);
+    if (container) {
+      if (pageName === 'ranking' && window.RankingComponent) {
+        window.RankingComponent.render(container);
+      } else if (pageName === 'equipos' && window.EquiposComponent) {
+        window.EquiposComponent.render(container);
+      } else if (pageName === 'registro' && window.RegistroComponent) {
+        window.RegistroComponent.render(container);
+      } else if (pageName === 'historico' && window.HistoricoComponent) {
+        window.HistoricoComponent.render(container);
+      } else if (pageName === 'jugadores' && window.JugadoresComponent) {
+        window.JugadoresComponent.render(container);
       }
-    } else {
-      userStatusEl.innerHTML = '';
     }
-  }
-}
 
-// ---- Static Elements Translation ----
-function translateStaticElements() {
-  const homeNav = document.querySelector('#nav-home span');
-  const statsNav = document.querySelector('#nav-stats span');
-  const partitsNav = document.querySelector('#nav-partits span');
-  const perfilNav = document.querySelector('#nav-perfil span');
+    // Scroll arriba suave
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
 
-  if (homeNav) homeNav.textContent = t('nav_home');
-  if (statsNav) statsNav.textContent = t('nav_stats');
-  if (partitsNav) partitsNav.textContent = t('nav_partits');
-  if (perfilNav) perfilNav.textContent = t('nav_players');
+  refreshCurrentPage() {
+    this.navigateTo(this.currentPage);
+  },
 
-  updateHeader(window.APP_STATE.currentPage, window.APP_STATE);
-}
+  updateHeader(pageName) {
+    const titles = {
+      ranking: '🏆 Ranking Pachanguero',
+      equipos: '🎽 Formador de Equipos',
+      registro: '📝 Registrar Pachanga',
+      historico: '📜 Histórico de Partidos',
+      jugadores: '👥 Colegas del Grupo'
+    };
 
-// ---- Theme Management ----
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('fc-theme', theme);
-}
+    const headerTitle = document.getElementById('app-header-title');
+    if (headerTitle) {
+      headerTitle.textContent = titles[pageName] || '⚽ Pachangas FC';
+    }
+  },
 
-function loadTheme() {
-  const saved = localStorage.getItem('fc-theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  return saved;
-}
-
-// ---- Settings Modal ----
-function openSettingsModal() {
-  const state = window.APP_STATE;
-  const currentTheme = localStorage.getItem('fc-theme') || 'dark';
-  const isLight = currentTheme === 'light';
-
-  const content = `
-    <div class="modal-header">
-      <div class="modal-title">⚙️ ${t('settings_title')}</div>
-      <button class="modal-close" id="modal-close-btn" aria-label="${t('close')}">✕</button>
-    </div>
-    <div class="modal-body settings-modal-body">
-
-      <!-- Theme Toggle -->
-      <div class="settings-section">
-        <h3>🎨 ${t('settings_appearance')}</h3>
-        <div class="theme-toggle-row">
-          <span class="theme-toggle-label">
-            <span class="theme-icon">${isLight ? '☀️' : '🌙'}</span>
-            ${isLight ? t('settings_mode_light') : t('settings_mode_dark')}
-          </span>
-          <label class="theme-switch" aria-label="Toggle theme">
-            <input type="checkbox" id="theme-toggle-checkbox" ${isLight ? 'checked' : ''}>
-            <span class="theme-switch-track"></span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Language Selection -->
-      <div class="settings-section">
-        <h3>🌐 ${t('select_lang')}</h3>
-        <div class="lang-selector-group" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-          <button class="lang-btn ${state.lang === 'ca' ? 'active' : ''}" data-lang="ca">Català</button>
-          <button class="lang-btn ${state.lang === 'es' ? 'active' : ''}" data-lang="es">Español</button>
-        </div>
-      </div>
-
-      <!-- Logout -->
-      <div class="settings-section">
-        <button class="settings-action-btn btn-danger" id="btn-logout">
-          🚪 ${t('login_logout')}
-        </button>
-      </div>
-
-    </div>
-  `;
-
-  openModal(content);
-
-  // Theme toggle
-  const themeCheckbox = document.getElementById('theme-toggle-checkbox');
-  if (themeCheckbox) {
-    themeCheckbox.addEventListener('change', () => {
-      const newTheme = themeCheckbox.checked ? 'light' : 'dark';
-      applyTheme(newTheme);
-      // Re-render modal to update icon/label
-      openSettingsModal();
+  bindNavigation() {
+    const navItems = document.querySelectorAll('.bottom-nav .nav-item');
+    navItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        const page = item.dataset.page;
+        if (page) this.navigateTo(page);
+      });
     });
-  }
+  },
 
-  // Bind Language buttons
-  document.querySelectorAll('.lang-selector-group .lang-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const selectedLang = btn.dataset.lang;
-      state.lang = selectedLang;
-      saveState(state);
+  // -----------------------------------------------------------
+  //  MODALES Y TOASTS
+  // -----------------------------------------------------------
+  bindModalEvents() {
+    const overlay = document.getElementById('modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', () => this.closeModal());
+    }
+  },
 
-      // Re-render modal to update translation immediately!
-      openSettingsModal();
+  openCustomModal(htmlContent, onMounted) {
+    const overlay = document.getElementById('modal-overlay');
+    const container = document.getElementById('modal-container');
+    const content = document.getElementById('modal-content');
 
-      // Update all UI translations
-      translateStaticElements();
-      renderPage(state.currentPage, state);
-    });
-  });
+    if (!overlay || !container || !content) return;
 
-  // Log Out
-  const btnLogout = document.getElementById('btn-logout');
-  if (btnLogout) {
-    btnLogout.addEventListener('click', () => {
-      state.currentUserId = null;
-      saveState(state);
-      closeModal();
-      navigate('login');
-    });
-  }
-}
-
-
-// ---- Modal System ----
-function openModal(htmlContent) {
-  const overlay   = document.getElementById('modal-overlay');
-  const container = document.getElementById('modal-container');
-  const content   = document.getElementById('modal-content');
-
-  content.innerHTML = htmlContent;
-  overlay.removeAttribute('aria-hidden');
-  container.removeAttribute('aria-hidden');
-
-  // Animate in
-  requestAnimationFrame(() => {
+    content.innerHTML = htmlContent;
     overlay.classList.add('visible');
     container.classList.add('visible');
-  });
+    document.body.classList.add('modal-open');
 
-  // Close button
-  const closeBtn = document.getElementById('modal-close-btn');
-  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (onMounted) {
+      onMounted(content);
+    }
+  },
 
-  // Click overlay to close
-  overlay.onclick = closeModal;
+  closeModal() {
+    const overlay = document.getElementById('modal-overlay');
+    const container = document.getElementById('modal-container');
+    if (overlay) overlay.classList.remove('visible');
+    if (container) container.classList.remove('visible');
+    document.body.classList.remove('modal-open');
+  },
 
-  // Trap focus: close on Escape
-  document.addEventListener('keydown', handleModalKey, { once: true });
-}
+  openPlayerModal(playerId) {
+    const dataStore = window.PachangasData;
+    const player = dataStore.getPlayerStats(playerId);
+    if (!player) return;
 
-function closeModal() {
-  const overlay   = document.getElementById('modal-overlay');
-  const container = document.getElementById('modal-container');
+    const posBadges = (player.positions || []).map(pos => {
+      const cfg = POSITION_LABELS[pos] || { label: pos, emoji: '' };
+      return `<span class="pos-badge pos-${pos}">${cfg.emoji} ${cfg.label}</span>`;
+    }).join(' ');
 
-  overlay.classList.remove('visible');
-  container.classList.remove('visible');
+    const html = `
+      <div class="player-detail-modal">
+        <div class="modal-player-header">
+          <div class="modal-player-avatar">${player.emoji}</div>
+          <div class="modal-player-title">
+            <h3>${player.name}</h3>
+            <div class="modal-positions">${posBadges}</div>
+          </div>
+          <div class="modal-sr-box">
+            <span class="sr-label">SR</span>
+            <span class="sr-val ${player.sr >= 0 ? 'pos' : 'neg'}">${player.sr >= 0 ? '+' : ''}${player.sr.toFixed(2)}</span>
+          </div>
+        </div>
 
-  overlay.setAttribute('aria-hidden', 'true');
-  container.setAttribute('aria-hidden', 'true');
+        <div class="player-stats-matrix">
+          <div class="matrix-card">
+            <span class="m-val">${player.matchesPlayed}</span>
+            <span class="m-lbl">Partidos</span>
+          </div>
+          <div class="matrix-card">
+            <span class="m-val">${player.wins}W - ${player.draws}D - ${player.losses}L</span>
+            <span class="m-lbl">${player.winRate}% Vic.</span>
+          </div>
+          <div class="matrix-card">
+            <span class="m-val">⚽ ${player.goals}</span>
+            <span class="m-lbl">Goles</span>
+          </div>
+          <div class="matrix-card">
+            <span class="m-val">👟 ${player.assists}</span>
+            <span class="m-lbl">Asistencias</span>
+          </div>
+          <div class="matrix-card">
+            <span class="m-val">🧤 ${player.saves}</span>
+            <span class="m-lbl">Paradas</span>
+          </div>
+          <div class="matrix-card">
+            <span class="m-val">🥅 ${player.goalsConceded}</span>
+            <span class="m-lbl">Goles Encajados</span>
+          </div>
+          <div class="matrix-card">
+            <span class="m-val">⚠️ ${player.ownGoals}</span>
+            <span class="m-lbl">Autogoles</span>
+          </div>
+          <div class="matrix-card highlight">
+            <span class="m-val">👑 ${player.mvpCount}</span>
+            <span class="m-lbl">Veces MVP</span>
+          </div>
+          <div class="matrix-card">
+            <span class="m-val">📊 ${player.attendanceRate}%</span>
+            <span class="m-lbl">Asistencia</span>
+          </div>
+        </div>
 
-  // Clear content after animation
-  setTimeout(() => {
-    const content = document.getElementById('modal-content');
-    if (content) content.innerHTML = '';
-  }, 350);
-}
+        <div class="sr-breakdown-explanation">
+          <h4>Desglose de SR</h4>
+          <p>Puntos totales acumulados: <strong>${player.totalPoints}</strong> en <strong>${player.matchesPlayed}</strong> partidos = <strong>${player.sr.toFixed(2)} SR promedio</strong>.</p>
+        </div>
 
-function handleModalKey(e) {
-  if (e.key === 'Escape') closeModal();
-}
+        <div class="modal-footer-btns">
+          <button class="btn btn-outline btn-block" onclick="window.App.closeModal()">Cerrar</button>
+        </div>
+      </div>
+    `;
 
-// ---- Toast ----
-function showToast(message, duration = 2800) {
-  const toast = document.getElementById('toast');
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add('visible');
-  setTimeout(() => toast.classList.remove('visible'), duration);
-}
+    this.openCustomModal(html);
+  },
 
-// ---- Router ----
-function navigate(page) {
-  const state = window.APP_STATE;
-  if (state.currentPage === page) return;
+  showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
 
-  // Hide current page
-  const currentEl = document.getElementById(`page-${state.currentPage}`);
-  if (currentEl) currentEl.classList.remove('active');
+    const icons = {
+      success: '✅',
+      error: '❌',
+      warning: '⚠️',
+      info: '⚽'
+    };
 
-  // Show/Hide app navigation shell for login
-  const isLogin = page === 'login';
-  const header = document.querySelector('.app-header');
-  const bottomNav = document.getElementById('bottom-nav');
-  if (header) header.style.display = isLogin ? 'none' : 'flex';
-  if (bottomNav) bottomNav.style.display = isLogin ? 'none' : 'flex';
-  
-  const appEl = document.getElementById('app');
-  if (appEl) {
-    appEl.style.paddingTop = isLogin ? '0px' : 'calc(var(--header-height) + 8px)';
+    toast.className = `toast toast-${type} visible`;
+    toast.innerHTML = `<span>${icons[type] || '⚽'}</span> <span>${message}</span>`;
+
+    if (this._toastTimeout) clearTimeout(this._toastTimeout);
+    this._toastTimeout = setTimeout(() => {
+      toast.classList.remove('visible');
+    }, 2800);
   }
+};
 
-  // Update nav active state
-  document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.page === page);
-  });
-
-  state.currentPage = page;
-
-  // Render new page
-  renderPage(page, state);
-
-  // Update global header title/badge
-  if (!isLogin) {
-    updateHeader(page, state);
-  }
-
-  // Show new page
-  const newEl = document.getElementById(`page-${page}`);
-  if (newEl) newEl.classList.add('active');
-
-  // Scroll to top
-  window.scrollTo({ top: 0, behavior: 'instant' });
-}
-
-function renderPage(page, state) {
-  const el = document.getElementById(`page-${page}`);
-  if (!el) return;
-
-  switch (page) {
-    case 'login':
-      el.innerHTML = renderLogin(state);
-      initLogin(state);
-      break;
-    case 'home':
-      el.innerHTML = renderHome(state);
-      initHome(state);
-      break;
-    case 'stats':
-      el.innerHTML = renderStats(state);
-      initStats(state);
-      break;
-    case 'partits':
-      el.innerHTML = renderPartits(state);
-      initPartits(state);
-      break;
-    case 'perfil':
-      el.innerHTML = renderPerfil(state);
-      initPerfil(state);
-      break;
-  }
-}
-
-// ---- Navigation Events ----
-function initNavigation() {
-  const nav = document.getElementById('bottom-nav');
-  if (!nav) return;
-
-  nav.addEventListener('click', (e) => {
-    const btn = e.target.closest('.nav-item');
-    if (!btn) return;
-    const page = btn.dataset.page;
-    if (page) navigate(page);
-  });
-}
-
-// ---- App Init ----
-function init() {
-  const state = window.APP_STATE;
-
-  // Apply saved theme immediately (before any rendering)
-  loadTheme();
-
-  // Load persisted data
-  const saved = loadState();
-  state.players = saved.players;
-  state.matches = saved.matches;
-  state.customCalendar = saved.customCalendar || [];
-  state.customFormations = saved.customFormations || {};
-  state.lineupProposals = saved.lineupProposals || {};
-  state.lang = saved.lang || 'ca';
-  state.currentUserId = saved.currentUserId;
-
-  // Detect if this is genuinely the first ever visit
-  // (no saved state at all in localStorage)
-  const rawSaved = localStorage.getItem(STORAGE_KEY);
-  state.isFirstVisit = !rawSaved;
-
-  // Init navigation
-  initNavigation();
-
-  // Bind settings button click
-  const btnSettings = document.getElementById('btn-settings');
-  if (btnSettings) {
-    btnSettings.addEventListener('click', openSettingsModal);
-  }
-
-  // Run initial translation on static elements
-  translateStaticElements();
-
-  // Auto-login logic:
-  // - If currentUserId is already set → skip login, go directly to home
-  // - If no currentUserId → show login screen
-  //   (first visit: open on signup tab; returning user: open on login tab)
-  if (state.currentUserId) {
-    // Already logged in — go straight to app
-    const header = document.querySelector('.app-header');
-    const bottomNav = document.getElementById('bottom-nav');
-    if (header) header.style.display = 'flex';
-    if (bottomNav) bottomNav.style.display = 'flex';
-    renderPage('home', state);
-    document.getElementById('page-home')?.classList.add('active');
-    updateHeader('home', state);
-  } else {
-    // Not logged in — navigate to login
-    navigate('login');
-  }
-
-  console.log('%c⚽ FC😎 App Ready!', 'color:#a78bfa;font-weight:bold;font-size:14px;');
-  console.log(`%c${state.players.length} jugadors · ${state.matches.length} partits`, 'color:#67e8f9;font-size:11px;');
-}
-
-// Boot when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+// Arrancar al cargar el DOM
+document.addEventListener('DOMContentLoaded', () => {
+  window.App.init();
+});

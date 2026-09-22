@@ -1,98 +1,96 @@
 <!DOCTYPE html>
-<html lang="ca">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="FC😎 — Gestió d'estadístiques, partits i ranking ELO del teu grup de futbol">
-  <meta name="theme-color" content="#0A1810">
-  <title>FC😎 — Futbol App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Pachangas FC — Web privada y ranking SR para pachangas de fútbol informal entre amigos">
+  <meta name="theme-color" content="#0A130E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Pachangas FC — Fútbol con Amigos</title>
+  
+  <!-- Tipografía moderna deportiva: Outfit e Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- ===== APP SHELL ===== -->
-  <div id="app">
-    <!-- ===== GLOBAL HEADER ===== -->
+  <!-- ===== APP CONTAINER ===== -->
+  <div id="app" class="app-wrapper">
+    
+    <!-- HEADER FIJO -->
     <header class="app-header">
-      <div class="app-header-left">
-        <h1 id="app-title">FC😎</h1>
-      </div>
-      <div class="app-header-right">
-        <div id="header-user-status"></div>
-        <button class="btn-settings" id="btn-settings" aria-label="Configuració">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </button>
+      <div class="header-content">
+        <div class="header-brand">
+          <span class="brand-logo">⚽</span>
+          <span class="brand-name">PACHANGAS FC</span>
+        </div>
+        <h2 id="app-header-title" class="header-section-title">🏆 Ranking Pachanguero</h2>
       </div>
     </header>
 
-    <div id="page-login"   class="page"></div>
-    <div id="page-home"   class="page active"></div>
-    <div id="page-stats"  class="page"></div>
-    <div id="page-partits" class="page"></div>
-    <div id="page-perfil" class="page"></div>
+    <!-- CONTENEDORES DE PÁGINAS (VISTAS) -->
+    <main class="app-main">
+      <section id="view-ranking" class="app-page active"></section>
+      <section id="view-equipos" class="app-page"></section>
+      <section id="view-registro" class="app-page"></section>
+      <section id="view-historico" class="app-page"></section>
+      <section id="view-jugadores" class="app-page"></section>
+    </main>
+
+    <!-- NAVEGACIÓN INFERIOR (BOTTOM NAV) -->
+    <nav class="bottom-nav" role="navigation" aria-label="Navegación principal">
+      <button class="nav-item active" data-page="ranking" id="nav-ranking">
+        <span class="nav-icon">🏆</span>
+        <span class="nav-label">Ranking</span>
+      </button>
+
+      <button class="nav-item" data-page="equipos" id="nav-equipos">
+        <span class="nav-icon">🎽</span>
+        <span class="nav-label">Equipos</span>
+      </button>
+
+      <button class="nav-item nav-item-highlight" data-page="registro" id="nav-registro">
+        <div class="nav-highlight-circle">
+          <span class="nav-icon-plus">⚽</span>
+        </div>
+        <span class="nav-label">Registrar</span>
+      </button>
+
+      <button class="nav-item" data-page="historico" id="nav-historico">
+        <span class="nav-icon">📜</span>
+        <span class="nav-label">Histórico</span>
+      </button>
+
+      <button class="nav-item" data-page="jugadores" id="nav-jugadores">
+        <span class="nav-icon">👥</span>
+        <span class="nav-label">Colegas</span>
+      </button>
+    </nav>
+
   </div>
 
-  <!-- ===== BOTTOM NAVIGATION ===== -->
-  <nav class="bottom-nav" id="bottom-nav" role="navigation" aria-label="Navegació principal">
-    <button class="nav-item active" data-page="home" id="nav-home" aria-label="Inici">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-      <span>Inici</span>
-    </button>
-    <button class="nav-item" data-page="stats" id="nav-stats" aria-label="Estadístiques">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10"/>
-        <line x1="12" y1="20" x2="12" y2="4"/>
-        <line x1="6"  y1="20" x2="6"  y2="14"/>
-      </svg>
-      <span>Stats</span>
-    </button>
-    <button class="nav-item" data-page="partits" id="nav-partits" aria-label="Partits">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
-        <path d="M2 12h20"/>
-      </svg>
-      <span>Partits</span>
-    </button>
-    <button class="nav-item" data-page="perfil" id="nav-perfil" aria-label="Jugadors">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-      <span>Jugadors</span>
-    </button>
-  </nav>
-
-  <!-- ===== MODAL ===== -->
-  <div id="modal-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true"></div>
+  <!-- ===== MODAL UNIVERSAL ===== -->
+  <div id="modal-overlay" class="modal-overlay" aria-hidden="true"></div>
   <div id="modal-container" class="modal-container" aria-hidden="true">
-    <div class="modal-handle"></div>
-    <div id="modal-content"></div>
+    <div class="modal-handle-bar"></div>
+    <div id="modal-content" class="modal-inner-content"></div>
   </div>
 
-  <!-- ===== TOAST ===== -->
+  <!-- ===== TOAST NOTIFICATIONS ===== -->
   <div id="toast" class="toast" role="alert" aria-live="polite"></div>
 
   <!-- ===== SCRIPTS ===== -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="apiClient.js"></script>
-  <script src="db.js"></script>
-  <script src="translations.js"></script>
   <script src="data.js"></script>
-  <script src="elo.js"></script>
-  <script src="components/home.js"></script>
-  <script src="components/stats.js"></script>
-  <script src="components/partits.js"></script>
-  <script src="components/perfil.js"></script>
-  <script src="components/login.js"></script>
+  <script src="components/ranking.js"></script>
+  <script src="components/equipos.js"></script>
+  <script src="components/registro.js"></script>
+  <script src="components/votacion.js"></script>
+  <script src="components/historico.js"></script>
+  <script src="components/jugadores.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
