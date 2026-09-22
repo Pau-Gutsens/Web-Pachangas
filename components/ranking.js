@@ -116,19 +116,21 @@ window.RankingComponent = {
         <div class="sr-formula-card">
           <div class="formula-header">
             <span class="formula-icon">💡</span>
-            <h4>¿Cómo se calcula el SR?</h4>
+            <h4>¿Cómo funciona el SR?</h4>
           </div>
           <p class="formula-text">
-            <strong>SR = Total puntos ÷ Partidos jugados</strong> (promedio real, no suma).
+            <strong>SR = 5 + (tu promedio de puntos − media de tu posición)</strong><br>
+            SR 5 = rendimiento igual a la media. Mejor que la media → SR &gt; 5. Peor → SR &lt; 5.
           </p>
           <div class="formula-grid">
             <span class="formula-item">⚽ Gol: <strong>+1</strong></span>
             <span class="formula-item">👟 Asistencia: <strong>+1</strong></span>
-            <span class="formula-item">🧤 Parada: <strong>+1</strong></span>
-            <span class="formula-item">🥅 Encajado (portero): <strong>-1</strong></span>
+            <span class="formula-item">🧤 Parada <em>(POR)</em>: <strong>+1</strong></span>
+            <span class="formula-item">🥅 Encajado <em>(POR)</em>: <strong>-1</strong></span>
             <span class="formula-item">⚠️ Autogol: <strong>-1</strong></span>
             <span class="formula-item">🏆 Victoria: <strong>+1</strong></span>
             <span class="formula-item highlight">👑 MVP: <strong>+1 extra</strong></span>
+            <span class="formula-item">📊 Normalizado por <strong>posición jugada</strong></span>
           </div>
         </div>
       </div>

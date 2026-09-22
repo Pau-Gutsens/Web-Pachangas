@@ -2,7 +2,7 @@
 //  DATA.JS — Motor de Datos, Estadísticas y SR para Pachangas
 // ============================================================
 
-const STORAGE_KEY = 'pachangas_data_v1';
+const STORAGE_KEY = 'pachangas_data_v2'; // v2: sin datos de ejemplo, sin emojis
 
 // Posiciones válidas en el fútbol pachanga
 const POSITIONS = {
@@ -13,118 +13,18 @@ const POSITIONS = {
 };
 
 const POSITION_LABELS = {
-  portero: { label: 'Portero', short: 'POR', emoji: '🧤' },
-  defensa: { label: 'Defensa', short: 'DEF', emoji: '🛡️' },
-  centrocampista: { label: 'Centrocampista', short: 'MED', emoji: '⚙️' },
-  delantero: { label: 'Delantero', short: 'DEL', emoji: '⚡' }
+  portero:        { label: 'Portero',        short: 'POR' },
+  defensa:        { label: 'Defensa',        short: 'DEF' },
+  centrocampista: { label: 'Centrocampista', short: 'MED' },
+  delantero:      { label: 'Delantero',      short: 'DEL' }
 };
 
-// Jugadores iniciales por defecto (amigos de la pachanga)
-const SEED_PLAYERS = [
-  { id: 'p1', name: 'Pau', emoji: '🔥', positions: ['delantero', 'centrocampista'] },
-  { id: 'p2', name: 'Marc', emoji: '⚡', positions: ['centrocampista', 'delantero'] },
-  { id: 'p3', name: 'Jordi', emoji: '🧤', positions: ['portero', 'defensa'] },
-  { id: 'p4', name: 'Xavi', emoji: '🎯', positions: ['centrocampista', 'defensa'] },
-  { id: 'p5', name: 'Dani', emoji: '🛡️', positions: ['defensa', 'centrocampista'] },
-  { id: 'p6', name: 'Toni', emoji: '🦁', positions: ['delantero', 'centrocampista'] },
-  { id: 'p7', name: 'Sergi', emoji: '🧱', positions: ['defensa', 'portero'] },
-  { id: 'p8', name: 'Pol', emoji: '🌪️', positions: ['centrocampista', 'delantero'] },
-  { id: 'p9', name: 'Roger', emoji: '🎩', positions: ['delantero', 'defensa'] },
-  { id: 'p10', name: 'Nil', emoji: '🧤', positions: ['portero'] },
-  { id: 'p11', name: 'Álex', emoji: '🚀', positions: ['defensa', 'delantero'] },
-  { id: 'p12', name: 'Adri', emoji: '💪', positions: ['centrocampista', 'defensa'] }
-];
+// App starts empty — players and matches are added by the group
+const SEED_PLAYERS = [];
+const SEED_MATCHES  = [];
 
-// Partidos históricos iniciales para arrancar con datos reales y consistentes
-const SEED_MATCHES = [
-  {
-    id: 'm1',
-    date: '2026-03-08',
-    teamA: {
-      name: 'Equipo Petos',
-      score: 6,
-      players: ['p1', 'p2', 'p5', 'p8', 'p10']
-    },
-    teamB: {
-      name: 'Equipo Sin Peto',
-      score: 4,
-      players: ['p3', 'p4', 'p6', 'p7', 'p9']
-    },
-    playerStats: {
-      p1: { team: 'A', isGoalkeeper: false, goals: 3, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p2: { team: 'A', isGoalkeeper: false, goals: 2, assists: 2, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p5: { team: 'A', isGoalkeeper: false, goals: 0, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p8: { team: 'A', isGoalkeeper: false, goals: 1, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p10: { team: 'A', isGoalkeeper: true, goals: 0, assists: 0, saves: 7, goalsConceded: 4, ownGoals: 0 },
-      
-      p3: { team: 'B', isGoalkeeper: true, goals: 0, assists: 0, saves: 5, goalsConceded: 6, ownGoals: 0 },
-      p4: { team: 'B', isGoalkeeper: false, goals: 1, assists: 2, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p6: { team: 'B', isGoalkeeper: false, goals: 2, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p7: { team: 'B', isGoalkeeper: false, goals: 0, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p9: { team: 'B', isGoalkeeper: false, goals: 1, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 }
-    },
-    mvp: 'p1',
-    mvpVotes: { p1: 'p2', p2: 'p1', p5: 'p1', p8: 'p1', p10: 'p1', p3: 'p1', p4: 'p6', p6: 'p1', p7: 'p10', p9: 'p4' }
-  },
-  {
-    id: 'm2',
-    date: '2026-03-15',
-    teamA: {
-      name: 'Equipo Petos',
-      score: 5,
-      players: ['p2', 'p4', 'p6', 'p11', 'p3']
-    },
-    teamB: {
-      name: 'Equipo Sin Peto',
-      score: 5,
-      players: ['p1', 'p5', 'p7', 'p9', 'p10']
-    },
-    playerStats: {
-      p2: { team: 'A', isGoalkeeper: false, goals: 2, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p4: { team: 'A', isGoalkeeper: false, goals: 1, assists: 2, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p6: { team: 'A', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p11: { team: 'A', isGoalkeeper: false, goals: 1, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p3: { team: 'A', isGoalkeeper: true, goals: 0, assists: 0, saves: 8, goalsConceded: 5, ownGoals: 0 },
-      
-      p1: { team: 'B', isGoalkeeper: false, goals: 3, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p5: { team: 'B', isGoalkeeper: false, goals: 0, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p7: { team: 'B', isGoalkeeper: false, goals: 1, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p9: { team: 'B', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p10: { team: 'B', isGoalkeeper: true, goals: 0, assists: 0, saves: 6, goalsConceded: 5, ownGoals: 0 }
-    },
-    mvp: 'p3',
-    mvpVotes: { p2: 'p3', p4: 'p3', p6: 'p1', p11: 'p3', p3: 'p1', p1: 'p3', p5: 'p3', p7: 'p1', p9: 'p3', p10: 'p3' }
-  },
-  {
-    id: 'm3',
-    date: '2026-03-21',
-    teamA: {
-      name: 'Equipo Petos',
-      score: 3,
-      players: ['p1', 'p3', 'p4', 'p12', 'p7']
-    },
-    teamB: {
-      name: 'Equipo Sin Peto',
-      score: 7,
-      players: ['p2', 'p6', 'p8', 'p10', 'p11']
-    },
-    playerStats: {
-      p1: { team: 'A', isGoalkeeper: false, goals: 2, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p3: { team: 'A', isGoalkeeper: true, goals: 0, assists: 0, saves: 4, goalsConceded: 7, ownGoals: 0 },
-      p4: { team: 'A', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p12: { team: 'A', isGoalkeeper: false, goals: 0, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p7: { team: 'A', isGoalkeeper: false, goals: 0, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 1 },
-      
-      p2: { team: 'B', isGoalkeeper: false, goals: 3, assists: 2, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p6: { team: 'B', isGoalkeeper: false, goals: 2, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p8: { team: 'B', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p11: { team: 'B', isGoalkeeper: false, goals: 1, assists: 1, saves: 0, goalsConceded: 0, ownGoals: 0 },
-      p10: { team: 'B', isGoalkeeper: true, goals: 0, assists: 0, saves: 9, goalsConceded: 3, ownGoals: 0 }
-    },
-    mvp: 'p2',
-    mvpVotes: { p1: 'p2', p3: 'p2', p4: 'p2', p12: 'p2', p7: 'p2', p2: 'p10', p6: 'p2', p8: 'p2', p10: 'p2', p11: 'p2' }
-  }
-];
+
+
 
 class DataStore {
   constructor() {
@@ -185,52 +85,83 @@ class DataStore {
   }
 
   // -------------------------------------------------------------
-  //  FÓRMULA ESTRICTA DE SR
+  //  FÓRMULA DE SR NORMALIZADO POR POSICIÓN
   // -------------------------------------------------------------
-  // Por cada partido:
-  //   Gol: +1
-  //   Asistencia: +1
-  //   Parada (portero): +1
-  //   Gol encajado (solo portero): -1
-  //   Autogol: -1
-  //   Victoria del equipo: +1
-  //   MVP del partido: +1 extra
-  // SR = total de puntos / partidos jugados (o 0 si no ha jugado ninguno)
+  // Puntos brutos por partido (todas las posiciones):
+  //   Gol: +1  |  Asistencia: +1  |  Autogol: -1
+  //   Victoria: +1  |  MVP: +1 extra
+  //   Portero solo: Parada +1, Gol encajado -1
+  //
+  // Normalización por posición jugada ese partido:
+  //   SR = 5 + (promedio bruto del jugador − promedio bruto global de su posición)
+  //
+  // Si un jugador juega distintas posiciones, cada partido se compara
+  // con la media de la posición que jugó ese partido concreto.
+
+  // Calcula los puntos BRUTOS de un jugador en un partido concreto.
+  // Devuelve null si el jugador no participó.
   calculateMatchPointsForPlayer(playerId, match) {
     const stats = match.playerStats ? match.playerStats[playerId] : null;
-    if (!stats) return null; // No jugó este partido
+    if (!stats) return null;
 
     const team = stats.team;
-    let teamWon = false;
-    if (team === 'A' && match.teamA.score > match.teamB.score) teamWon = true;
-    if (team === 'B' && match.teamB.score > match.teamA.score) teamWon = true;
-
+    const teamWon = (team === 'A' && match.teamA.score > match.teamB.score) ||
+                    (team === 'B' && match.teamB.score > match.teamA.score);
     const isMVP = (match.mvp === playerId);
 
-    let points = 0;
-    points += (stats.goals || 0) * 1;
-    points += (stats.assists || 0) * 1;
-    if (stats.isGoalkeeper) {
-      points += (stats.saves || 0) * 1;
-      points -= (stats.goalsConceded || 0) * 1;
-    }
-    points -= (stats.ownGoals || 0) * 1;
-    if (teamWon) {
-      points += 1;
-    }
-    if (isMVP) {
-      points += 1;
+    // Derivar posición jugada: campo explícito > isGoalkeeper > posición preferida del jugador
+    let positionPlayed = stats.positionPlayed || null;
+    if (!positionPlayed) {
+      positionPlayed = stats.isGoalkeeper ? 'portero' : (() => {
+        const p = this.players.find(pl => pl.id === playerId);
+        return (p && p.positions && p.positions[0]) ? p.positions[0] : 'centrocampista';
+      })();
     }
 
-    return {
-      points,
-      teamWon,
-      isMVP,
-      stats
-    };
+    let points = 0;
+    points += (stats.goals || 0);
+    points += (stats.assists || 0);
+    points -= (stats.ownGoals || 0);
+    if (stats.isGoalkeeper || positionPlayed === 'portero') {
+      points += (stats.saves || 0);
+      points -= (stats.goalsConceded || 0);
+    }
+    if (teamWon) points += 1;
+    if (isMVP)   points += 1;
+
+    return { points, teamWon, isMVP, positionPlayed, stats };
   }
 
-  // Obtiene estadísticas acumuladas y SR en tiempo real de un jugador
+  // Calcula la media de puntos brutos por posición, agregando TODOS los partidos.
+  // Devuelve { portero: avgPts, defensa: avgPts, centrocampista: avgPts, delantero: avgPts }
+  _computeGlobalPositionAverages() {
+    const posAccum = {
+      portero:        { sum: 0, count: 0 },
+      defensa:        { sum: 0, count: 0 },
+      centrocampista: { sum: 0, count: 0 },
+      delantero:      { sum: 0, count: 0 }
+    };
+
+    this.matches.forEach(match => {
+      Object.keys(match.playerStats || {}).forEach(pid => {
+        const result = this.calculateMatchPointsForPlayer(pid, match);
+        if (!result) return;
+        const pos = result.positionPlayed || 'centrocampista';
+        if (posAccum[pos]) {
+          posAccum[pos].sum   += result.points;
+          posAccum[pos].count += 1;
+        }
+      });
+    });
+
+    const avgs = {};
+    Object.entries(posAccum).forEach(([pos, { sum, count }]) => {
+      avgs[pos] = count > 0 ? sum / count : 0;
+    });
+    return avgs;
+  }
+
+  // Obtiene estadísticas acumuladas y SR normalizado en tiempo real de un jugador.
   getPlayerStats(playerId) {
     const player = this.players.find(p => p.id === playerId);
     if (!player) return null;
@@ -245,39 +176,67 @@ class DataStore {
     let goalsConceded = 0;
     let ownGoals = 0;
     let mvpCount = 0;
-    let totalPoints = 0;
-    const historyPoints = [];
+    let totalRawPoints = 0;
+    const historyPoints = []; // puntos brutos por partido, en orden cronológico
 
-    // Recorrer partidos ordenados cronológicamente
+    // Medias globales de puntos por posición (para normalización)
+    const posAvgs = this._computeGlobalPositionAverages();
+
+    // Recorrer partidos en orden cronológico
     const sortedMatches = [...this.matches].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Acumular normalizedDelta: suma de (puntosPartido - mediaPosiónEsePartido)
+    let totalNormalizedDelta = 0;
 
     sortedMatches.forEach(m => {
       const pData = this.calculateMatchPointsForPlayer(playerId, m);
-      if (pData) {
-        matchesPlayed++;
-        totalPoints += pData.points;
-        historyPoints.push(pData.points);
+      if (!pData) return;
 
-        const isTeamA = pData.stats.team === 'A';
-        const myScore = isTeamA ? m.teamA.score : m.teamB.score;
-        const rivalScore = isTeamA ? m.teamB.score : m.teamA.score;
+      matchesPlayed++;
+      totalRawPoints += pData.points;
+      historyPoints.push(pData.points);
 
-        if (myScore > rivalScore) wins++;
-        else if (myScore === rivalScore) draws++;
-        else losses++;
+      // Usar la media global de esa posición como referencia de normalización
+      const posRef = posAvgs[pData.positionPlayed] ?? posAvgs['centrocampista'] ?? 0;
+      totalNormalizedDelta += (pData.points - posRef);
 
-        goals += pData.stats.goals || 0;
-        assists += pData.stats.assists || 0;
-        saves += pData.stats.saves || 0;
-        goalsConceded += pData.stats.goalsConceded || 0;
-        ownGoals += pData.stats.ownGoals || 0;
-        if (pData.isMVP) mvpCount++;
-      }
+      const isTeamA = pData.stats.team === 'A';
+      const myScore    = isTeamA ? m.teamA.score : m.teamB.score;
+      const rivalScore = isTeamA ? m.teamB.score : m.teamA.score;
+
+      if (myScore > rivalScore)      wins++;
+      else if (myScore === rivalScore) draws++;
+      else                             losses++;
+
+      goals          += pData.stats.goals          || 0;
+      assists        += pData.stats.assists        || 0;
+      saves          += pData.stats.saves          || 0;
+      goalsConceded  += pData.stats.goalsConceded  || 0;
+      ownGoals       += pData.stats.ownGoals       || 0;
+      if (pData.isMVP) mvpCount++;
     });
 
     const totalGroupMatches = this.matches.length;
-    const attendanceRate = totalGroupMatches > 0 ? (matchesPlayed / totalGroupMatches) * 100 : 0;
-    const sr = matchesPlayed > 0 ? (totalPoints / matchesPlayed) : 0.0;
+    const attendanceRate = totalGroupMatches > 0
+      ? (matchesPlayed / totalGroupMatches) * 100
+      : 0;
+
+    // SR normalizado: 5 + (avg puntos brutos del jugador − avg global de su(s) posición/es)
+    // Si no ha jugado ningún partido, SR base = 5.00
+    let sr = 5.0;
+    if (matchesPlayed > 0) {
+      const avgRaw = totalRawPoints / matchesPlayed;
+      // Media ponderada de las posiciones preferidas del jugador (fallback)
+      const prefPositions = player.positions && player.positions.length > 0
+        ? player.positions
+        : ['centrocampista'];
+      const prefAvg = prefPositions.reduce((acc, pos) => acc + (posAvgs[pos] ?? 0), 0) / prefPositions.length;
+
+      // Si el jugador ha jugado partidos con posición registrada, usar normalización exacta por partido;
+      // si no, comparar su media global contra la media ponderada de sus posiciones preferidas.
+      const avgNormDelta = totalNormalizedDelta / matchesPlayed;
+      sr = 5 + avgNormDelta;
+    }
 
     return {
       id: player.id,
@@ -294,7 +253,7 @@ class DataStore {
       goalsConceded,
       ownGoals,
       mvpCount,
-      totalPoints,
+      totalRawPoints,
       sr: parseFloat(sr.toFixed(2)),
       attendanceRate: parseFloat(attendanceRate.toFixed(1)),
       winRate: matchesPlayed > 0 ? parseFloat(((wins / matchesPlayed) * 100).toFixed(1)) : 0,

@@ -39,9 +39,11 @@ window.RegistroComponent = {
   initPlayerStat(pId, team) {
     if (!this.matchState.playerStats[pId]) {
       const player = window.PachangasData.players.find(p => p.id === pId);
-      const isNaturalGK = player && player.positions.includes('portero');
+      const preferredPos = (player && player.positions && player.positions[0]) || 'centrocampista';
+      const isNaturalGK = preferredPos === 'portero';
       this.matchState.playerStats[pId] = {
         team,
+        positionPlayed: preferredPos,
         isGoalkeeper: isNaturalGK,
         goals: 0,
         assists: 0,
@@ -179,16 +181,25 @@ window.RegistroComponent = {
     if (!player) return '';
 
     const stat = this.matchState.playerStats[pId] || {
+      positionPlayed: (player.positions && player.positions[0]) || 'centrocampista',
       isGoalkeeper: false, goals: 0, assists: 0, saves: 0, goalsConceded: 0, ownGoals: 0
     };
+
+    const currentPos = stat.positionPlayed || 'centrocampista';
+    const isGK = currentPos === 'portero';
 
     // Calcular puntos provisionales
     const isTeamWon = (team === 'A' && this.matchState.teamA.score > this.matchState.teamB.score) ||
                       (team === 'B' && this.matchState.teamB.score > this.matchState.teamA.score);
     let pts = stat.goals + stat.assists + (isTeamWon ? 1 : 0) - stat.ownGoals;
-    if (stat.isGoalkeeper) {
-      pts += stat.saves - stat.goalsConceded;
-    }
+    if (isGK) pts += stat.saves - stat.goalsConceded;
+
+    const ALL_POSITIONS = [
+      { key: 'portero',        label: 'POR', emoji: '🧤' },
+      { key: 'defensa',        label: 'DEF', emoji: '🛡️' },
+      { key: 'centrocampista', label: 'MED', emoji: '⚙️' },
+      { key: 'delantero',      label: 'DEL', emoji: '⚡' }
+    ];
 
     return `
       <div class="player-stat-row" data-stat-id="${pId}">
@@ -198,12 +209,21 @@ window.RegistroComponent = {
             <span class="player-name">${player.name}</span>
           </div>
           <div class="stat-row-top-actions">
-            <label class="toggle-gk-label">
-              <input type="checkbox" class="chk-is-gk" data-pid="${pId}" ${stat.isGoalkeeper ? 'checked' : ''}>
-              <span>🧤 Portero</span>
-            </label>
             <span class="preview-pts ${pts >= 0 ? 'pos' : 'neg'}">${pts >= 0 ? '+' : ''}${pts} pts</span>
             <button class="btn-remove-from-match" data-remove-pid="${pId}" title="Quitar de este partido">×</button>
+          </div>
+        </div>
+
+        <!-- Selector de Posición Jugada Este Partido -->
+        <div class="position-played-row">
+          <span class="pos-played-label">Posición hoy:</span>
+          <div class="pos-pills-selector">
+            ${ALL_POSITIONS.map(pos => `
+              <button class="pos-pill-mini ${currentPos === pos.key ? 'active pos-active-${pos.key}' : ''}" 
+                      data-pos-pid="${pId}" data-pos-key="${pos.key}">
+                ${pos.emoji} ${pos.label}
+              </button>
+            `).join('')}
           </div>
         </div>
 
@@ -228,7 +248,7 @@ window.RegistroComponent = {
             </div>
           </div>
 
-          ${stat.isGoalkeeper ? `
+          ${isGK ? `
             <!-- Paradas (Solo portero) -->
             <div class="stepper-item gk-item">
               <span class="stepper-label">🧤 Paradas</span>
@@ -308,23 +328,31 @@ window.RegistroComponent = {
       });
     });
 
-    // Checkbox Portero
-    const gkCheckboxes = container.querySelectorAll('.chk-is-gk');
-    gkCheckboxes.forEach(chk => {
-      chk.addEventListener('change', (e) => {
-        const pId = chk.dataset.pid;
-        if (ms.playerStats[pId]) {
-          ms.playerStats[pId].isGoalkeeper = chk.checked;
-          if (chk.checked) {
-            // Rellenar goles encajados por defecto según el marcador rival
-            const team = ms.playerStats[pId].team;
-            const rivalScore = team === 'A' ? ms.teamB.score : ms.teamA.score;
-            if (ms.playerStats[pId].goalsConceded === 0 && rivalScore > 0) {
-              ms.playerStats[pId].goalsConceded = rivalScore;
-            }
-          }
-          this.render(container);
+    // Selector de posición jugada este partido (4 pills por jugador)
+    const posButtons = container.querySelectorAll('[data-pos-pid]');
+    posButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const pId = btn.dataset.posPid;
+        const newPos = btn.dataset.posKey;
+        if (!ms.playerStats[pId]) return;
+
+        const isGK = newPos === 'portero';
+        ms.playerStats[pId].positionPlayed = newPos;
+        ms.playerStats[pId].isGoalkeeper = isGK;
+
+        // Auto-rellenar goles encajados si se elige portero
+        if (isGK && ms.playerStats[pId].goalsConceded === 0) {
+          const team = ms.playerStats[pId].team;
+          const rivalScore = team === 'A' ? ms.teamB.score : ms.teamA.score;
+          if (rivalScore > 0) ms.playerStats[pId].goalsConceded = rivalScore;
         }
+        // Limpiar paradas y encajados si ya no es portero
+        if (!isGK) {
+          ms.playerStats[pId].saves = 0;
+          ms.playerStats[pId].goalsConceded = 0;
+        }
+
+        this.render(container);
       });
     });
 
@@ -395,8 +423,9 @@ window.RegistroComponent = {
     const ms = this.matchState;
     const playerIds = team === 'A' ? ms.teamA.players : ms.teamB.players;
     playerIds.forEach(id => {
-      if (ms.playerStats[id] && ms.playerStats[id].isGoalkeeper) {
-        ms.playerStats[id].goalsConceded = rivalScore;
+      const pStat = ms.playerStats[id];
+      if (pStat && (pStat.isGoalkeeper || pStat.positionPlayed === 'portero')) {
+        pStat.goalsConceded = rivalScore;
       }
     });
   },
