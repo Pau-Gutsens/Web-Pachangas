@@ -43,7 +43,16 @@ export default function AdminDashboard() {
     refreshPachangas();
   }, [selectedPachangaId]);
 
+  const isConfigured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
   const handleCreate = async () => {
+    if (!newPachanga.date) {
+      alert('Por favor selecciona una fecha para la pachanga.');
+      return;
+    }
+
     try {
       const created = await db.createPachanga({
         ...newPachanga,
@@ -51,10 +60,11 @@ export default function AdminDashboard() {
       });
       setPachangas([...pachangas, created]);
       setSelectedPachangaId(created.id);
-      alert('Pachanga created!');
-    } catch (e) {
-      console.error(e);
-      alert('Error creating pachanga');
+      alert('¡Pachanga creada con éxito!');
+    } catch (e: any) {
+      console.error('Error detallado al crear pachanga:', e);
+      const detail = e?.message || e?.error_description || (typeof e === 'object' ? JSON.stringify(e) : String(e));
+      alert(`Error de Supabase (${e?.code || '401'}): ${detail}`);
     }
   };
 
@@ -62,7 +72,19 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <a href="/" className="text-sm text-blue-600 hover:underline">← Volver al Dashboard</a>
+      </div>
+
+      {!isConfigured && (
+        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800">
+          <p className="font-semibold">⚠️ Variables de Supabase no detectadas</p>
+          <p className="text-sm mt-1">
+            Configura <code className="bg-red-100 px-1 py-0.5 rounded">NEXT_PUBLIC_SUPABASE_URL</code> y <code className="bg-red-100 px-1 py-0.5 rounded">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> en los Settings de Vercel y haz un Redeploy.
+          </p>
+        </div>
+      )}
 
       <div className="bg-gray-100 p-6 rounded-lg mb-8">
         <h2 className="text-xl font-semibold mb-4">Create New Pachanga</h2>
