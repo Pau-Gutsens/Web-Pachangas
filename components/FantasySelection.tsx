@@ -8,16 +8,27 @@ export default function FantasySelection({ pachangaId, members }: { pachangaId: 
   const [captainId, setCaptainId] = useState<string>('');
   const [budget, setBudget] = useState(0);
   const [currentBudget, setCurrentBudget] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const p = db.getPachangas().find(p => p.id === pachangaId);
-    if (p) {
-      setAttendees(p.attendees);
-      // Example budget calculation: N * average price
-      const avgPrice = 11.4;
-      setBudget(Math.round(p.format * avgPrice));
-      setCurrentBudget(Math.round(p.format * avgPrice));
+    async function fetchPachanga() {
+      setLoading(true);
+      try {
+        const details = await db.getPachangaDetails(pachangaId);
+        if (details && details.pachanga_attendees) {
+          setAttendees(details.pachanga_attendees);
+          // Example budget calculation: N * average price
+          const avgPrice = 11.4;
+          setBudget(Math.round(details.format * avgPrice));
+          setCurrentBudget(Math.round(details.format * avgPrice));
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
     }
+    fetchPachanga();
   }, [pachangaId]);
 
   const togglePlayer = (id: string) => {
@@ -39,6 +50,8 @@ export default function FantasySelection({ pachangaId, members }: { pachangaId: 
     setCaptainId(id);
   };
 
+  if (loading) return <div className="p-8">Loading...</div>;
+
   return (
     <div className="p-4 md:p-6 border rounded bg-white shadow-sm">
       <h3 className="text-xl font-bold mb-4">Choose your Team</h3>
@@ -54,14 +67,14 @@ export default function FantasySelection({ pachangaId, members }: { pachangaId: 
             {attendees.map((a, i) => (
               <button
                 key={i}
-                onClick={() => togglePlayer(a.memberId || a.guestId)}
+                onClick={() => togglePlayer(a.member_id || a.guest_id)}
                 className={`p-3 text-left border rounded ${
-                  selectedIds.includes(a.memberId || a.guestId)
+                  selectedIds.includes(a.member_id || a.guest_id)
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-50'
                 }`}
               >
-                {members.find(m => m.id === a.memberId)?.name || 'Guest'}
+                {members.find(m => m.id === a.member_id)?.name || 'Guest'}
               </button>
             ))}
           </div>

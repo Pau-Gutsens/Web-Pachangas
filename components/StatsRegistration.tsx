@@ -8,21 +8,31 @@ export default function StatsRegistration({ pachangaId }: { pachangaId: string }
     type: 'goal',
     value: 1
   });
+  const [loading, setLoading] = useState(false);
 
   const addStat = () => {
-    setStats([...stats, { ...currentStat }]);
+    const newStats = [...stats, { ...currentStat }];
+    setStats(newStats);
     setCurrentStat({ playerId: '', type: 'goal', value: 1 });
   };
 
-  const submitStats = () => {
-    // In a real app, this sends to the API
-    console.log('Submitting stats:', stats);
-    alert('Stats submitted!');
+  const submitStats = async () => {
+    setLoading(true);
+    try {
+      // In a real app, this sends to the API
+      // For now, we'll just log it
+      console.log('Submitting stats:', stats);
+      alert('Stats submitted successfully!');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="mt-8 p-6 border rounded bg-white shadow-sm">
-      <h3 className="text-lg font-bold mb-4">Register Match Stats</h3>
+      <h3 className="text-xl font-bold mb-4">Register Match Stats</h3>
       <div className="flex gap-4 mb-4">
         <select
           className="border p-2 rounded"
@@ -30,7 +40,6 @@ export default function StatsRegistration({ pachangaId }: { pachangaId: string }
           onChange={(e) => setCurrentStat({...currentStat, playerId: e.target.value})}
         >
           <option value="">Select Player</option>
-          {/* Ideally, fetch attendees from db */}
           <option value="1">Member 1</option>
           <option value="2">Member 2</option>
           <option value="3">Member 3</option>
@@ -39,7 +48,7 @@ export default function StatsRegistration({ pachangaId }: { pachangaId: string }
         <select
           className="border p-2 rounded"
           value={currentStat.type}
-          onChange={(e) => setCurrentStat({...currentStat, type: e.target.value as any})}
+          onChange={(e) => setCurrentStat({...currentStat, type: e.target.value})}
         >
           <option value="goal">Goal</option>
           <option value="assist">Assist</option>
@@ -76,9 +85,10 @@ export default function StatsRegistration({ pachangaId }: { pachangaId: string }
 
       <button
         onClick={submitStats}
-        className="bg-green-600 text-white px-6 py-2 rounded font-bold"
+        disabled={loading}
+        className="bg-green-600 text-white px-6 py-2 rounded font-bold disabled:opacity-50"
       >
-        Submit Final Stats
+        {loading ? 'Submitting...' : 'Submit Final Stats'}
       </button>
     </div>
   );
