@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../lib/db';
-import { calculatePrice } from '../../lib/constants';
+import { Member } from '../../types';
 
 export default function FantasySelection({ pachangaId, members }: { pachangaId: string; members: any[] }) {
   const [attendees, setAttendees] = useState<any[]>([]);
@@ -10,7 +10,6 @@ export default function FantasySelection({ pachangaId, members }: { pachangaId: 
   const [currentBudget, setCurrentBudget] = useState(0);
 
   useEffect(() => {
-    // Mock loading attendees and calculating initial budget
     const p = db.getPachangas().find(p => p.id === pachangaId);
     if (p) {
       setAttendees(p.attendees);
@@ -41,42 +40,47 @@ export default function FantasySelection({ pachangaId, members }: { pachangaId: 
   };
 
   return (
-    <div className="p-6 border rounded bg-white shadow-sm">
+    <div className="p-4 md:p-6 border rounded bg-white shadow-sm">
       <h3 className="text-xl font-bold mb-4">Choose your Team</h3>
       <div className="flex justify-between mb-6">
         <p>Budget: <span className="font-bold">{currentBudget}</span> / {budget}</p>
         <p>Slots: {selectedIds.length} / {Math.floor(budget / 10)}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-2">
           <h4 className="font-semibold">Available Players</h4>
-          {attendees.map((a, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(a.memberId || a.guestId)}
-                onChange={() => togglePlayer(a.memberId || a.guestId)}
-              />
-              <span>{members.find(m => m.id === a.memberId)?.name || 'Guest'}</span>
-              <span className="text-gray-400">($10)</span>
-            </div>
-          ))}
+          <div className="grid grid-cols-2 gap-2">
+            {attendees.map((a, i) => (
+              <button
+                key={i}
+                onClick={() => togglePlayer(a.memberId || a.guestId)}
+                className={`p-3 text-left border rounded ${
+                  selectedIds.includes(a.memberId || a.guestId)
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-50'
+                }`}
+              >
+                {members.find(m => m.id === a.memberId)?.name || 'Guest'}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="border-l pl-4">
+        <div className="border-l md:border-l-0 md:border-t pt-4 md:pt-0 md:pl-8">
           <h4 className="font-semibold mb-4">Your Team</h4>
           <ul className="space-y-2">
             {selectedIds.map(id => (
-              <li key={id} className="flex items-center gap-2">
+              <li key={id} className="flex items-center gap-4 p-2 bg-gray-50 rounded">
                 <input
                   type="radio"
                   name="captain"
                   checked={captainId === id}
                   onChange={() => handleCaptainChange(id)}
+                  className="w-4 h-4"
                 />
-                <span>{members.find(m => m.id === id)?.name}</span>
-                {captainId === id && <span className="bg-yellow-400 text-xs px-1 rounded">CAPTAIN</span>}
+                <span className="flex-1">{members.find(m => m.id === id)?.name}</span>
+                {captainId === id && <span className="bg-yellow-400 text-xs px-2 py-1 rounded font-bold">CAPTAIN</span>}
               </li>
             ))}
           </ul>

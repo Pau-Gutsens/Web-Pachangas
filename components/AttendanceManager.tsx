@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../../lib/db';
 import { Member } from '../../types';
 
@@ -16,14 +16,13 @@ export default function AttendanceManager({ pachangaId, pachangas, members }: {
 
   useEffect(() => {
     const p = pachangas.find(p => p.id === pachangaId);
-    setSelectedPachanga(p);
+    if (p) setSelectedPachanga(p);
   }, [pachangaId, pachangas]);
 
-  if (!selectedPachanga) return <p>Loading...</p>;
+  if (!selectedPachanga) return <p className="p-4">Loading...</p>;
 
   const handleAddMember = (memberId: string) => {
     db.addAttendee(pachangaId, memberId, '', 'A');
-    // Refresh local state
     const updated = db.getPachangas().find(p => p.id === pachangaId);
     setSelectedPachanga(updated);
   };
@@ -31,16 +30,15 @@ export default function AttendanceManager({ pachangaId, pachangas, members }: {
   const handleAddGuest = (name: string) => {
     const guestId = Math.random().toString(36).substring(2, 15);
     db.addAttendee(pachangaId, null, guestId, 'B');
-    // Refresh local state
     const updated = db.getPachangas().find(p => p.id === pachangaId);
     setSelectedPachanga(updated);
   };
 
   return (
-    <div className="mt-8 p-6 border rounded bg-white shadow-sm">
-      <h3 className="text-lg font-bold mb-4">Manage Attendance for {selectedPachanga.id}</h3>
+    <div className="mt-8 p-4 md:p-6 border rounded bg-white shadow-sm">
+      <h3 className="text-xl font-bold mb-4">Manage Attendance for {selectedPachanga.id}</h3>
 
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div>
           <h4 className="font-semibold mb-2">Add Member</h4>
           <div className="flex flex-wrap gap-2">
@@ -48,7 +46,7 @@ export default function AttendanceManager({ pachangaId, pachangas, members }: {
               <button
                 key={m.id}
                 onClick={() => handleAddMember(m.id)}
-                className="px-3 py-1 bg-gray-200 rounded hover:bg-blue-500 hover:text-white"
+                className="px-4 py-2 bg-gray-200 rounded active:bg-blue-500 active:text-white"
               >
                 {m.name}
               </button>
@@ -62,7 +60,7 @@ export default function AttendanceManager({ pachangaId, pachangas, members }: {
             <input
               type="text"
               placeholder="Guest Name"
-              className="border p-2 rounded"
+              className="border p-2 rounded flex-1"
               onChange={(e) => setNewAttendee({...newAttendee, guestId: e.target.value})}
             />
             <button
@@ -76,8 +74,8 @@ export default function AttendanceManager({ pachangaId, pachangas, members }: {
       </div>
 
       <div className="mt-8">
-        <h4 className="font-semibold mb-2">Current Attendees</h4>
-        <div className="grid grid-cols-2 gap-4">
+        <h4 className="font-semibold mb-4">Current Attendees</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="border p-4 rounded bg-blue-50">
             <p className="font-bold border-b mb-2">Team A</p>
             <ul className="list-disc ml-4">
