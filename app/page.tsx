@@ -31,17 +31,47 @@ export default function HomePage() {
     );
   }
 
+  const isSupabaseConfigured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900">Pachangas Dashboard</h1>
-        <p className="text-gray-600">Welcome to the official Pachanga tracker.</p>
+      <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900">Pachangas Dashboard</h1>
+          <p className="text-gray-600">Bienvenido al gestor oficial de Pachangas.</p>
+        </div>
+        <a
+          href="/admin"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+        >
+          Panel Admin / Crear Pachanga
+        </a>
       </header>
+
+      {!isSupabaseConfigured && (
+        <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+          <p className="font-semibold">⚠️ Variables de entorno de Supabase no detectadas</p>
+          <p className="text-sm mt-1">
+            Asegúrate de agregar <code className="bg-amber-100 px-1 py-0.5 rounded">NEXT_PUBLIC_SUPABASE_URL</code> y <code className="bg-amber-100 px-1 py-0.5 rounded">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> en los Settings de Vercel.
+          </p>
+        </div>
+      )}
 
       <main>
         {pachangas.length === 0 ? (
-          <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center">
-            <p className="text-gray-500">No pachangas found. Check the database or contact an admin.</p>
+          <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center max-w-xl mx-auto">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">No hay pachangas registradas</h3>
+            <p className="text-gray-500 mb-6">
+              Aún no existen pachangas en la base de datos o están por programar.
+            </p>
+            <a
+              href="/admin"
+              className="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2.5 rounded-lg transition-colors"
+            >
+              Crear una nueva pachanga en el Admin
+            </a>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
