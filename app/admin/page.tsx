@@ -18,22 +18,44 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    setPachangas(db.getPachangas());
-    setMembers(db.getMembers());
+    async function loadData() {
+      try {
+        const pData = await db.getPachangas();
+        const mData = await db.getMembers();
+        setPachangas(pData || []);
+        setMembers(mData || []);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    }
+    loadData();
   }, []);
 
   useEffect(() => {
-    setPachangas(db.getPachangas());
+    async function refreshPachangas() {
+      try {
+        const pData = await db.getPachangas();
+        setPachangas(pData || []);
+      } catch (error) {
+        console.error('Error refreshing pachangas:', error);
+      }
+    }
+    refreshPachangas();
   }, [selectedPachangaId]);
 
-  const handleCreate = () => {
-    const created = db.createPachanga({
-      ...newPachanga,
-      date: new Date(newPachanga.date)
-    });
-    setPachangas([...pachangas, created]);
-    setSelectedPachangaId(created.id);
-    alert('Pachanga created!');
+  const handleCreate = async () => {
+    try {
+      const created = await db.createPachanga({
+        ...newPachanga,
+        date: new Date(newPachanga.date)
+      });
+      setPachangas([...pachangas, created]);
+      setSelectedPachangaId(created.id);
+      alert('Pachanga created!');
+    } catch (e) {
+      console.error(e);
+      alert('Error creating pachanga');
+    }
   };
 
   const currentPachanga = pachangas.find(p => p.id === selectedPachangaId);
@@ -77,8 +99,8 @@ export default function AdminDashboard() {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => {
-                  db.updatePachangaStatus(p.id, 'open');
+                onClick={async () => {
+                  await db.updatePachangaStatus(p.id, 'open');
                   setPachangas(pachangas.map(x => x.id === p.id ? {...x, status: 'open'} : x));
                 }}
                 className="bg-green-600 text-white px-3 py-1 rounded text-sm"
@@ -86,8 +108,8 @@ export default function AdminDashboard() {
                 Open
               </button>
               <button
-                onClick={() => {
-                  db.updatePachangaStatus(p.id, 'closed');
+                onClick={async () => {
+                  await db.updatePachangaStatus(p.id, 'closed');
                   setPachangas(pachangas.map(x => x.id === p.id ? {...x, status: 'closed'} : x));
                 }}
                 className="bg-red-600 text-white px-3 py-1 rounded text-sm"
