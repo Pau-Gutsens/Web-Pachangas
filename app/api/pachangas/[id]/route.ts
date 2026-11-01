@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
-import { db } from '../../../lib/db';
+import { db } from '../../../../lib/db';
 
 export async function PATCH(request: Request) {
-  const { id } = request.params!; // Note: in actual Next.js these come from URL params
-  // For the sake of this mock, I'll assume 'id' is passed via body if params are tricky
   const body = await request.json();
+  const id = body.id;
 
   // Handle status update
   if (body.status) {
-    db.updatePachangaStatus(body.id || id, body.status);
+    await db.updatePachangaStatus(id, body.status);
   }
 
   // Handle attendee addition
   if (body.attendee) {
-    db.addAttendee(body.pachangaId, body.attendee.memberId, body.attendee.guestId, body.attendee.team);
+    await db.addAttendee(body.pachangaId, body.attendee.memberId, body.attendee.guestId, body.attendee.team);
   }
 
-  const p = db.getPachangas().find(p => p.id === (body.id || id));
+  const pachangas = await db.getPachangas();
+  const p = pachangas.find(p => p.id === id);
   return NextResponse.json(p);
 }

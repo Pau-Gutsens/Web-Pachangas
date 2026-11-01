@@ -19,8 +19,8 @@ export const db = {
     return data;
   },
 
-  async createPachanga(data: any) {
-    const { data, error } = await supabase.from('pachangas').insert(data).select().single();
+  async createPachanga(payload: any) {
+    const { data, error } = await supabase.from('pachangas').insert(payload).select().single();
     if (error) {
       console.error('Error creating pachanga:', error);
       throw error;
