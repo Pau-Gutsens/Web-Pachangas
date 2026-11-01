@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../../lib/db';
-import { Member } from '../../types';
+import { db } from '../lib/db';
+import { Member } from '../types';
 
 export default function AttendanceManager({ pachangaId, pachangas, members }: {
   pachangaId: string;

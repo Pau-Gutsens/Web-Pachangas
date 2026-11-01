@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { db } from '../../lib/db';
+import { db } from '../lib/db';
 
 export default function StatsRegistration({ pachangaId }: { pachangaId: string }) {
   const [stats, setStats] = useState<any[]>([]);

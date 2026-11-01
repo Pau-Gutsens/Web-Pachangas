@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../../lib/db';
-import { Member } from '../../types';
+import { db } from '../lib/db';
+import { Member } from '../types';
 
 export default function FantasySelection({ pachangaId, members }: { pachangaId: string; members: any[] }) {
   const [attendees, setAttendees] = useState<any[]>([]);
@@ -70,8 +70,8 @@ export default function FantasySelection({ pachangaId, members }: { pachangaId: 
                 onClick={() => togglePlayer(a.member_id || a.guest_id)}
                 className={`p-3 text-left border rounded ${
                   selectedIds.includes(a.member_id || a.guest_id)
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-50'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-50'
                 }`}
               >
                 {members.find(m => m.id === a.member_id)?.name || 'Guest'}
