@@ -1,12 +1,14 @@
-import React from 'react';
+"use client";
+
+import React, { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { RefreshCw, ExternalLink } from 'lucide-react';
 
 export default function HomePage() {
-  const [pachangas, setPachangas] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const [pachangas, setPachangas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
+  useEffect(() => {
     async function fetchPachangas() {
       try {
         const data = await db.getPachangas();

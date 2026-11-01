@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '../../../../lib/db';
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const body = await request.json();
-  const id = body.id;
+  const id = body.id || params?.id;
 
   // Handle status update
   if (body.status) {

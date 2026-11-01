@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { Member } from '../types';
