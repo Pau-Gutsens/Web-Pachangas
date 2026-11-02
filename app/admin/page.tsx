@@ -71,9 +71,9 @@ export default function AdminDashboard() {
   const currentPachanga = pachangas.find(p => p.id === selectedPachangaId);
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-8 max-w-4xl mx-auto text-gray-900">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
         <a href="/" className="text-sm text-blue-600 hover:underline">← Volver al Dashboard</a>
       </div>
 
@@ -86,37 +86,37 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="bg-gray-100 p-6 rounded-lg mb-8">
-        <h2 className="text-xl font-semibold mb-4">Create New Pachanga</h2>
+      <div className="bg-white border border-gray-200 p-6 rounded-lg mb-8 shadow-sm">
+        <h2 className="text-xl font-semibold mb-4 text-gray-800">Create New Pachanga</h2>
         <div className="flex flex-col gap-4 max-w-sm">
           <input
             type="date"
-            className="border p-2 rounded"
+            className="border border-gray-300 bg-white text-gray-900 p-2 rounded focus:ring-2 focus:ring-blue-500"
             value={newPachanga.date}
             onChange={(e) => setNewPachanga({...newPachanga, date: e.target.value})}
           />
           <input
             type="number"
-            className="border p-2 rounded"
+            className="border border-gray-300 bg-white text-gray-900 p-2 rounded focus:ring-2 focus:ring-blue-500"
             value={newPachanga.format}
             onChange={(e) => setNewPachanga({...newPachanga, format: parseInt(e.target.value)})}
             placeholder="Players per team"
           />
           <button
             onClick={handleCreate}
-            className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+            className="bg-blue-600 text-white font-medium p-2 rounded hover:bg-blue-700 transition-colors"
           >
             Create Pachanga
           </button>
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold mb-4">Active Pachangas</h2>
+      <h2 className="text-xl font-semibold mb-4 text-gray-800">Active Pachangas</h2>
       <div className="grid gap-4 mb-8">
         {pachangas.map(p => (
-          <div key={p.id} className="border p-4 rounded shadow-sm flex justify-between items-center">
+          <div key={p.id} className="border border-gray-200 bg-white p-4 rounded-lg shadow-sm flex justify-between items-center text-gray-900">
             <div className="cursor-pointer" onClick={() => setSelectedPachangaId(p.id)}>
-              <p className="font-bold">{new Date(p.date).toLocaleDateString()}</p>
+              <p className="font-bold text-gray-900">{new Date(p.date).toLocaleDateString()}</p>
               <p className="text-sm text-gray-600">Status: {p.status} | Format: {p.format}</p>
             </div>
             <div className="flex gap-2">
@@ -125,7 +125,7 @@ export default function AdminDashboard() {
                   await db.updatePachangaStatus(p.id, 'open');
                   setPachangas(pachangas.map(x => x.id === p.id ? {...x, status: 'open'} : x));
                 }}
-                className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+                className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
               >
                 Open
               </button>
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
                   await db.updatePachangaStatus(p.id, 'closed');
                   setPachangas(pachangas.map(x => x.id === p.id ? {...x, status: 'closed'} : x));
                 }}
-                className="bg-red-600 text-white px-3 py-1 rounded text-sm"
+                className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
               >
                 Close
               </button>

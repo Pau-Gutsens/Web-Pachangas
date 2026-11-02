@@ -13,19 +13,19 @@ export default function RankingBoard() {
   }
 
   return (
-    <div className="p-6 border rounded bg-white shadow-sm">
-      <h3 className="text-xl font-bold mb-4">Season Ranking</h3>
+    <div className="p-6 border border-gray-200 rounded-lg bg-white shadow-sm text-gray-900">
+      <h3 className="text-xl font-bold mb-4 text-gray-900">Season Ranking</h3>
       <table className="w-full text-left">
-        <thead className="bg-gray-50">
-          <tr className="border-b">
+        <thead className="bg-gray-50 text-gray-700">
+          <tr className="border-b border-gray-200">
             <th className="p-2">Manager</th>
             <th className="p-2">Total Points</th>
             <th className="p-2">Last Match</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="text-gray-800">
           {rankings.map((r, i) => (
-            <tr key={i} className="border-b">
+            <tr key={i} className="border-b border-gray-100">
               <td className="p-2">{i + 1}. Manager {r.pachangaId.substring(0, 4)}</td>
               <td className="p-2">{r.score}</td>
               <td className="p-2">{r.lastMatchPoints}</td>

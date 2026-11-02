@@ -55,25 +55,25 @@ export default function FantasySelection({ pachangaId, members }: { pachangaId: 
   if (loading) return <div className="p-8">Loading...</div>;
 
   return (
-    <div className="p-4 md:p-6 border rounded bg-white shadow-sm">
-      <h3 className="text-xl font-bold mb-4">Choose your Team</h3>
-      <div className="flex justify-between mb-6">
-        <p>Budget: <span className="font-bold">{currentBudget}</span> / {budget}</p>
+    <div className="p-4 md:p-6 border border-gray-200 rounded-lg bg-white shadow-sm text-gray-900">
+      <h3 className="text-xl font-bold mb-4 text-gray-900">Choose your Team</h3>
+      <div className="flex justify-between mb-6 text-gray-700">
+        <p>Budget: <span className="font-bold text-gray-900">{currentBudget}</span> / {budget}</p>
         <p>Slots: {selectedIds.length} / {Math.floor(budget / 10)}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-2">
-          <h4 className="font-semibold">Available Players</h4>
+          <h4 className="font-semibold text-gray-800">Available Players</h4>
           <div className="grid grid-cols-2 gap-2">
             {attendees.map((a, i) => (
               <button
                 key={i}
                 onClick={() => togglePlayer(a.member_id || a.guest_id)}
-                className={`p-3 text-left border rounded ${
+                className={`p-3 text-left border rounded transition-colors ${
                   selectedIds.includes(a.member_id || a.guest_id)
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-50'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-gray-50 text-gray-900 border-gray-200 hover:bg-gray-100'
                 }`}
               >
                 {members.find(m => m.id === a.member_id)?.name || 'Guest'}
@@ -83,19 +83,19 @@ export default function FantasySelection({ pachangaId, members }: { pachangaId: 
         </div>
 
         <div className="border-l md:border-l-0 md:border-t pt-4 md:pt-0 md:pl-8">
-          <h4 className="font-semibold mb-4">Your Team</h4>
+          <h4 className="font-semibold mb-4 text-gray-800">Your Team</h4>
           <ul className="space-y-2">
             {selectedIds.map(id => (
-              <li key={id} className="flex items-center gap-4 p-2 bg-gray-50 rounded">
+              <li key={id} className="flex items-center gap-4 p-2 bg-gray-50 border border-gray-200 rounded text-gray-900">
                 <input
                   type="radio"
                   name="captain"
                   checked={captainId === id}
                   onChange={() => handleCaptainChange(id)}
-                  className="w-4 h-4"
+                  className="w-4 h-4 text-blue-600"
                 />
-                <span className="flex-1">{members.find(m => m.id === id)?.name}</span>
-                {captainId === id && <span className="bg-yellow-400 text-xs px-2 py-1 rounded font-bold">CAPTAIN</span>}
+                <span className="flex-1 font-medium">{members.find(m => m.id === id)?.name}</span>
+                {captainId === id && <span className="bg-yellow-400 text-yellow-900 text-xs px-2 py-1 rounded font-bold">CAPTAIN</span>}
               </li>
             ))}
           </ul>
