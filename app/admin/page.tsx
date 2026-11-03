@@ -7,13 +7,14 @@ import AttendanceManager from '../../components/AttendanceManager';
 import StatsRegistration from '../../components/StatsRegistration';
 import FantasySelection from '../../components/FantasySelection';
 import RankingBoard from '../../components/RankingBoard';
-import { Calendar, Users, Trophy, Award, PlusCircle, Sparkles, UserPlus } from 'lucide-react';
+import HallOfFame from '../../components/HallOfFame';
+import { Calendar, Users, Trophy, Award, PlusCircle, Sparkles, UserPlus, Flame } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [pachangas, setPachangas] = useState<any[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedPachangaId, setSelectedPachangaId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'attendance' | 'fantasy' | 'stats' | 'ranking'>('attendance');
+  const [activeTab, setActiveTab] = useState<'attendance' | 'fantasy' | 'stats' | 'ranking' | 'halloffame'>('attendance');
 
   const [newPachanga, setNewPachanga] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -356,7 +357,18 @@ export default function AdminDashboard() {
               }`}
             >
               <Calendar className="h-4 w-4" />
-              4. Clasificación General
+              4. Clasificación Fantasy
+            </button>
+            <button
+              onClick={() => setActiveTab('halloffame')}
+              className={`py-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
+                activeTab === 'halloffame'
+                  ? 'border-amber-500 text-amber-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <Flame className="h-4 w-4 text-orange-500" />
+              5. Salón de la Fama
             </button>
           </div>
 
@@ -388,6 +400,10 @@ export default function AdminDashboard() {
 
           {activeTab === 'ranking' && (
             <RankingBoard />
+          )}
+
+          {activeTab === 'halloffame' && (
+            <HallOfFame />
           )}
         </div>
       ) : (

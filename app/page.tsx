@@ -5,13 +5,14 @@ import { db } from '../lib/db';
 import { Member } from '../types';
 import RankingBoard from '../components/RankingBoard';
 import FantasySelection from '../components/FantasySelection';
-import { RefreshCw, ExternalLink, Trophy, Calendar, BookOpen, Settings, Play, CheckCircle2 } from 'lucide-react';
+import HallOfFame from '../components/HallOfFame';
+import { RefreshCw, ExternalLink, Trophy, Calendar, BookOpen, Settings, Play, CheckCircle2, Flame } from 'lucide-react';
 
 export default function HomePage() {
   const [pachangas, setPachangas] = useState<any[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'pachangas' | 'ranking' | 'rules'>('pachangas');
+  const [activeTab, setActiveTab] = useState<'pachangas' | 'ranking' | 'halloffame' | 'rules'>('pachangas');
   const [playingPachangaId, setPlayingPachangaId] = useState<string | null>(null);
 
   const fetchData = async () => {
@@ -127,7 +128,18 @@ export default function HomePage() {
             }`}
           >
             <Trophy className="h-4 w-4" />
-            Clasificación General
+            Clasificación Fantasy
+          </button>
+          <button
+            onClick={() => setActiveTab('halloffame')}
+            className={`py-3 px-2 font-bold text-sm border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
+              activeTab === 'halloffame'
+                ? 'border-amber-500 text-amber-600'
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Flame className="h-4 w-4 text-orange-500" />
+            Salón de la Fama (Trofeos)
           </button>
           <button
             onClick={() => setActiveTab('rules')}
@@ -256,7 +268,12 @@ export default function HomePage() {
           <RankingBoard />
         )}
 
-        {/* Tab 3: Reglas del Fantasy */}
+        {/* Tab 3: Salón de la Fama */}
+        {activeTab === 'halloffame' && (
+          <HallOfFame />
+        )}
+
+        {/* Tab 4: Reglas del Fantasy */}
         {activeTab === 'rules' && (
           <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-8 shadow-sm">
             <h3 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-2">
@@ -269,8 +286,7 @@ export default function HomePage() {
                 <h4 className="font-bold text-gray-900 text-base border-b pb-2">1. Elección de tu Equipo Fantasy</h4>
                 <ul className="space-y-2 text-gray-700 list-disc ml-4">
                   <li>Cada jornada eliges un equipo virtual con <strong>N jugadores</strong> (según el formato del partido, ej: 5).</li>
-                  <li>Solo puedes elegir entre los miembros que <strong>asisten a esa pachanga</strong>.</li>
-                  <li>Los <strong>invitados</strong> no son elegibles para el Fantasy.</li>
+                  <li>Puedes elegir entre los miembros convocados y fichar a <strong>Invitados como "Mercenarios"</strong> por un coste fijo de 8 pts.</li>
                   <li>Un manager <strong>puede elegirse a sí mismo</strong> si asiste al partido.</li>
                   <li>Cuentas con un <strong>presupuesto limitado</strong>. El precio de cada jugador varía según su rendimiento previo.</li>
                   <li>Eliges un <strong>Capitán</strong>: ¡sus puntos puntuarán <strong>doble (x2)</strong>!</li>

@@ -86,23 +86,49 @@ export default function FantasySelection({
     setSuccessMessage('');
   }, [selectedManagerId, existingPicks]);
 
-  // Cálculo de presupuesto gastado
-  const spentBudget = selectedIds.reduce((sum, id) => sum + (playerPrices[id] || 11), 0);
+  const MERCENARY_PRICE = 8; // Precio base fijo para mercenarios/invitados
+
+  // Calcular presupuesto gastado
+  const spentBudget = selectedIds.reduce((sum, id) => sum + (playerPrices[id] || MERCENARY_PRICE), 0);
   const remainingBudget = budget - spentBudget;
   const slotsRemaining = format - selectedIds.length;
 
-  // Filtrar solo los asistentes que son miembros del grupo (regla oficial: invitados no se eligen)
+  // Filtrar todos los asistentes convocados: Miembros y Mercenarios (Invitados)
   const eligiblePlayers = attendees
-    .filter((a: any) => a.member_id)
     .map((a: any) => {
-      const member = members.find(m => m.id === a.member_id);
+      const isMember = Boolean(a.member_id);
+      const id = a.member_id || a.guest_id;
+      let name = 'Jugador';
+
+      if (isMember) {
+        const member = members.find(m => m.id === a.member_id);
+        name = member ? member.name : `Miembro (${a.member_id.substring(0, 4)})`;
+      } else {
+        if (a.guest_name) {
+          name = `${a.guest_name}`;
+        } else if (a.guest_id) {
+          if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem(`pachangas_cache_guest_name_${a.guest_id}`);
+            if (cached) name = `${JSON.parse(cached)}`;
+            else name = `Invitado (${a.guest_id.substring(0, 4)})`;
+          } else {
+            name = `Invitado (${a.guest_id.substring(0, 4)})`;
+          }
+        }
+      }
+
+      const price = isMember ? (playerPrices[id] || 11) : MERCENARY_PRICE;
+
       return {
-        id: a.member_id,
-        name: member ? member.name : `Jugador (${a.member_id.substring(0, 4)})`,
+        id,
+        name,
+        isMember,
+        isGuest: !isMember,
         team: a.team,
-        price: playerPrices[a.member_id] || 11
+        price
       };
-    });
+    })
+    .filter(p => Boolean(p.id));
 
   const togglePlayer = (id: string, price: number) => {
     setSuccessMessage('');
@@ -172,7 +198,7 @@ export default function FantasySelection({
             Alineación Fantasy
           </h3>
           <p className="text-sm text-gray-600">
-            Arma tu equipo virtual para esta jornada. Cada gol, asistencia y victoria sumará puntos.
+            Arma tu equipo virtual para esta jornada. Puedes alinear miembros y también fichar a Invitados como "Mercenarios" (8 pts fijos).
           </p>
         </div>
 
@@ -273,7 +299,16 @@ export default function FantasySelection({
                     }`}
                   >
                     <div className="flex justify-between items-start gap-1">
-                      <span className="font-bold text-sm leading-snug">{player.name}</span>
+                      <div>
+                        <span className="font-bold text-sm leading-snug block">{player.name}</span>
+                        {player.isGuest && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded mt-0.5 inline-block ${
+                            isSelected ? 'bg-emerald-200 text-emerald-950' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            ⚔️ Mercenario
+                          </span>
+                        )}
+                      </div>
                       <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${
                         isSelected ? 'bg-blue-700 text-white' : 'bg-gray-100 text-gray-700'
                       }`}>

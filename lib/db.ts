@@ -426,6 +426,7 @@ export const db = {
       winner_team: matchResult.winner,
       player_points: playerPointsMap,
       manager_points: managerPointsMap,
+      raw_stats: playerStats,
       created_at: new Date().toISOString()
     };
 
@@ -437,9 +438,162 @@ export const db = {
     }
 
     setLocal(`result_${pachangaId}`, resultsPayload);
+    setLocal(`stats_${pachangaId}`, playerStats);
     await this.updatePachangaStatus(pachangaId, 'scored');
 
     return resultsPayload;
+  },
+
+  /**
+   * Obtiene las estadísticas individuales del Salón de la Fama
+   * (Pichichi, Asistencias, MVPs, Muro de las lamentaciones/Derrotas, etc.)
+   */
+  async getHallOfFame(): Promise<{
+    players: any[];
+    awards: {
+      pichichi: any;
+      topAssister: any;
+      topMvp: any;
+      bestKeeper: any;
+      wallOfShame: any;
+      topWinRate: any;
+    };
+  }> {
+    const pachangas = await this.getPachangas();
+    const members = await this.getMembers();
+    const scoredPachangas = pachangas.filter(p => p.status === 'scored');
+
+    const playerStatsMap: Record<string, {
+      id: string;
+      name: string;
+      isMember: boolean;
+      matchesPlayed: number;
+      wins: number;
+      losses: number;
+      draws: number;
+      goals: number;
+      assists: number;
+      saves: number;
+      goalsAgainst: number;
+      mvps: number;
+      fantasyPoints: number;
+      winRate: number;
+    }> = {};
+
+    // Inicializar a todos los miembros conocidos
+    members.forEach(m => {
+      playerStatsMap[m.id] = {
+        id: m.id,
+        name: m.name,
+        isMember: true,
+        matchesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        goals: 0,
+        assists: 0,
+        saves: 0,
+        goalsAgainst: 0,
+        mvps: 0,
+        fantasyPoints: 0,
+        winRate: 0
+      };
+    });
+
+    for (const p of scoredPachangas) {
+      const details = await this.getPachangaDetails(p.id);
+      const res = details.pachanga_results || getLocal<any>(`result_${p.id}`, null);
+      const rawStats = res?.raw_stats || getLocal<any[]>(`stats_${p.id}`, []);
+      const attendees = details.pachanga_attendees || [];
+      const winner = res?.winner_team || 'draw';
+
+      // 1. Procesar asistencia y resultado del partido
+      attendees.forEach((a: any) => {
+        const pId = a.member_id || a.guest_id;
+        if (!pId) return;
+
+        if (!playerStatsMap[pId]) {
+          let name = 'Invitado';
+          if (a.guest_name) name = `${a.guest_name} (Invitado)`;
+          else if (a.guest_id) {
+            const cachedName = getLocal<string>(`guest_name_${a.guest_id}`, '');
+            name = cachedName ? `${cachedName} (Invitado)` : `Invitado (${a.guest_id.substring(0, 4)})`;
+          }
+
+          playerStatsMap[pId] = {
+            id: pId,
+            name,
+            isMember: Boolean(a.member_id),
+            matchesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            draws: 0,
+            goals: 0,
+            assists: 0,
+            saves: 0,
+            goalsAgainst: 0,
+            mvps: 0,
+            fantasyPoints: 0,
+            winRate: 0
+          };
+        }
+
+        playerStatsMap[pId].matchesPlayed += 1;
+
+        if (winner === 'draw') {
+          playerStatsMap[pId].draws += 1;
+        } else if (a.team === winner) {
+          playerStatsMap[pId].wins += 1;
+        } else {
+          playerStatsMap[pId].losses += 1;
+        }
+
+        if (res?.player_points && res.player_points[pId]) {
+          playerStatsMap[pId].fantasyPoints += Number(res.player_points[pId]) || 0;
+        }
+      });
+
+      // 2. Procesar estadísticas individuales (goles, asistencias, etc.)
+      rawStats.forEach((st: any) => {
+        if (!st.playerId || !playerStatsMap[st.playerId]) return;
+        const target = playerStatsMap[st.playerId];
+        const val = Number(st.value) || 0;
+
+        if (st.type === 'goal') target.goals += val;
+        if (st.type === 'assist') target.assists += val;
+        if (st.type === 'save') target.saves += val;
+        if (st.type === 'goal_against') target.goalsAgainst += val;
+        if (st.type === 'mvp') target.mvps += 1;
+      });
+    }
+
+    // Calcular ratios
+    const playerList = Object.values(playerStatsMap).map(p => ({
+      ...p,
+      winRate: p.matchesPlayed > 0 ? Math.round((p.wins / p.matchesPlayed) * 100) : 0
+    }));
+
+    // Determinar premios / líderes
+    const activePlayers = playerList.filter(p => p.matchesPlayed > 0);
+
+    const pichichi = [...activePlayers].sort((a, b) => b.goals - a.goals || b.matchesPlayed - a.matchesPlayed)[0] || null;
+    const topAssister = [...activePlayers].sort((a, b) => b.assists - a.assists || b.matchesPlayed - a.matchesPlayed)[0] || null;
+    const topMvp = [...activePlayers].sort((a, b) => b.mvps - a.mvps || b.matchesPlayed - a.matchesPlayed)[0] || null;
+    const bestKeeper = [...activePlayers].sort((a, b) => b.saves - a.saves || a.goalsAgainst - b.goalsAgainst)[0] || null;
+    const wallOfShame = [...activePlayers].sort((a, b) => b.losses - a.losses || a.winRate - b.winRate)[0] || null;
+    const topWinRate = [...activePlayers].sort((a, b) => b.winRate - a.winRate || b.wins - a.wins)[0] || null;
+
+    return {
+      players: playerList.sort((a, b) => b.goals - a.goals || b.wins - a.wins),
+      awards: {
+        pichichi: pichichi && pichichi.goals > 0 ? pichichi : null,
+        topAssister: topAssister && topAssister.assists > 0 ? topAssister : null,
+        topMvp: topMvp && topMvp.mvps > 0 ? topMvp : null,
+        bestKeeper: bestKeeper && bestKeeper.saves > 0 ? bestKeeper : null,
+        wallOfShame: wallOfShame && wallOfShame.losses > 0 ? wallOfShame : null,
+        topWinRate: topWinRate && topWinRate.matchesPlayed > 0 ? topWinRate : null
+      }
+    };
   },
 
   /**
