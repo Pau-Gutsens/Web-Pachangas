@@ -3,7 +3,7 @@
 > Para guardar como `FANTASY_SPEC.md` en la raíz del repo y decirle a Claude Code: "lee FANTASY_SPEC.md, explícame el plan y luego impleméntalo por fases".
 > **El proyecto empieza de cero**: no hay web anterior que reutilizar.
 
-## 0. Instrucciones para Claude Code
+## 0. Instrucciones 
 
 1. Propón el stack más simple que sirva (web responsive, móvil primero, con base de datos). Pregúntame solo lo imprescindible y justifica en 10 líneas.
 2. Implementa por fases (sección 7). Al acabar cada fase, dime qué probar a mano.
