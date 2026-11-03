@@ -101,3 +101,4 @@ SELECT * FROM (VALUES
   ('a0000000-0000-0000-0000-00000000015'::uuid, 'Jugador 15', 'member', 'J15')
 ) AS v(id, name, role, alias)
 WHERE NOT EXISTS (SELECT 1 FROM profiles);
+
