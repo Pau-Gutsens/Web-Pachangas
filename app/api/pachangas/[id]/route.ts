@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
-import { db } from '../../../../lib/db';
+import { egolDb } from '../../../../lib/db';
+
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const matches = egolDb.getMatches();
+  const match = matches.find(m => m.id === params?.id);
+  return NextResponse.json(match || null);
+}
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const body = await request.json();
-  const id = body.id || params?.id;
-
-  // Handle status update
-  if (body.status) {
-    await db.updatePachangaStatus(id, body.status);
+  try {
+    const body = await request.json();
+    const id = body.id || params?.id;
+    const matches = egolDb.getMatches();
+    const p = matches.find(m => m.id === id);
+    return NextResponse.json(p || null);
+  } catch {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
-
-  // Handle attendee addition
-  if (body.attendee) {
-    await db.addAttendee(body.pachangaId, body.attendee.memberId, body.attendee.guestId, body.attendee.team);
-  }
-
-  const pachangas = await db.getPachangas();
-  const p = pachangas.find(p => p.id === id);
-  return NextResponse.json(p);
 }
+

@@ -39,6 +39,17 @@ const DEFAULT_USERS: Record<string, { password: string; account: UserAccount }> 
   }
 };
 
+// Escala de puntuación para goles encajados en portería (Enteros, sin decimales):
+// 0 goles: +10 pts | 1-3: +5 pts | 4-5: +3 pts | 6-7: +2 pts | 8-10: +1 pt | >10: 0 pts
+export function getConcededGoalsPoints(goalsAgainst: number): number {
+  if (goalsAgainst <= 0) return 10;
+  if (goalsAgainst <= 3) return 5;
+  if (goalsAgainst <= 5) return 3;
+  if (goalsAgainst <= 7) return 2;
+  if (goalsAgainst <= 10) return 1;
+  return 0;
+}
+
 export const egolDb = {
   // ==========================================
   // AUTHENTICATION
@@ -324,18 +335,19 @@ export const egolDb = {
         p.stats.goalsAgainst += st.goalsAgainst;
         p.stats.matchesPlayed += 1;
 
-        // Actualización dinámica de precio y porcentaje
-        const pointsPerformance = (st.goals * 1.5) + (st.assists * 1.0) + (st.saves * 0.5) - (st.ownGoals * 1.0) - (st.goalsAgainst * 0.3);
-        const changePercent = Math.min(25, Math.max(-20, pointsPerformance * 2));
+        // Actualización dinámica de precio y porcentaje (valores enteros en millones)
+        const keeperPoints = (st.saves > 0 || st.goalsAgainst > 0) ? getConcededGoalsPoints(st.goalsAgainst) : 0;
+        const matchPerformance = (st.goals * 3) + (st.assists * 2) + (st.saves * 1) + keeperPoints - (st.ownGoals * 2);
+        const changePercent = Math.min(25, Math.max(-20, Math.round(matchPerformance * 1.5)));
         p.previousPrice = p.currentPrice;
-        const newPrice = Math.max(8, Math.round((p.currentPrice * (1 + changePercent / 100)) * 10) / 10);
-        p.priceChangePct = Math.round(((newPrice - p.previousPrice) / p.previousPrice) * 1000) / 10;
+        const newPrice = Math.max(8, Math.round(p.currentPrice * (1 + changePercent / 100)));
+        p.priceChangePct = p.previousPrice > 0 ? Math.round(((newPrice - p.previousPrice) / p.previousPrice) * 100) : 0;
         p.currentPrice = newPrice;
       }
     });
     setStorage('players', players);
 
-    // Calcular puntos de fantasy para los usuarios según sus titulares
+    // Calcular puntos de fantasy para los usuarios según sus titulares (PUNTOS ENTEROS)
     const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw';
     const users = getStorage('users', DEFAULT_USERS);
 
@@ -344,10 +356,16 @@ export const egolDb = {
       u.account.starterPlayerIds.forEach(pId => {
         const playerStat = stats[pId];
         if (playerStat) {
-          // Goles +3, Asistencias +2, Paradas +1, Goles en contra -0.5, Autogol -2
-          let pts = (playerStat.goals * 3) + (playerStat.assists * 2) + (playerStat.saves * 1) - (playerStat.ownGoals * 2) - (playerStat.goalsAgainst * 0.5);
+          // Puntuación oficial EGOL (Enteros):
+          // Goles +3, Asistencias +2, Paradas +1, Autogol -2
+          let pts = (playerStat.goals * 3) + (playerStat.assists * 2) + (playerStat.saves * 1) - (playerStat.ownGoals * 2);
 
-          // Bono por victoria si su equipo ganó
+          // Tramos de goles encajados si intervino como portero (paradas > 0 o goles encajados > 0)
+          if (playerStat.saves > 0 || playerStat.goalsAgainst > 0) {
+            pts += getConcededGoalsPoints(playerStat.goalsAgainst);
+          }
+
+          // Bono por victoria si su equipo ganó (+2 pts)
           if (winnerTeam === 'A' && match.teamA.includes(pId)) pts += 2;
           if (winnerTeam === 'B' && match.teamB.includes(pId)) pts += 2;
 
@@ -425,3 +443,6 @@ export const egolDb = {
       .sort((a, b) => b.totalPoints - a.totalPoints);
   }
 };
+
+// Alias export for backward compatibility
+export const db = egolDb as any;

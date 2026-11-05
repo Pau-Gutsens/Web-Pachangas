@@ -1,12 +1,30 @@
 import { Member } from '../types';
 
 /**
- * Rule definitions from FANTASY_SPEC.md:
- * - Gol +1, asistencia +1, autogol -1, victoria +1, MVP +1 extra.
- * - Solo portero: parada +1, gol encajado -1.
- * - Quien no asiste puntúa 0.
- * - Puntos del manager = suma de puntos de sus jugadores, con el capitán x2.
+ * Reglas de puntuación oficial EGOL Fantasy (Puntos enteros, sin decimales):
+ * - Gol: +3 pts
+ * - Asistencia: +2 pts
+ * - Parada: +1 pt
+ * - Autogol: -2 pts
+ * - Victoria del equipo: +2 pts
+ * 
+ * Escala por tramos de goles encajados (para porteros / defensa en meta):
+ * - 0 goles encajados: +10 pts (portería a 0)
+ * - 1 a 3 goles encajados: +5 pts
+ * - 4 a 5 goles encajados: +3 pts
+ * - 6 a 7 goles encajados: +2 pts
+ * - 8 a 10 goles encajados: +1 pt
+ * - Más de 10 goles: 0 pts
  */
+
+export function getGoalsAgainstPoints(goalsAgainst: number): number {
+  if (goalsAgainst <= 0) return 10;
+  if (goalsAgainst <= 3) return 5;
+  if (goalsAgainst <= 5) return 3;
+  if (goalsAgainst <= 7) return 2;
+  if (goalsAgainst <= 10) return 1;
+  return 0;
+}
 
 export type PlayerStatType = 'goal' | 'assist' | 'own_goal' | 'save' | 'goal_against' | 'mvp' | 'win';
 
@@ -29,21 +47,19 @@ export const calculatePlayerPoints = (
 ): number => {
   switch (playerStat.type) {
     case 'goal':
-      return playerStat.value;
+      return playerStat.value * 3;
     case 'assist':
-      return playerStat.value;
+      return playerStat.value * 2;
     case 'own_goal':
-      return -(playerStat.value);
+      return -(playerStat.value * 2);
     case 'win':
-      return playerStat.value;
+      return playerStat.value * 2;
     case 'mvp':
-      return playerStat.value + 1;
+      return playerStat.value * 3;
     case 'save':
-      if (isGoalkeeper) return playerStat.value;
-      return 0;
+      return playerStat.value * 1;
     case 'goal_against':
-      if (isGoalkeeper) return -(playerStat.value);
-      return 0;
+      return getGoalsAgainstPoints(playerStat.value);
     default:
       return 0;
   }
@@ -51,34 +67,23 @@ export const calculatePlayerPoints = (
 
 export const calculatePachangaScores = (
   pachangaId: string,
-  managerPicks: any[], // Picks for this pachanga
-  playerStats: any[],   // Raw stats for this pachanga
+  managerPicks: any[],
+  playerStats: any[],
   teamWinners: { team: 'A' | 'B'; score: number }[]
 ) => {
-  // 1. Calculate base points for every player in this pachanga
   const pointsMap: Record<string, number> = {};
 
-  // We assume playerStats is an array of entries: { playerId, type, value }
   playerStats.forEach(stat => {
-    // We'd need to know if the player is a goalkeeper here.
-    // For now, we'll assume a helper or a flag in the player profile.
-    const isGoalkeeper = false; // Placeholder logic
+    const isGoalkeeper = stat.type === 'save' || stat.type === 'goal_against';
     const points = calculatePlayerPoints(stat, isGoalkeeper);
     pointsMap[stat.playerId] = (pointsMap[stat.playerId] || 0) + points;
   });
 
-  // 2. Add victory points
-  // Only players who are on the winning team get the +1 'win' point?
-  // The spec says "victoria +1". Usually this means every player on the winning team.
-  // We need to know who is on which team for this pachanga.
-  // Let's assume teamWinners tells us which team won.
-
-  // 3. Calculate manager totals
   const managerTotals: Record<string, number> = {};
 
   managerPicks.forEach(pick => {
     let total = 0;
-    pick.selectedPlayerIds.forEach(playerId => {
+    (pick.selectedPlayerIds || []).forEach((playerId: string) => {
       const points = pointsMap[playerId] || 0;
       if (playerId === pick.captainId) {
         total += points * 2;
@@ -91,3 +96,4 @@ export const calculatePachangaScores = (
 
   return managerTotals;
 };
+
