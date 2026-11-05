@@ -60,3 +60,5 @@ export interface PlayerRatingVote {
   targetPlayerId: string;
   rating: number; // 1 to 10
 }
+
+export type Member = Player;
