@@ -9,7 +9,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const newMatch = egolDb.createMatch(body.date, body.startTime, body.endTime, body.format);
+    const newMatch = egolDb.createMatch({
+      date: body.date,
+      startTime: body.startTime,
+      endTime: body.endTime,
+      format: body.format || 5
+    });
     return NextResponse.json(newMatch);
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
