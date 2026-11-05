@@ -1,671 +1,427 @@
-import { supabase } from './supabase';
-import { Member, Pachanga } from '../types';
-import { INITIAL_MEMBERS } from './seed';
-import { calculatePachangaScores, calculatePlayerPoints } from './scoring';
+import { UserAccount, Player, PachangaMatch, PlayerRatingVote } from '../types';
+import { INITIAL_PLAYERS } from './seed';
 
-// Helper for safe UUID generation in browser and node
-function generateUUID(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+const PREFIX = 'egol_fantasy_';
 
-// Local Storage helpers for fallback and offline persistence
-const LOCAL_STORAGE_PREFIX = 'pachangas_cache_';
-
-function getLocal<T>(key: string, defaultValue: T): T {
+function getStorage<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') return defaultValue;
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_PREFIX + key);
+    const raw = localStorage.getItem(PREFIX + key);
     return raw ? JSON.parse(raw) : defaultValue;
   } catch {
     return defaultValue;
   }
 }
 
-function setLocal<T>(key: string, value: T): void {
+function setStorage<T>(key: string, value: T): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(LOCAL_STORAGE_PREFIX + key, JSON.stringify(value));
+    localStorage.setItem(PREFIX + key, JSON.stringify(value));
   } catch (e) {
-    console.warn('LocalStorage error:', e);
+    console.warn('Storage error:', e);
   }
 }
 
-export const db = {
-  /**
-   * Obtiene la lista de miembros del grupo.
-   * Si en Supabase está vacía o falla, usa INITIAL_MEMBERS.
-   */
-  async getMembers(): Promise<Member[]> {
-    try {
-      const { data, error } = await supabase.from('profiles').select('*').order('name');
-      if (error || !data || data.length === 0) {
-        const local = getLocal<Member[]>('members', INITIAL_MEMBERS);
-        return local.length > 0 ? local : INITIAL_MEMBERS;
-      }
-      setLocal('members', data);
-      return data;
-    } catch (e) {
-      console.warn('Fallback getting members:', e);
-      return getLocal<Member[]>('members', INITIAL_MEMBERS);
+// Initial Admin User (Pau)
+const DEFAULT_USERS: Record<string, { password: string; account: UserAccount }> = {
+  pau: {
+    password: '123',
+    account: {
+      id: 'u-pau',
+      username: 'Pau',
+      role: 'admin',
+      budget: 100, // 100 Millones
+      ownedPlayerIds: [],
+      starterPlayerIds: [],
+      totalPoints: 0,
+      lastMatchPoints: 0
+    }
+  }
+};
+
+export const egolDb = {
+  // ==========================================
+  // AUTHENTICATION
+  // ==========================================
+  getCurrentUser(): UserAccount | null {
+    return getStorage<UserAccount | null>('session_user', null);
+  },
+
+  login(username: string, password: string): { success: boolean; user?: UserAccount; message?: string } {
+    const cleanUser = username.trim().toLowerCase();
+    const users = getStorage('users', DEFAULT_USERS);
+
+    if (!users[cleanUser]) {
+      return { success: false, message: 'Usuario no encontrado. Regístrate primero.' };
+    }
+
+    if (users[cleanUser].password !== password) {
+      return { success: false, message: 'Contraseña incorrecta.' };
+    }
+
+    const user = users[cleanUser].account;
+    setStorage('session_user', user);
+    return { success: true, user };
+  },
+
+  signup(username: string, password: string): { success: boolean; user?: UserAccount; message?: string } {
+    const cleanUser = username.trim().toLowerCase();
+    if (!cleanUser || !password) {
+      return { success: false, message: 'Rellena usuario y contraseña.' };
+    }
+
+    const users = getStorage('users', DEFAULT_USERS);
+    if (users[cleanUser]) {
+      return { success: false, message: 'Este nombre de usuario ya existe. Inicia sesión.' };
+    }
+
+    const isAdmin = cleanUser === 'pau';
+
+    const newAccount: UserAccount = {
+      id: 'u-' + Math.random().toString(36).substring(2, 9),
+      username: username.trim(),
+      role: isAdmin ? 'admin' : 'user',
+      budget: 100, // Cada usuario empieza con 100 millones
+      ownedPlayerIds: [],
+      starterPlayerIds: [],
+      totalPoints: 0,
+      lastMatchPoints: 0
+    };
+
+    users[cleanUser] = {
+      password,
+      account: newAccount
+    };
+
+    setStorage('users', users);
+    setStorage('session_user', newAccount);
+    return { success: true, user: newAccount };
+  },
+
+  resetPassword(username: string, newPassword: string): { success: boolean; message: string } {
+    const cleanUser = username.trim().toLowerCase();
+    const users = getStorage('users', DEFAULT_USERS);
+
+    if (!users[cleanUser]) {
+      return { success: false, message: 'No existe ningún usuario con ese nombre.' };
+    }
+
+    users[cleanUser].password = newPassword;
+    setStorage('users', users);
+    return { success: true, message: 'Contraseña cambiada con éxito. Ya puedes iniciar sesión.' };
+  },
+
+  logout(): void {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(PREFIX + 'session_user');
     }
   },
 
-  /**
-   * Inicializa los 15 miembros iniciales en Supabase.
-   */
-  async seedInitialMembers(): Promise<Member[]> {
-    try {
-      const { data, error } = await supabase.from('profiles').upsert(INITIAL_MEMBERS).select();
-      if (error) {
-        console.warn('Error seeding to supabase, saving locally:', error);
-        setLocal('members', INITIAL_MEMBERS);
-        return INITIAL_MEMBERS;
-      }
-      setLocal('members', data || INITIAL_MEMBERS);
-      return data || INITIAL_MEMBERS;
-    } catch (e) {
-      console.warn('Error seeding members:', e);
-      setLocal('members', INITIAL_MEMBERS);
-      return INITIAL_MEMBERS;
-    }
+  // ==========================================
+  // PLAYERS & MARKET
+  // ==========================================
+  getPlayers(): Player[] {
+    return getStorage<Player[]>('players', INITIAL_PLAYERS);
   },
 
-  /**
-   * Crea un nuevo miembro / jugador en la base de datos.
-   */
-  async createMember(name: string, role: 'member' | 'admin' = 'member', alias?: string): Promise<Member> {
-    const newMember: Member = {
-      id: generateUUID(),
+  savePlayer(player: Player): void {
+    const players = this.getPlayers();
+    const idx = players.findIndex(p => p.id === player.id);
+    if (idx >= 0) players[idx] = player;
+    else players.push(player);
+    setStorage('players', players);
+  },
+
+  addPlayer(name: string, isGuest: boolean, avatarUrl?: string): Player {
+    const players = this.getPlayers();
+    const newPlayer: Player = {
+      id: 'p-' + Math.random().toString(36).substring(2, 9),
       name: name.trim(),
-      role,
-      alias: alias?.trim() || name.trim()
+      isGuest,
+      avatarUrl: avatarUrl || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80`,
+      currentPrice: 20, // 20 Millones iniciales
+      previousPrice: 20,
+      priceChangePct: 0,
+      averageRating: 7.0,
+      ratingsCount: 0,
+      stats: { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
     };
 
-    try {
-      const { data, error } = await supabase.from('profiles').insert(newMember).select().single();
-      if (!error && data) {
-        return data;
-      }
-    } catch (e) {
-      console.warn('Error creating member on supabase:', e);
-    }
-
-    // Fallback local
-    const members = await this.getMembers();
-    const updated = [...members, newMember];
-    setLocal('members', updated);
-    return newMember;
+    players.push(newPlayer);
+    setStorage('players', players);
+    return newPlayer;
   },
 
-  /**
-   * Obtiene todas las pachangas ordenadas por fecha.
-   */
-  async getPachangas(): Promise<any[]> {
-    try {
-      const { data, error } = await supabase
-        .from('pachangas')
-        .select('*')
-        .order('date', { ascending: false });
+  // ==========================================
+  // USER TEAM: BUY / SELL / STARTERS
+  // ==========================================
+  buyPlayer(userId: string, playerId: string): { success: boolean; message: string; user?: UserAccount } {
+    const users = getStorage('users', DEFAULT_USERS);
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) return { success: false, message: 'Inicia sesión.' };
 
-      if (error) {
-        console.warn('Error fetching pachangas from Supabase:', error);
-        return getLocal<any[]>('pachangas', []);
-      }
-      setLocal('pachangas', data || []);
-      return data || [];
-    } catch (e) {
-      console.warn('Fallback getting pachangas:', e);
-      return getLocal<any[]>('pachangas', []);
+    const players = this.getPlayers();
+    const player = players.find(p => p.id === playerId);
+    if (!player) return { success: false, message: 'Jugador no encontrado.' };
+
+    if (currentUser.ownedPlayerIds.includes(playerId)) {
+      return { success: false, message: 'Ya tienes a este jugador en tu plantilla.' };
     }
+
+    if (currentUser.ownedPlayerIds.length >= 6) {
+      return { success: false, message: 'Límite alcanzado: máximo 6 jugadores comprados en total (5 titulares + 1 reserva).' };
+    }
+
+    if (currentUser.budget < player.currentPrice) {
+      return { success: false, message: `Presupuesto insuficiente. Tienes ${currentUser.budget}M€ y cuesta ${player.currentPrice}M€.` };
+    }
+
+    currentUser.budget = Math.round((currentUser.budget - player.currentPrice) * 10) / 10;
+    currentUser.ownedPlayerIds.push(playerId);
+
+    // Si tiene menos de 5 titulares, añadirlo a titulares automáticamente
+    if (currentUser.starterPlayerIds.length < 5) {
+      currentUser.starterPlayerIds.push(playerId);
+    }
+
+    // Guardar usuario
+    const cleanUser = currentUser.username.toLowerCase();
+    users[cleanUser].account = currentUser;
+    setStorage('users', users);
+    setStorage('session_user', currentUser);
+
+    return { success: true, message: `¡Has fichado a ${player.name} por ${player.currentPrice}M€!`, user: currentUser };
   },
 
-  /**
-   * Crea una nueva pachanga.
-   */
-  async createPachanga(payload: { date: Date | string; format: number; status?: string }): Promise<any> {
-    const cleanPayload = {
-      date: new Date(payload.date).toISOString(),
-      format: Number(payload.format) || 5,
-      status: payload.status || 'draft'
+  sellPlayer(userId: string, playerId: string): { success: boolean; message: string; user?: UserAccount } {
+    const users = getStorage('users', DEFAULT_USERS);
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) return { success: false, message: 'Inicia sesión.' };
+
+    const players = this.getPlayers();
+    const player = players.find(p => p.id === playerId);
+    if (!player) return { success: false, message: 'Jugador no encontrado.' };
+
+    if (!currentUser.ownedPlayerIds.includes(playerId)) {
+      return { success: false, message: 'No tienes a este jugador en tu plantilla.' };
+    }
+
+    currentUser.budget = Math.round((currentUser.budget + player.currentPrice) * 10) / 10;
+    currentUser.ownedPlayerIds = currentUser.ownedPlayerIds.filter(id => id !== playerId);
+    currentUser.starterPlayerIds = currentUser.starterPlayerIds.filter(id => id !== playerId);
+
+    // Guardar usuario
+    const cleanUser = currentUser.username.toLowerCase();
+    users[cleanUser].account = currentUser;
+    setStorage('users', users);
+    setStorage('session_user', currentUser);
+
+    return { success: true, message: `Has vendido a ${player.name} por ${player.currentPrice}M€.`, user: currentUser };
+  },
+
+  setStarters(starterIds: string[]): { success: boolean; message: string; user?: UserAccount } {
+    const users = getStorage('users', DEFAULT_USERS);
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) return { success: false, message: 'Inicia sesión.' };
+
+    if (starterIds.length > 5) {
+      return { success: false, message: 'Solo puedes tener como máximo 5 jugadores titulares en el partido.' };
+    }
+
+    currentUser.starterPlayerIds = starterIds;
+    const cleanUser = currentUser.username.toLowerCase();
+    users[cleanUser].account = currentUser;
+    setStorage('users', users);
+    setStorage('session_user', currentUser);
+
+    return { success: true, message: 'Alineación de titulares actualizada.', user: currentUser };
+  },
+
+  // ==========================================
+  // MATCHES & CONVOCATORIAS
+  // ==========================================
+  getMatches(): PachangaMatch[] {
+    return getStorage<PachangaMatch[]>('matches', []);
+  },
+
+  getMatch(id: string): PachangaMatch | undefined {
+    return this.getMatches().find(m => m.id === id);
+  },
+
+  createMatch(payload: { date: string; startTime: string; endTime: string; format: number }): PachangaMatch {
+    const matches = this.getMatches();
+    const newMatch: PachangaMatch = {
+      id: 'm-' + Math.random().toString(36).substring(2, 9),
+      date: payload.date,
+      startTime: payload.startTime, // ej: "17:00"
+      endTime: payload.endTime,     // ej: "18:30"
+      format: payload.format || 5,
+      status: 'upcoming',
+      teamA: [],
+      teamB: []
     };
 
-    try {
-      const { data, error } = await supabase.from('pachangas').insert(cleanPayload).select().single();
-      if (error) throw error;
-      return data;
-    } catch (e: any) {
-      console.error('Error creating pachanga on Supabase:', e);
-      // Fallback local
-      const id = generateUUID();
-      const localPachanga = { id, ...cleanPayload, created_at: new Date().toISOString() };
-      const current = getLocal<any[]>('pachangas', []);
-      setLocal('pachangas', [localPachanga, ...current]);
-      return localPachanga;
-    }
+    matches.unshift(newMatch);
+    setStorage('matches', matches);
+    return newMatch;
   },
 
-  /**
-   * Actualiza el estado de una pachanga (draft, open, closed, scored, cancelled).
-   */
-  async updatePachangaStatus(id: string, status: string): Promise<any> {
-    try {
-      const { data, error } = await supabase.from('pachangas').update({ status }).eq('id', id).select().single();
-      if (!error && data) return data;
-    } catch (e) {
-      console.warn('Supabase status update error:', e);
-    }
+  updateMatchTeams(matchId: string, teamA: string[], teamB: string[]): PachangaMatch | undefined {
+    const matches = this.getMatches();
+    const match = matches.find(m => m.id === matchId);
+    if (!match) return undefined;
 
-    const current = getLocal<any[]>('pachangas', []);
-    const updated = current.map(p => p.id === id ? { ...p, status } : p);
-    setLocal('pachangas', updated);
-    return updated.find(p => p.id === id);
+    match.teamA = teamA;
+    match.teamB = teamB;
+    setStorage('matches', matches);
+    return match;
   },
 
-  /**
-   * Obtiene detalles completos de una pachanga (asistentes, picks y resultados).
-   */
-  async getPachangaDetails(id: string): Promise<any> {
-    let pachanga: any = null;
-    let attendees: any[] = [];
-    let picks: any[] = [];
-    let result: any = null;
+  updateMatchStatus(matchId: string, status: PachangaMatch['status']): PachangaMatch | undefined {
+    const matches = this.getMatches();
+    const match = matches.find(m => m.id === matchId);
+    if (!match) return undefined;
 
-    try {
-      const { data: pData } = await supabase.from('pachangas').select('*').eq('id', id).single();
-      pachanga = pData;
-
-      const { data: aData } = await supabase.from('pachanga_attendees').select('*').eq('pachanga_id', id);
-      if (aData) attendees = aData;
-
-      const { data: picksData } = await supabase.from('fantasy_picks').select('*').eq('pachanga_id', id);
-      if (picksData) picks = picksData;
-
-      const { data: resData } = await supabase.from('pachanga_results').select('*').eq('pachanga_id', id).single();
-      if (resData) result = resData;
-    } catch (e) {
-      console.warn('Error fetching details from Supabase:', e);
-    }
-
-    // Merge con datos locales si faltan
-    if (!pachanga) {
-      const allPachangas = getLocal<any[]>('pachangas', []);
-      pachanga = allPachangas.find(p => p.id === id) || { id, date: new Date().toISOString(), status: 'draft', format: 5 };
-    }
-
-    const localAttendees = getLocal<any[]>(`attendees_${id}`, []);
-    if (attendees.length === 0 && localAttendees.length > 0) {
-      attendees = localAttendees;
-    }
-
-    const localPicks = getLocal<any[]>(`picks_${id}`, []);
-    if (picks.length === 0 && localPicks.length > 0) {
-      picks = localPicks;
-    }
-
-    const localResult = getLocal<any>(`result_${id}`, null);
-    if (!result && localResult) {
-      result = localResult;
-    }
-
-    return {
-      ...pachanga,
-      pachanga_attendees: attendees,
-      fantasy_picks: picks,
-      pachanga_results: result
-    };
+    match.status = status;
+    setStorage('matches', matches);
+    return match;
   },
 
-  /**
-   * Añade un asistente (miembro o invitado) a la pachanga y equipo especificado.
-   * Garantiza que guestId sea un UUID válido.
-   */
-  async addAttendee(
-    pachangaId: string,
-    memberId: string | null,
-    guestId: string | null,
-    team: 'A' | 'B',
-    guestName?: string
-  ): Promise<any> {
-    const validGuestId = guestId ? (guestId.includes('-') ? guestId : generateUUID()) : null;
-
-    // Payload para Supabase
-    const payload: any = {
-      pachanga_id: pachangaId,
-      member_id: memberId || null,
-      guest_id: validGuestId,
-      team
-    };
-
-    if (guestName) {
-      payload.guest_name = guestName.trim();
-    }
-
-    try {
-      // Intenta insertar con guest_name
-      const { data, error } = await supabase.from('pachanga_attendees').insert(payload).select().single();
-      if (!error && data) {
-        return data;
-      }
-
-      // Si falla porque la columna guest_name no existe en Supabase, reintentar sin ella
-      if (error && error.message?.includes('guest_name')) {
-        delete payload.guest_name;
-        const retry = await supabase.from('pachanga_attendees').insert(payload).select().single();
-        if (!retry.error && retry.data) {
-          // Guardar el nombre del invitado localmente para mapearlo
-          if (validGuestId && guestName) {
-            setLocal(`guest_name_${validGuestId}`, guestName);
-          }
-          return retry.data;
-        }
-      }
-      throw error;
-    } catch (e: any) {
-      console.warn('Supabase attendee insert error, saving locally:', e);
-      // Fallback local
-      const attendee = {
-        id: generateUUID(),
-        pachanga_id: pachangaId,
-        member_id: memberId,
-        guest_id: validGuestId,
-        guest_name: guestName,
-        team
-      };
-      const current = getLocal<any[]>(`attendees_${pachangaId}`, []);
-      const updated = [...current, attendee];
-      setLocal(`attendees_${pachangaId}`, updated);
-      if (validGuestId && guestName) {
-        setLocal(`guest_name_${validGuestId}`, guestName);
-      }
-      return attendee;
-    }
-  },
-
-  /**
-   * Elimina un asistente de una pachanga.
-   */
-  async removeAttendee(attendeeId: string, pachangaId: string): Promise<boolean> {
-    try {
-      await supabase.from('pachanga_attendees').delete().eq('id', attendeeId);
-    } catch (e) {
-      console.warn('Supabase removeAttendee error:', e);
-    }
-
-    const current = getLocal<any[]>(`attendees_${pachangaId}`, []);
-    const updated = current.filter(a => a.id !== attendeeId);
-    setLocal(`attendees_${pachangaId}`, updated);
-    return true;
-  },
-
-  /**
-   * Cambia el equipo de un asistente (Equipo A <-> Equipo B).
-   */
-  async updateAttendeeTeam(attendeeId: string, pachangaId: string, newTeam: 'A' | 'B'): Promise<boolean> {
-    try {
-      await supabase.from('pachanga_attendees').update({ team: newTeam }).eq('id', attendeeId);
-    } catch (e) {
-      console.warn('Supabase updateAttendeeTeam error:', e);
-    }
-
-    const current = getLocal<any[]>(`attendees_${pachangaId}`, []);
-    const updated = current.map(a => a.id === attendeeId ? { ...a, team: newTeam } : a);
-    setLocal(`attendees_${pachangaId}`, updated);
-    return true;
-  },
-
-  /**
-   * Guarda o actualiza la elección Fantasy de un manager para una pachanga.
-   */
-  async saveFantasyPick(
-    pachangaId: string,
-    managerId: string,
-    selectedPlayerIds: string[],
-    captainId: string
-  ): Promise<any> {
-    const pickData = {
-      pachanga_id: pachangaId,
-      manager_id: managerId,
-      selected_player_ids: selectedPlayerIds,
-      captain_id: captainId,
-      created_at: new Date().toISOString()
-    };
-
-    try {
-      const { data, error } = await supabase
-        .from('fantasy_picks')
-        .upsert(pickData, { onConflict: 'pachanga_id,manager_id' })
-        .select()
-        .single();
-
-      if (!error && data) return data;
-    } catch (e) {
-      console.warn('Supabase saveFantasyPick error:', e);
-    }
-
-    // Fallback local
-    const current = getLocal<any[]>(`picks_${pachangaId}`, []);
-    const filtered = current.filter(p => p.manager_id !== managerId);
-    const updated = [...filtered, { id: generateUUID(), ...pickData }];
-    setLocal(`picks_${pachangaId}`, updated);
-    return pickData;
-  },
-
-  /**
-   * Guarda las estadísticas del partido, calcula los puntos de jugadores y managers,
-   * y cambia el estado de la pachanga a 'scored'.
-   */
-  async scorePachanga(
-    pachangaId: string,
-    matchResult: { scoreA: number; scoreB: number; winner: 'A' | 'B' | 'draw' },
-    playerStats: { playerId: string; type: any; value: number; isGoalkeeper?: boolean }[]
-  ): Promise<any> {
-    const details = await this.getPachangaDetails(pachangaId);
-    const attendees = details.pachanga_attendees || [];
-    const picks = details.fantasy_picks || [];
-
-    // 1. Calcular puntos base por jugador
-    const playerPointsMap: Record<string, number> = {};
-
-    attendees.forEach((a: any) => {
-      const id = a.member_id || a.guest_id;
-      if (id) playerPointsMap[id] = 0;
-    });
-
-    playerStats.forEach(stat => {
-      const pts = calculatePlayerPoints(
-        { type: stat.type, value: stat.value },
-        Boolean(stat.isGoalkeeper)
-      );
-      playerPointsMap[stat.playerId] = (playerPointsMap[stat.playerId] || 0) + pts;
-    });
-
-    // 2. Sumar punto por victoria al equipo ganador
-    if (matchResult.winner === 'A' || matchResult.winner === 'B') {
-      attendees.forEach((a: any) => {
-        if (a.team === matchResult.winner) {
-          const id = a.member_id || a.guest_id;
-          if (id) {
-            playerPointsMap[id] = (playerPointsMap[id] || 0) + 1;
-          }
-        }
-      });
-    }
-
-    // 3. Calcular puntos por manager según sus picks y capitán x2
-    const managerPointsMap: Record<string, number> = {};
-
-    picks.forEach((pick: any) => {
-      let total = 0;
-      const selectedIds = Array.isArray(pick.selected_player_ids)
-        ? pick.selected_player_ids
-        : [];
-
-      selectedIds.forEach((pId: string) => {
-        const pts = playerPointsMap[pId] || 0;
-        if (pId === pick.captain_id) {
-          total += pts * 2;
-        } else {
-          total += pts;
-        }
-      });
-      managerPointsMap[pick.manager_id] = total;
-    });
-
-    // 4. Guardar resultados
-    const resultsPayload = {
-      pachanga_id: pachangaId,
-      score_team_a: matchResult.scoreA,
-      score_team_b: matchResult.scoreB,
-      winner_team: matchResult.winner,
-      player_points: playerPointsMap,
-      manager_points: managerPointsMap,
-      raw_stats: playerStats,
-      created_at: new Date().toISOString()
-    };
-
-    try {
-      await supabase.from('pachanga_results').upsert(resultsPayload, { onConflict: 'pachanga_id' });
-      await supabase.from('pachangas').update({ status: 'scored' }).eq('id', pachangaId);
-    } catch (e) {
-      console.warn('Supabase scorePachanga error:', e);
-    }
-
-    setLocal(`result_${pachangaId}`, resultsPayload);
-    setLocal(`stats_${pachangaId}`, playerStats);
-    await this.updatePachangaStatus(pachangaId, 'scored');
-
-    return resultsPayload;
-  },
-
-  /**
-   * Obtiene las estadísticas individuales del Salón de la Fama
-   * (Pichichi, Asistencias, MVPs, Muro de las lamentaciones/Derrotas, etc.)
-   */
-  async getHallOfFame(): Promise<{
-    players: any[];
-    awards: {
-      pichichi: any;
-      topAssister: any;
-      topMvp: any;
-      bestKeeper: any;
-      wallOfShame: any;
-      topWinRate: any;
-    };
-  }> {
-    const pachangas = await this.getPachangas();
-    const members = await this.getMembers();
-    const scoredPachangas = pachangas.filter(p => p.status === 'scored');
-
-    const playerStatsMap: Record<string, {
-      id: string;
-      name: string;
-      isMember: boolean;
-      matchesPlayed: number;
-      wins: number;
-      losses: number;
-      draws: number;
+  // ==========================================
+  // MATCH ACTA & POST-MATCH SCORING
+  // ==========================================
+  recordMatchActa(
+    matchId: string,
+    scoreA: number,
+    scoreB: number,
+    stats: Record<string, {
       goals: number;
       assists: number;
+      ownGoals: number;
       saves: number;
       goalsAgainst: number;
-      mvps: number;
-      fantasyPoints: number;
-      winRate: number;
-    }> = {};
+    }>
+  ): { success: boolean; match?: PachangaMatch } {
+    const matches = this.getMatches();
+    const match = matches.find(m => m.id === matchId);
+    if (!match) return { success: false };
 
-    // Inicializar a todos los miembros conocidos
-    members.forEach(m => {
-      playerStatsMap[m.id] = {
-        id: m.id,
-        name: m.name,
-        isMember: true,
-        matchesPlayed: 0,
-        wins: 0,
-        losses: 0,
-        draws: 0,
-        goals: 0,
-        assists: 0,
-        saves: 0,
-        goalsAgainst: 0,
-        mvps: 0,
-        fantasyPoints: 0,
-        winRate: 0
-      };
+    match.scoreA = scoreA;
+    match.scoreB = scoreB;
+    match.playerStats = stats;
+    match.status = 'voting'; // Abre las votaciones 1-10
+    setStorage('matches', matches);
+
+    // Actualizar estadísticas acumuladas de jugadores
+    const players = this.getPlayers();
+    Object.entries(stats).forEach(([pId, st]) => {
+      const p = players.find(pl => pl.id === pId);
+      if (p) {
+        p.stats.goals += st.goals;
+        p.stats.assists += st.assists;
+        p.stats.ownGoals += st.ownGoals;
+        p.stats.saves += st.saves;
+        p.stats.goalsAgainst += st.goalsAgainst;
+        p.stats.matchesPlayed += 1;
+
+        // Actualización dinámica de precio y porcentaje
+        const pointsPerformance = (st.goals * 1.5) + (st.assists * 1.0) + (st.saves * 0.5) - (st.ownGoals * 1.0) - (st.goalsAgainst * 0.3);
+        const changePercent = Math.min(25, Math.max(-20, pointsPerformance * 2));
+        p.previousPrice = p.currentPrice;
+        const newPrice = Math.max(8, Math.round((p.currentPrice * (1 + changePercent / 100)) * 10) / 10);
+        p.priceChangePct = Math.round(((newPrice - p.previousPrice) / p.previousPrice) * 1000) / 10;
+        p.currentPrice = newPrice;
+      }
     });
+    setStorage('players', players);
 
-    for (const p of scoredPachangas) {
-      const details = await this.getPachangaDetails(p.id);
-      const res = details.pachanga_results || getLocal<any>(`result_${p.id}`, null);
-      const rawStats = res?.raw_stats || getLocal<any[]>(`stats_${p.id}`, []);
-      const attendees = details.pachanga_attendees || [];
-      const winner = res?.winner_team || 'draw';
+    // Calcular puntos de fantasy para los usuarios según sus titulares
+    const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw';
+    const users = getStorage('users', DEFAULT_USERS);
 
-      // 1. Procesar asistencia y resultado del partido
-      attendees.forEach((a: any) => {
-        const pId = a.member_id || a.guest_id;
-        if (!pId) return;
+    Object.values(users).forEach(u => {
+      let matchPoints = 0;
+      u.account.starterPlayerIds.forEach(pId => {
+        const playerStat = stats[pId];
+        if (playerStat) {
+          // Goles +3, Asistencias +2, Paradas +1, Goles en contra -0.5, Autogol -2
+          let pts = (playerStat.goals * 3) + (playerStat.assists * 2) + (playerStat.saves * 1) - (playerStat.ownGoals * 2) - (playerStat.goalsAgainst * 0.5);
 
-        if (!playerStatsMap[pId]) {
-          let name = 'Invitado';
-          if (a.guest_name) name = `${a.guest_name} (Invitado)`;
-          else if (a.guest_id) {
-            const cachedName = getLocal<string>(`guest_name_${a.guest_id}`, '');
-            name = cachedName ? `${cachedName} (Invitado)` : `Invitado (${a.guest_id.substring(0, 4)})`;
-          }
+          // Bono por victoria si su equipo ganó
+          if (winnerTeam === 'A' && match.teamA.includes(pId)) pts += 2;
+          if (winnerTeam === 'B' && match.teamB.includes(pId)) pts += 2;
 
-          playerStatsMap[pId] = {
-            id: pId,
-            name,
-            isMember: Boolean(a.member_id),
-            matchesPlayed: 0,
-            wins: 0,
-            losses: 0,
-            draws: 0,
-            goals: 0,
-            assists: 0,
-            saves: 0,
-            goalsAgainst: 0,
-            mvps: 0,
-            fantasyPoints: 0,
-            winRate: 0
-          };
-        }
-
-        playerStatsMap[pId].matchesPlayed += 1;
-
-        if (winner === 'draw') {
-          playerStatsMap[pId].draws += 1;
-        } else if (a.team === winner) {
-          playerStatsMap[pId].wins += 1;
-        } else {
-          playerStatsMap[pId].losses += 1;
-        }
-
-        if (res?.player_points && res.player_points[pId]) {
-          playerStatsMap[pId].fantasyPoints += Number(res.player_points[pId]) || 0;
+          matchPoints += pts;
         }
       });
 
-      // 2. Procesar estadísticas individuales (goles, asistencias, etc.)
-      rawStats.forEach((st: any) => {
-        if (!st.playerId || !playerStatsMap[st.playerId]) return;
-        const target = playerStatsMap[st.playerId];
-        const val = Number(st.value) || 0;
+      u.account.lastMatchPoints = Math.round(matchPoints);
+      u.account.totalPoints += Math.round(matchPoints);
+    });
+    setStorage('users', users);
 
-        if (st.type === 'goal') target.goals += val;
-        if (st.type === 'assist') target.assists += val;
-        if (st.type === 'save') target.saves += val;
-        if (st.type === 'goal_against') target.goalsAgainst += val;
-        if (st.type === 'mvp') target.mvps += 1;
-      });
+    // Actualizar sesión actual
+    const currentSession = this.getCurrentUser();
+    if (currentSession && users[currentSession.username.toLowerCase()]) {
+      setStorage('session_user', users[currentSession.username.toLowerCase()].account);
     }
 
-    // Calcular ratios
-    const playerList = Object.values(playerStatsMap).map(p => ({
-      ...p,
-      winRate: p.matchesPlayed > 0 ? Math.round((p.wins / p.matchesPlayed) * 100) : 0
-    }));
-
-    // Determinar premios / líderes
-    const activePlayers = playerList.filter(p => p.matchesPlayed > 0);
-
-    const pichichi = [...activePlayers].sort((a, b) => b.goals - a.goals || b.matchesPlayed - a.matchesPlayed)[0] || null;
-    const topAssister = [...activePlayers].sort((a, b) => b.assists - a.assists || b.matchesPlayed - a.matchesPlayed)[0] || null;
-    const topMvp = [...activePlayers].sort((a, b) => b.mvps - a.mvps || b.matchesPlayed - a.matchesPlayed)[0] || null;
-    const bestKeeper = [...activePlayers].sort((a, b) => b.saves - a.saves || a.goalsAgainst - b.goalsAgainst)[0] || null;
-    const wallOfShame = [...activePlayers].sort((a, b) => b.losses - a.losses || a.winRate - b.winRate)[0] || null;
-    const topWinRate = [...activePlayers].sort((a, b) => b.winRate - a.winRate || b.wins - a.wins)[0] || null;
-
-    return {
-      players: playerList.sort((a, b) => b.goals - a.goals || b.wins - a.wins),
-      awards: {
-        pichichi: pichichi && pichichi.goals > 0 ? pichichi : null,
-        topAssister: topAssister && topAssister.assists > 0 ? topAssister : null,
-        topMvp: topMvp && topMvp.mvps > 0 ? topMvp : null,
-        bestKeeper: bestKeeper && bestKeeper.saves > 0 ? bestKeeper : null,
-        wallOfShame: wallOfShame && wallOfShame.losses > 0 ? wallOfShame : null,
-        topWinRate: topWinRate && topWinRate.matchesPlayed > 0 ? topWinRate : null
-      }
-    };
+    return { success: true, match };
   },
 
-  /**
-   * Calcula la clasificación general histórica acumulando todas las pachangas puntuadas.
-   */
-  async getRankings(): Promise<any[]> {
-    const pachangas = await this.getPachangas();
-    const members = await this.getMembers();
-    const scoredPachangas = pachangas.filter(p => p.status === 'scored');
+  // ==========================================
+  // COMMUNITY PLAYER RATINGS (1 al 10)
+  // ==========================================
+  submitRatings(matchId: string, voterUsername: string, ratings: Record<string, number>): { success: boolean; message: string } {
+    const allVotes = getStorage<PlayerRatingVote[]>('rating_votes', []);
+    
+    // Filtrar votos previos de este votante en este partido para no duplicar
+    const filtered = allVotes.filter(v => !(v.pachangaId === matchId && v.voterUsername.toLowerCase() === voterUsername.toLowerCase()));
 
-    const leaderboard: Record<string, {
-      managerId: string;
-      name: string;
-      totalPoints: number;
-      lastMatchPoints: number;
-      matchesPlayed: number;
-      wins: number;
-    }> = {};
-
-    // Inicializar cada miembro en el leaderboard
-    members.forEach(m => {
-      leaderboard[m.id] = {
-        managerId: m.id,
-        name: m.name,
-        totalPoints: 0,
-        lastMatchPoints: 0,
-        matchesPlayed: 0,
-        wins: 0
-      };
+    Object.entries(ratings).forEach(([targetPlayerId, val]) => {
+      filtered.push({
+        id: 'v-' + Math.random().toString(36).substring(2, 9),
+        pachangaId: matchId,
+        voterUsername,
+        targetPlayerId,
+        rating: Math.min(10, Math.max(1, Number(val)))
+      });
     });
 
-    for (let i = 0; i < scoredPachangas.length; i++) {
-      const p = scoredPachangas[i];
-      const details = await this.getPachangaDetails(p.id);
-      const res = details.pachanga_results;
-      if (res && res.manager_points) {
-        let maxPoints = -999;
-        let matchWinnerManagerId: string | null = null;
+    setStorage('rating_votes', filtered);
 
-        Object.entries(res.manager_points).forEach(([mId, pts]: [string, any]) => {
-          if (!leaderboard[mId]) {
-            const memberObj = members.find(m => m.id === mId);
-            leaderboard[mId] = {
-              managerId: mId,
-              name: memberObj?.name || `Manager ${mId.substring(0, 4)}`,
-              totalPoints: 0,
-              lastMatchPoints: 0,
-              matchesPlayed: 0,
-              wins: 0
-            };
-          }
-          const numericPts = Number(pts) || 0;
-          leaderboard[mId].totalPoints += numericPts;
-          leaderboard[mId].matchesPlayed += 1;
-
-          // Si es la pachanga más reciente
-          if (i === 0) {
-            leaderboard[mId].lastMatchPoints = numericPts;
-          }
-
-          if (numericPts > maxPoints) {
-            maxPoints = numericPts;
-            matchWinnerManagerId = mId;
-          }
-        });
-
-        if (matchWinnerManagerId && leaderboard[matchWinnerManagerId]) {
-          leaderboard[matchWinnerManagerId].wins += 1;
-        }
+    // Recalcular medias en los jugadores
+    const players = this.getPlayers();
+    players.forEach(p => {
+      const playerVotes = filtered.filter(v => v.targetPlayerId === p.id);
+      if (playerVotes.length > 0) {
+        const avg = playerVotes.reduce((sum, v) => sum + v.rating, 0) / playerVotes.length;
+        p.averageRating = Math.round(avg * 10) / 10;
+        p.ratingsCount = playerVotes.length;
       }
-    }
+    });
+    setStorage('players', players);
 
-    return Object.values(leaderboard).sort((a, b) => b.totalPoints - a.totalPoints);
+    return { success: true, message: '¡Calificaciones guardadas! La nota media de los jugadores ha sido actualizada.' };
+  },
+
+  getUserRatingsForMatch(matchId: string, voterUsername: string): Record<string, number> {
+    const allVotes = getStorage<PlayerRatingVote[]>('rating_votes', []);
+    const userVotes = allVotes.filter(v => v.pachangaId === matchId && v.voterUsername.toLowerCase() === voterUsername.toLowerCase());
+    const res: Record<string, number> = {};
+    userVotes.forEach(v => {
+      res[v.targetPlayerId] = v.rating;
+    });
+    return res;
+  },
+
+  // ==========================================
+  // LEADERBOARD
+  // ==========================================
+  getLeaderboard(): UserAccount[] {
+    const users = getStorage('users', DEFAULT_USERS);
+    return Object.values(users)
+      .map(u => u.account)
+      .sort((a, b) => b.totalPoints - a.totalPoints);
   }
 };

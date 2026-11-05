@@ -4,8 +4,11 @@ import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Pachangas',
-  description: 'The ultimate Pachanga tracker',
+  title: 'EGOL Fantasy - Liga Privada de Pachangas',
+  description: 'Gestor y juego fantasy de pachangas: mercado de fichajes, 100M€ de presupuesto, alineaciones y votaciones post-partido.',
+  icons: {
+    icon: '/logo.png',
+  },
 };
 
 export default function RootLayout({

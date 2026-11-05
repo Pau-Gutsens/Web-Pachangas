@@ -3,15 +3,29 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
-  color: #111827;
-  background-color: #f9fafb;
+  color: #f3f4f6;
+  background-color: #0a0a0a;
 }
 
-input, select, textarea {
-  color: #111827;
-  background-color: #ffffff;
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #171717;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #f59e0b;
 }
