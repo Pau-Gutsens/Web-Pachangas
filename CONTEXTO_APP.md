@@ -114,3 +114,4 @@ Web-Pachangas/
 ├── CONTEXTO_APP.md            # Este documento
 └── package.json               # Dependencias del proyecto
 ```
+
