@@ -105,11 +105,11 @@ export default function AdminView({
   const currentMatchPlayers = players.filter(p => currentMatch && [...(currentMatch.teamA || []), ...(currentMatch.teamB || [])].includes(p.id));
 
   return (
-    <div className="space-y-8 text-white max-w-5xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 text-white max-w-5xl mx-auto">
       {/* Header Admin */}
-      <div className="border-b border-neutral-800 pb-4 flex items-center gap-2">
+      <div className="border-b border-neutral-800 pb-3 sm:pb-4 flex items-center gap-2">
         <ShieldAlert className="h-5 w-5 text-red-400" />
-        <h2 className="text-xl font-black text-white">Panel de Control</h2>
+        <h2 className="text-lg sm:text-xl font-black text-white">Panel de Control</h2>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -354,8 +354,8 @@ export default function AdminView({
                 Convoca al menos un jugador a los equipos para rellenar el acta.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+              <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+                <table className="w-full min-w-[560px] text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-neutral-950 text-neutral-400 uppercase font-black border-b border-neutral-800">
                       <th className="p-3">Jugador</th>

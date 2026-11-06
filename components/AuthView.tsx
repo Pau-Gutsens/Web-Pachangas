@@ -50,15 +50,15 @@ export default function AuthView({
   };
 
   return (
-    <div className="max-w-md mx-auto py-8 text-white">
+    <div className="max-w-md mx-auto py-4 sm:py-8 text-white">
       {/* Cabecera */}
-      <div className="border-b border-neutral-800 pb-4 mb-6">
-        <h2 className="text-xl font-black text-white">
+      <div className="border-b border-neutral-800 pb-3 sm:pb-4 mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-black text-white">
           {mode === 'login' ? 'Iniciar Sesión' : mode === 'signup' ? 'Registro de Cuenta' : 'Recuperar Contraseña'}
         </h2>
       </div>
 
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 sm:p-8">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 sm:p-8">
         <div className="text-center mb-6">
           <div className="w-14 h-16 mx-auto relative mb-3">
             <img

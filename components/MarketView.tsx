@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { UserAccount, Player } from '../types';
 import { egolDb } from '../lib/db';
-import { TrendingUp, TrendingDown, Star, Search, Check } from 'lucide-react';
+import { TrendingUp, TrendingDown, Star, Search } from 'lucide-react';
 
 export default function MarketView({
   user,
@@ -58,13 +58,16 @@ export default function MarketView({
   return (
     <div className="space-y-4 text-white">
       {/* Cabecera */}
-      <div className="border-b border-neutral-800 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h2 className="text-xl font-black text-white">Mercado de Fichajes</h2>
+      <div className="border-b border-neutral-800 pb-3 sm:pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3">
+        <div>
+          <h2 className="text-lg sm:text-xl font-black text-white">Mercado de Fichajes</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">Compra y venta de jugadores 24/7</p>
+        </div>
 
         {user && (
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
             <span className="text-neutral-400">Presupuesto: <span className="font-black text-white">{user.budget}M€</span></span>
-            <span className="text-neutral-400">Fichajes: <span className="font-black text-amber-400">{user.ownedPlayerIds.length} / 6</span></span>
+            <span className="text-neutral-400">Plantilla: <span className="font-black text-amber-400">{user.ownedPlayerIds.length} / 6</span></span>
           </div>
         )}
       </div>
@@ -88,7 +91,7 @@ export default function MarketView({
       </div>
 
       {/* Lista de Jugadores */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
         {filteredPlayers.length === 0 ? (
           <p className="p-6 text-center text-xs text-neutral-500">No se encontraron jugadores.</p>
         ) : (
@@ -104,29 +107,31 @@ export default function MarketView({
               return (
                 <div
                   key={player.id}
-                  className={`flex items-center justify-between gap-3 px-4 py-3 ${isOwned ? 'bg-amber-500/5' : 'hover:bg-neutral-800/40'} transition-colors`}
+                  className={`flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 ${isOwned ? 'bg-amber-500/5' : 'hover:bg-neutral-800/40'} transition-colors`}
                 >
                   {/* Nombre y tipo */}
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700 flex-shrink-0">
                       <img src={player.avatarUrl || '/logo.png'} alt={player.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="min-w-0">
-                      <span className="font-bold text-sm text-white truncate block">
-                        {player.name}
-                        {player.isGuest && <span className="text-neutral-500 font-normal text-xs ml-1">(invitado)</span>}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-xs sm:text-sm text-white truncate max-w-[130px] xs:max-w-none">
+                          {player.name}
+                        </span>
+                        {player.isGuest && <span className="text-neutral-500 font-normal text-[10px] sm:text-[11px]">(invitado)</span>}
                         {isOwned && (
-                          <span className="ml-2 text-[10px] font-black text-amber-400 uppercase">
-                            {isStarter ? '· Titular' : '· Plantilla'}
+                          <span className="text-[9px] font-black text-amber-400 uppercase bg-amber-400/10 px-1 py-0.2 rounded">
+                            {isStarter ? 'Titular' : 'Plantilla'}
                           </span>
                         )}
-                      </span>
-                      <div className="flex items-center gap-2 text-xs text-neutral-500 mt-0.5">
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] sm:text-xs text-neutral-500 mt-0.5">
                         <span>PJ: {player.stats.matchesPlayed}</span>
                         <span>G: {player.stats.goals}</span>
                         <span>A: {player.stats.assists}</span>
                         {hasPlayedMatches && player.ratingsCount > 0 && (
-                          <span className="flex items-center gap-0.5 text-amber-400">
+                          <span className="flex items-center gap-0.5 text-amber-400 font-bold">
                             <Star className="h-3 w-3 fill-amber-400" />
                             {player.averageRating}
                           </span>
@@ -136,9 +141,9 @@ export default function MarketView({
                   </div>
 
                   {/* Precio y variación */}
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                     <div className="text-right">
-                      <span className="font-black text-amber-400 text-sm block">{player.currentPrice}M€</span>
+                      <span className="font-black text-amber-400 text-xs sm:text-sm block">{player.currentPrice}M€</span>
                       {hasIncreased ? (
                         <span className="inline-flex items-center gap-0.5 text-neutral-300 text-[10px] font-bold">
                           <TrendingUp className="h-3 w-3" />+{player.priceChangePct}%
@@ -156,7 +161,7 @@ export default function MarketView({
                     {isOwned ? (
                       <button
                         onClick={() => handleSell(player.id)}
-                        className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-lg text-xs transition"
+                        className="px-2.5 sm:px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-lg text-xs transition"
                       >
                         Vender
                       </button>
@@ -164,14 +169,14 @@ export default function MarketView({
                       <button
                         onClick={() => handleBuy(player.id)}
                         disabled={!user || isTeamFull || !canAfford}
-                        className={`px-3 py-1.5 font-black rounded-lg text-xs transition ${
+                        className={`px-2.5 sm:px-3 py-1.5 font-black rounded-lg text-xs transition ${
                           !user || isTeamFull || !canAfford
                             ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
                             : 'bg-amber-500 hover:bg-amber-400 text-neutral-950'
                         }`}
                       >
                         {!user
-                          ? 'Inicia sesión'
+                          ? 'Entrar'
                           : isTeamFull
                           ? 'Llena'
                           : !canAfford

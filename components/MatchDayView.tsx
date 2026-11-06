@@ -82,9 +82,10 @@ export default function MatchDayView({
 
   if (matches.length === 0) {
     return (
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-10 text-center max-w-lg mx-auto text-white">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-8 sm:p-10 text-center max-w-lg mx-auto text-white">
         <Calendar className="h-10 w-10 text-amber-400 mx-auto mb-3" />
-        <h3 className="text-lg font-bold mb-1">No hay partidos programados</h3>
+        <h3 className="text-base sm:text-lg font-bold mb-1">No hay partidos programados</h3>
+        <p className="text-xs text-neutral-500">El administrador programará la próxima pachanga.</p>
       </div>
     );
   }
@@ -106,21 +107,21 @@ export default function MatchDayView({
     : 'Programado';
 
   return (
-    <div className="space-y-6 text-white">
+    <div className="space-y-5 sm:space-y-6 text-white">
       {/* Cabecera del Partido */}
-      <div className="border-b border-neutral-800 pb-4">
-        <div className="flex flex-wrap items-center gap-2 mb-1">
+      <div className="border-b border-neutral-800 pb-3 sm:pb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className="text-xs text-neutral-400 flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
+            <Calendar className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
             {currentMatch.date
-              ? new Date(currentMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+              ? new Date(currentMatch.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })
               : 'Fecha pendiente'}
           </span>
           <span className="text-xs text-neutral-400 flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
+            <Clock className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
             {currentMatch.startTime || '17:00'} – {currentMatch.endTime || '18:30'}
           </span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+          <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
             currentMatch.status === 'voting' ? 'bg-amber-500/20 text-amber-400' :
             currentMatch.status === 'scored' ? 'bg-neutral-800 text-neutral-300' :
             'bg-neutral-800 text-neutral-400'
@@ -128,13 +129,17 @@ export default function MatchDayView({
             {statusLabel}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-black text-white">Partido de la Jornada</h2>
+
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-white">Partido de la Jornada</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">Formato {currentMatch.format || 5} vs {currentMatch.format || 5}</p>
+          </div>
           {currentMatch.scoreA !== undefined && currentMatch.scoreB !== undefined && (
-            <div className="flex items-center gap-3 font-black text-lg">
-              <span className="text-white font-black">{currentMatch.scoreA}</span>
-              <span className="text-neutral-500 text-sm">vs</span>
-              <span className="text-white font-black">{currentMatch.scoreB}</span>
+            <div className="flex items-center gap-2 sm:gap-3 font-black text-base sm:text-lg bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-xl">
+              <span className="text-blue-400">{currentMatch.scoreA}</span>
+              <span className="text-neutral-500 text-xs">vs</span>
+              <span className="text-red-400">{currentMatch.scoreB}</span>
             </div>
           )}
         </div>
@@ -142,8 +147,8 @@ export default function MatchDayView({
 
       {/* Selector de partido si hay varios */}
       {matches.length > 1 && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-          <div className="px-4 py-2 border-b border-neutral-800">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-3 sm:px-4 py-2 border-b border-neutral-800">
             <span className="text-xs font-bold text-neutral-400 uppercase">Historial de Partidos</span>
           </div>
           <div className="divide-y divide-neutral-800">
@@ -151,7 +156,7 @@ export default function MatchDayView({
               <button
                 key={m.id}
                 onClick={() => setSelectedMatch(m)}
-                className={`w-full text-left px-4 py-2.5 text-xs flex items-center justify-between transition ${
+                className={`w-full text-left px-3 sm:px-4 py-2.5 text-xs flex items-center justify-between transition ${
                   m.id === currentMatch.id ? 'bg-neutral-800 font-bold text-white' : 'text-neutral-400 hover:bg-neutral-800/40'
                 }`}
               >
@@ -169,24 +174,25 @@ export default function MatchDayView({
       {/* Alineaciones */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Equipo A */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-neutral-800">
-            <h3 className="font-black text-sm text-neutral-200">Equipo A ({teamAPlayers.length})</h3>
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-neutral-800 flex items-center justify-between">
+            <h3 className="font-black text-xs sm:text-sm text-neutral-200">Equipo A</h3>
+            <span className="text-xs text-blue-400 font-bold">{teamAPlayers.length} jugadores</span>
           </div>
           <div className="divide-y divide-neutral-800">
             {teamAPlayers.map(player => (
-              <div key={player.id} className="flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center gap-3">
+              <div key={player.id} className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700 flex-shrink-0">
                     <img src={player.avatarUrl || '/logo.png'} alt={player.name} className="w-full h-full object-cover" />
                   </div>
-                  <span className="font-bold text-xs text-white">
+                  <span className="font-bold text-xs text-white truncate">
                     {player.name}
-                    {player.isGuest && <span className="text-neutral-500 font-normal ml-1">(invitado)</span>}
+                    {player.isGuest && <span className="text-neutral-500 font-normal ml-1 text-[10px]">(invitado)</span>}
                   </span>
                 </div>
                 {hasPlayedMatches && player.ratingsCount > 0 && (
-                  <span className="flex items-center gap-0.5 text-amber-400 text-xs font-bold">
+                  <span className="flex items-center gap-0.5 text-amber-400 text-xs font-bold flex-shrink-0">
                     <Star className="h-3 w-3 fill-amber-400" />
                     {player.averageRating}
                   </span>
@@ -200,24 +206,25 @@ export default function MatchDayView({
         </div>
 
         {/* Equipo B */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-neutral-800">
-            <h3 className="font-black text-sm text-neutral-200">Equipo B ({teamBPlayers.length})</h3>
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-neutral-800 flex items-center justify-between">
+            <h3 className="font-black text-xs sm:text-sm text-neutral-200">Equipo B</h3>
+            <span className="text-xs text-red-400 font-bold">{teamBPlayers.length} jugadores</span>
           </div>
           <div className="divide-y divide-neutral-800">
             {teamBPlayers.map(player => (
-              <div key={player.id} className="flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center gap-3">
+              <div key={player.id} className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700 flex-shrink-0">
                     <img src={player.avatarUrl || '/logo.png'} alt={player.name} className="w-full h-full object-cover" />
                   </div>
-                  <span className="font-bold text-xs text-white">
+                  <span className="font-bold text-xs text-white truncate">
                     {player.name}
-                    {player.isGuest && <span className="text-neutral-500 font-normal ml-1">(invitado)</span>}
+                    {player.isGuest && <span className="text-neutral-500 font-normal ml-1 text-[10px]">(invitado)</span>}
                   </span>
                 </div>
                 {hasPlayedMatches && player.ratingsCount > 0 && (
-                  <span className="flex items-center gap-0.5 text-amber-400 text-xs font-bold">
+                  <span className="flex items-center gap-0.5 text-amber-400 text-xs font-bold flex-shrink-0">
                     <Star className="h-3 w-3 fill-amber-400" />
                     {player.averageRating}
                   </span>
@@ -233,29 +240,29 @@ export default function MatchDayView({
 
       {/* Votaciones */}
       {(currentMatch.status === 'voting' || currentMatch.status === 'scored') && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
-            <h3 className="font-black text-sm text-white flex items-center gap-2">
-              <Award className="h-4 w-4 text-amber-400" />
-              Calificaciones Post-Partido (1–10)
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-3 sm:px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
+            <h3 className="font-black text-xs sm:text-sm text-white flex items-center gap-2">
+              <Award className="h-4 w-4 text-amber-400 flex-shrink-0" />
+              <span>Calificaciones Post-Partido (1–10)</span>
             </h3>
             {hasVoted && (
               <span className="inline-flex items-center gap-1 text-xs font-bold text-neutral-300">
-                <CheckCircle className="h-3.5 w-3.5" />
-                Guardado
+                <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Guardado</span>
               </span>
             )}
           </div>
 
           {/* Aviso especial para invitados */}
           {isUserGuest && (
-            <div className="mx-4 my-3 p-3 bg-neutral-950 border border-neutral-800 text-neutral-400 rounded-lg text-xs">
+            <div className="mx-3 sm:mx-4 my-3 p-3 bg-neutral-950 border border-neutral-800 text-neutral-400 rounded-lg text-xs">
               Los invitados no pueden realizar votaciones. Los demás miembros calificarán tu rendimiento.
             </div>
           )}
 
           {successMsg && (
-            <div className="mx-4 my-3 p-3 bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-xs font-bold">
+            <div className="mx-3 sm:mx-4 my-3 p-3 bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-xs font-bold">
               {successMsg}
             </div>
           )}
@@ -270,14 +277,14 @@ export default function MatchDayView({
                 {matchAttendees.map(player => {
                   const currentRating = ratings[player.id] ?? 7;
                   return (
-                    <div key={player.id} className="px-4 py-3 flex items-center gap-4">
+                    <div key={player.id} className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2.5 sm:gap-4">
                       <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700 flex-shrink-0">
                         <img src={player.avatarUrl || '/logo.png'} alt={player.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <span className="font-bold text-xs text-white block truncate">
                           {player.name}
-                          {player.isGuest && <span className="text-neutral-500 font-normal ml-1">(invitado)</span>}
+                          {player.isGuest && <span className="text-neutral-500 font-normal ml-1 text-[10px]">(invitado)</span>}
                         </span>
                         {!isUserGuest && user && (
                           <input
@@ -287,12 +294,12 @@ export default function MatchDayView({
                             step="0.5"
                             value={currentRating}
                             onChange={(e) => handleRatingChange(player.id, parseFloat(e.target.value))}
-                            className="w-full accent-amber-400 cursor-pointer h-1.5 mt-1.5"
+                            className="w-full accent-amber-400 cursor-pointer h-2 mt-1.5"
                           />
                         )}
                       </div>
                       {!isUserGuest && user ? (
-                        <div className="font-black text-sm text-amber-400 w-8 text-right flex-shrink-0">
+                        <div className="font-black text-xs sm:text-sm text-amber-400 w-8 text-right flex-shrink-0">
                           {currentRating}
                         </div>
                       ) : (
@@ -312,23 +319,23 @@ export default function MatchDayView({
                 })}
               </div>
 
-              <div className="px-4 py-4 border-t border-neutral-800 flex justify-end">
+              <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-neutral-800 flex justify-end">
                 {!user ? (
                   <button
                     onClick={onOpenAuth}
-                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-lg text-xs uppercase transition"
+                    className="w-full sm:w-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase transition"
                   >
                     Iniciar sesión para votar
                   </button>
                 ) : isUserGuest ? (
-                  <span className="text-xs text-neutral-500 py-1">
+                  <span className="text-xs text-neutral-500 py-1 text-center w-full">
                     Solo los miembros oficiales pueden emitir calificaciones
                   </span>
                 ) : (
                   <button
                     onClick={handleSubmitVotes}
                     disabled={savingVote}
-                    className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-lg text-xs uppercase transition"
+                    className="w-full sm:w-auto px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase transition"
                   >
                     {savingVote ? 'Guardando...' : hasVoted ? 'Actualizar votos' : 'Enviar calificaciones'}
                   </button>
