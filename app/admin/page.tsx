@@ -40,15 +40,12 @@ export default function AdminPage() {
       </div>
 
       {!isAdmin ? (
-        <div className="max-w-md mx-auto bg-neutral-900 border border-red-500/30 rounded-3xl p-8 text-center mt-12 shadow-2xl">
-          <ShieldAlert className="h-12 w-12 text-red-500 mx-auto mb-3" />
-          <h2 className="text-xl font-black text-white mb-2">Acceso Restringido a Administradores</h2>
-          <p className="text-xs text-neutral-400 mb-6">
-            Solo el administrador (Pau) puede crear partidos, gestionar convocatorias y publicar actas.
-          </p>
+        <div className="max-w-md mx-auto bg-neutral-900 border border-neutral-800 rounded-xl p-8 text-center mt-12">
+          <ShieldAlert className="h-10 w-10 text-neutral-400 mx-auto mb-3" />
+          <h2 className="text-lg font-black text-white mb-2">Acceso Restringido a Administradores</h2>
           <button
             onClick={() => setAuthOpen(true)}
-            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase"
+            className="w-full mt-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase"
           >
             Iniciar Sesión como Admin
           </button>

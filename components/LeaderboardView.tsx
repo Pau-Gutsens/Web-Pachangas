@@ -70,7 +70,7 @@ export default function LeaderboardView() {
 
                     <td className="p-4 text-center font-semibold text-neutral-300">
                       {user.lastMatchPoints && user.lastMatchPoints > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-400 font-bold">
+                        <span className="inline-flex items-center gap-1 text-neutral-300 font-bold">
                           <Flame className="h-3.5 w-3.5 text-orange-400" />
                           +{user.lastMatchPoints}
                         </span>
@@ -79,7 +79,7 @@ export default function LeaderboardView() {
                       )}
                     </td>
 
-                    <td className="p-4 text-center font-bold text-emerald-400">
+                    <td className="p-4 text-center font-bold text-white">
                       {user.budget}M€
                     </td>
 

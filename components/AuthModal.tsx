@@ -56,37 +56,30 @@ export default function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-neutral-900 border border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative text-white">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 sm:p-8 max-w-md w-full relative text-white">
         {/* Logo EGOL */}
         <div className="text-center mb-6">
-          <div className="w-20 h-24 mx-auto relative mb-2">
+          <div className="w-16 h-20 mx-auto relative mb-3">
             <img
               src="/logo.png"
               alt="EGOL Logo"
-              className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]"
+              className="w-full h-full object-contain"
             />
           </div>
-          <h2 className="text-2xl font-black text-amber-400 tracking-wider uppercase">
+          <h2 className="text-xl font-black text-white uppercase">
             {mode === 'login' ? 'Iniciar Sesión' : mode === 'signup' ? 'Crear Cuenta' : 'Recuperar Contraseña'}
           </h2>
-          <p className="text-xs text-neutral-400 mt-1">
-            {mode === 'login'
-              ? 'Accede a tu plantilla de EGOL Fantasy y compite con tus amigos.'
-              : mode === 'signup'
-              ? 'Empiezas con 100M€ de presupuesto para fichar a tu equipo.'
-              : 'Escribe tu usuario y la nueva contraseña que deseas.'}
-          </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-950/60 border border-red-500 text-red-300 rounded-xl text-xs font-semibold text-center">
+          <div className="mb-4 p-3 bg-neutral-800 border border-neutral-700 text-red-300 rounded-xl text-xs font-semibold text-center">
             {error}
           </div>
         )}
 
         {successMsg && (
-          <div className="mb-4 p-3 bg-emerald-950/60 border border-emerald-500 text-emerald-300 rounded-xl text-xs font-semibold text-center">
+          <div className="mb-4 p-3 bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-xl text-xs font-semibold text-center">
             {successMsg}
           </div>
         )}
@@ -94,22 +87,22 @@ export default function AuthModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-neutral-300 uppercase mb-1.5 flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5 text-amber-400" />
+              <User className="h-3.5 w-3.5 text-neutral-400" />
               Nombre de Usuario
             </label>
             <input
               type="text"
               required
-              placeholder="Ej: Pau, Marcos, etc..."
+              placeholder="Ej: Pagusa, Marcos..."
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 text-white p-3 rounded-xl focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm"
+              className="w-full bg-neutral-950 border border-neutral-800 text-white p-3 rounded-xl focus:outline-none focus:border-amber-400 text-sm"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-neutral-300 uppercase mb-1.5 flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5 text-amber-400" />
+              <Lock className="h-3.5 w-3.5 text-neutral-400" />
               {mode === 'forgot' ? 'Nueva Contraseña' : 'Contraseña'}
             </label>
             <div className="relative">
@@ -119,12 +112,12 @@ export default function AuthModal({
                 placeholder="Tu contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 text-white p-3 pr-10 rounded-xl focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm"
+                className="w-full bg-neutral-950 border border-neutral-800 text-white p-3 pr-10 rounded-xl focus:outline-none focus:border-amber-400 text-sm"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-amber-400 transition"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -133,21 +126,21 @@ export default function AuthModal({
 
           <button
             type="submit"
-            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black uppercase tracking-wider rounded-xl transition shadow-lg shadow-amber-500/20 text-sm mt-2"
+            className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black uppercase tracking-wider rounded-xl transition text-xs mt-2"
           >
-            {mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Crear Cuenta (100M€)' : 'Guardar Nueva Contraseña'}
+            {mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Crear Cuenta' : 'Guardar Nueva Contraseña'}
           </button>
         </form>
 
         {/* Links para cambiar de modo */}
-        <div className="mt-6 pt-4 border-t border-neutral-800/80 flex flex-col gap-2 text-center text-xs text-neutral-400">
+        <div className="mt-6 pt-4 border-t border-neutral-800 flex flex-col gap-2 text-center text-xs text-neutral-400">
           {mode === 'login' ? (
             <>
               <button
                 onClick={() => { setMode('signup'); setError(''); }}
-                className="hover:text-amber-400 transition"
+                className="hover:text-white transition"
               >
-                ¿No tienes cuenta? <strong className="text-amber-400">Regístrate aquí</strong>
+                ¿No tienes cuenta? <strong className="text-amber-400">Regístrate</strong>
               </button>
               <button
                 onClick={() => { setMode('forgot'); setError(''); }}
@@ -159,14 +152,14 @@ export default function AuthModal({
           ) : mode === 'signup' ? (
             <button
               onClick={() => { setMode('login'); setError(''); }}
-              className="hover:text-amber-400 transition"
+              className="hover:text-white transition"
             >
               ¿Ya tienes cuenta? <strong className="text-amber-400">Inicia sesión</strong>
             </button>
           ) : (
             <button
               onClick={() => { setMode('login'); setError(''); }}
-              className="hover:text-amber-400 transition"
+              className="hover:text-white transition"
             >
               ← Volver a Iniciar Sesión
             </button>

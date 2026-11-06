@@ -55,12 +55,36 @@ export const egolDb = {
   // AUTHENTICATION
   // ==========================================
   getCurrentUser(): UserAccount | null {
-    return getStorage<UserAccount | null>('session_user', null);
+    const user = getStorage<UserAccount | null>('session_user', null);
+    if (user && user.username.toLowerCase() === 'pau') {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(PREFIX + 'session_user');
+      }
+      return null;
+    }
+    return user;
+  },
+
+  getUsers(): Record<string, { password: string; account: UserAccount }> {
+    const users = this.getUsers();
+    let changed = false;
+    if (users['pau']) {
+      delete users['pau'];
+      changed = true;
+    }
+    if (!users['pagusa']) {
+      users['pagusa'] = DEFAULT_USERS.pagusa;
+      changed = true;
+    }
+    if (changed) {
+      setStorage('users', users);
+    }
+    return users;
   },
 
   login(username: string, password: string): { success: boolean; user?: UserAccount; message?: string } {
     const cleanUser = username.trim().toLowerCase();
-    const users = getStorage('users', DEFAULT_USERS);
+    const users = this.getUsers();
 
     if (!users[cleanUser]) {
       return { success: false, message: 'Usuario no encontrado. Regístrate primero.' };
@@ -81,7 +105,7 @@ export const egolDb = {
       return { success: false, message: 'Rellena usuario y contraseña.' };
     }
 
-    const users = getStorage('users', DEFAULT_USERS);
+    const users = this.getUsers();
     if (users[cleanUser]) {
       return { success: false, message: 'Este nombre de usuario ya existe. Inicia sesión.' };
     }
@@ -111,7 +135,7 @@ export const egolDb = {
 
   resetPassword(username: string, newPassword: string): { success: boolean; message: string } {
     const cleanUser = username.trim().toLowerCase();
-    const users = getStorage('users', DEFAULT_USERS);
+    const users = this.getUsers();
 
     if (!users[cleanUser]) {
       return { success: false, message: 'No existe ningún usuario con ese nombre.' };
@@ -132,7 +156,12 @@ export const egolDb = {
   // PLAYERS & MARKET
   // ==========================================
   getPlayers(): Player[] {
-    return getStorage<Player[]>('players', INITIAL_PLAYERS);
+    const list = getStorage<Player[]>('players', INITIAL_PLAYERS);
+    const cleaned = list.filter(p => !/^jugador/i.test(p.name.trim()));
+    if (cleaned.length !== list.length) {
+      setStorage('players', cleaned);
+    }
+    return cleaned;
   },
 
   savePlayer(player: Player): void {
@@ -153,7 +182,7 @@ export const egolDb = {
       currentPrice: 20, // 20 Millones iniciales
       previousPrice: 20,
       priceChangePct: 0,
-      averageRating: 7.0,
+      averageRating: 0,
       ratingsCount: 0,
       stats: { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
     };
@@ -167,7 +196,7 @@ export const egolDb = {
   // USER TEAM: BUY / SELL / STARTERS
   // ==========================================
   buyPlayer(userId: string, playerId: string): { success: boolean; message: string; user?: UserAccount } {
-    const users = getStorage('users', DEFAULT_USERS);
+    const users = this.getUsers();
     const currentUser = this.getCurrentUser();
     if (!currentUser) return { success: false, message: 'Inicia sesión.' };
 
@@ -205,7 +234,7 @@ export const egolDb = {
   },
 
   sellPlayer(userId: string, playerId: string): { success: boolean; message: string; user?: UserAccount } {
-    const users = getStorage('users', DEFAULT_USERS);
+    const users = this.getUsers();
     const currentUser = this.getCurrentUser();
     if (!currentUser) return { success: false, message: 'Inicia sesión.' };
 
@@ -231,7 +260,7 @@ export const egolDb = {
   },
 
   setStarters(starterIds: string[]): { success: boolean; message: string; user?: UserAccount } {
-    const users = getStorage('users', DEFAULT_USERS);
+    const users = this.getUsers();
     const currentUser = this.getCurrentUser();
     if (!currentUser) return { success: false, message: 'Inicia sesión.' };
 
@@ -349,7 +378,7 @@ export const egolDb = {
 
     // Calcular puntos de fantasy para los usuarios según sus titulares (PUNTOS ENTEROS)
     const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw';
-    const users = getStorage('users', DEFAULT_USERS);
+    const users = this.getUsers();
 
     Object.values(users).forEach(u => {
       let matchPoints = 0;
@@ -437,7 +466,7 @@ export const egolDb = {
   // LEADERBOARD
   // ==========================================
   getLeaderboard(): UserAccount[] {
-    const users = getStorage('users', DEFAULT_USERS);
+    const users = this.getUsers();
     return Object.values(users)
       .map(u => u.account)
       .sort((a, b) => b.totalPoints - a.totalPoints);

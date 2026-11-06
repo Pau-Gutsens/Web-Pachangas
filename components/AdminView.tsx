@@ -194,10 +194,6 @@ export default function AdminView({
             <UserPlus className="h-4 w-4 text-amber-400" />
             Añadir Jugador
           </h3>
-          <h3 className="text-base font-black text-amber-400 flex items-center gap-2 mb-4">
-            <UserPlus className="h-5 w-5 text-amber-400" />
-            2. Añadir Jugador o Invitado
-          </h3>
           <form onSubmit={handleCreateNewPlayer} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
@@ -392,7 +388,7 @@ export default function AdminView({
                               min="0"
                               value={st.goals}
                               onChange={(e) => updatePlayerStat(player.id, 'goals', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-amber-400 font-bold p-1 rounded-lg"
+                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
                             />
                           </td>
 
@@ -402,7 +398,7 @@ export default function AdminView({
                               min="0"
                               value={st.assists}
                               onChange={(e) => updatePlayerStat(player.id, 'assists', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-indigo-400 font-bold p-1 rounded-lg"
+                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
                             />
                           </td>
 
@@ -412,7 +408,7 @@ export default function AdminView({
                               min="0"
                               value={st.saves}
                               onChange={(e) => updatePlayerStat(player.id, 'saves', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-emerald-400 font-bold p-1 rounded-lg"
+                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
                             />
                           </td>
 
@@ -422,7 +418,7 @@ export default function AdminView({
                               min="0"
                               value={st.goalsAgainst}
                               onChange={(e) => updatePlayerStat(player.id, 'goalsAgainst', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-red-400 font-bold p-1 rounded-lg"
+                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
                             />
                           </td>
 
@@ -432,7 +428,7 @@ export default function AdminView({
                               min="0"
                               value={st.ownGoals}
                               onChange={(e) => updatePlayerStat(player.id, 'ownGoals', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-red-500 font-bold p-1 rounded-lg"
+                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
                             />
                           </td>
                         </tr>

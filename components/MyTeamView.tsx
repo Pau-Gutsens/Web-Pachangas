@@ -100,7 +100,7 @@ export default function MyTeamView({
         </button>
         <button
           onClick={() => handleSell(player.id)}
-          className="px-3 py-1.5 text-red-400 hover:bg-red-950/40 rounded-lg text-xs font-bold transition flex items-center gap-1"
+          className="px-3 py-1.5 text-neutral-400 hover:bg-neutral-800 rounded-lg text-xs font-bold transition flex items-center gap-1"
         >
           <Trash2 className="h-3 w-3" />
           Vender
@@ -116,7 +116,7 @@ export default function MyTeamView({
         <h2 className="text-xl font-black text-white">Mi Equipo — {user.username}</h2>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-neutral-400">Plantilla: <span className="font-black text-amber-400">{ownedPlayers.length} / 6</span></span>
-          <span className="text-neutral-400">Presupuesto: <span className="font-black text-emerald-400">{user.budget}M€</span></span>
+          <span className="text-neutral-400">Presupuesto: <span className="font-black text-white">{user.budget}M€</span></span>
         </div>
       </div>
 

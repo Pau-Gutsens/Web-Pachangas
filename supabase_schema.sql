@@ -79,26 +79,13 @@ ALTER TABLE match_stats DISABLE ROW LEVEL SECURITY;
 ALTER TABLE pachanga_results DISABLE ROW LEVEL SECURITY;
 
 -- ========================================================
--- INSERCIÓN DE LOS 15 MIEMBROS INICIALES
+-- INSERCIÓN DE LOS MIEMBROS INICIALES
 -- (Solo se insertan si la tabla está vacía)
 -- ========================================================
 INSERT INTO profiles (id, name, role, alias)
 SELECT * FROM (VALUES
-  ('a0000000-0000-0000-0000-000000000001'::uuid, 'Pau', 'admin', 'Pau'),
-  ('a0000000-0000-0000-0000-000000000002'::uuid, 'Jugador 2', 'member', 'J2'),
-  ('a0000000-0000-0000-0000-000000000003'::uuid, 'Jugador 3', 'member', 'J3'),
-  ('a0000000-0000-0000-0000-000000000004'::uuid, 'Jugador 4', 'member', 'J4'),
-  ('a0000000-0000-0000-0000-000000000005'::uuid, 'Jugador 5', 'member', 'J5'),
-  ('a0000000-0000-0000-0000-000000000006'::uuid, 'Jugador 6', 'member', 'J6'),
-  ('a0000000-0000-0000-0000-000000000007'::uuid, 'Jugador 7', 'member', 'J7'),
-  ('a0000000-0000-0000-0000-000000000008'::uuid, 'Jugador 8', 'member', 'J8'),
-  ('a0000000-0000-0000-0000-000000000009'::uuid, 'Jugador 9', 'member', 'J9'),
-  ('a0000000-0000-0000-0000-00000000010'::uuid, 'Jugador 10', 'member', 'J10'),
-  ('a0000000-0000-0000-0000-00000000011'::uuid, 'Jugador 11', 'member', 'J11'),
-  ('a0000000-0000-0000-0000-00000000012'::uuid, 'Jugador 12', 'member', 'J12'),
-  ('a0000000-0000-0000-0000-00000000013'::uuid, 'Jugador 13', 'member', 'J13'),
-  ('a0000000-0000-0000-0000-00000000014'::uuid, 'Jugador 14', 'member', 'J14'),
-  ('a0000000-0000-0000-0000-00000000015'::uuid, 'Jugador 15', 'member', 'J15')
+  ('a0000000-0000-0000-0000-000000000001'::uuid, 'Pagusa', 'admin', 'Pagusa'),
+  ('a0000000-0000-0000-0000-000000000002'::uuid, 'Carlos', 'guest', 'Carlos')
 ) AS v(id, name, role, alias)
 WHERE NOT EXISTS (SELECT 1 FROM profiles);
 

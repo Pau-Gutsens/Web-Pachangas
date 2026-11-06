@@ -63,14 +63,14 @@ export default function MarketView({
 
         {user && (
           <div className="flex items-center gap-4 text-sm">
-            <span className="text-neutral-400">Presupuesto: <span className="font-black text-emerald-400">{user.budget}M€</span></span>
+            <span className="text-neutral-400">Presupuesto: <span className="font-black text-white">{user.budget}M€</span></span>
             <span className="text-neutral-400">Fichajes: <span className="font-black text-amber-400">{user.ownedPlayerIds.length} / 6</span></span>
           </div>
         )}
       </div>
 
       {toastMessage && (
-        <div className="p-3 bg-emerald-950 border border-emerald-700 text-emerald-300 rounded-xl text-xs font-bold text-center">
+        <div className="p-3 bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-xl text-xs font-bold text-center">
           {toastMessage}
         </div>
       )}
@@ -140,11 +140,11 @@ export default function MarketView({
                     <div className="text-right">
                       <span className="font-black text-amber-400 text-sm block">{player.currentPrice}M€</span>
                       {hasIncreased ? (
-                        <span className="inline-flex items-center gap-0.5 text-emerald-400 text-[10px] font-bold">
+                        <span className="inline-flex items-center gap-0.5 text-neutral-300 text-[10px] font-bold">
                           <TrendingUp className="h-3 w-3" />+{player.priceChangePct}%
                         </span>
                       ) : hasDecreased ? (
-                        <span className="inline-flex items-center gap-0.5 text-red-400 text-[10px] font-bold">
+                        <span className="inline-flex items-center gap-0.5 text-neutral-400 text-[10px] font-bold">
                           <TrendingDown className="h-3 w-3" />{player.priceChangePct}%
                         </span>
                       ) : (
@@ -156,7 +156,7 @@ export default function MarketView({
                     {isOwned ? (
                       <button
                         onClick={() => handleSell(player.id)}
-                        className="px-3 py-1.5 bg-neutral-800 hover:bg-red-900/60 text-red-300 font-bold rounded-lg text-xs transition"
+                        className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-lg text-xs transition"
                       >
                         Vender
                       </button>

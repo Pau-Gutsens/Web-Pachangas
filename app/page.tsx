@@ -88,7 +88,7 @@ export default function EGOLApp() {
           <LeaderboardView />
         )}
 
-        {/* 5. Panel de Admin (Solo Pau / Admin) */}
+        {/* 5. Panel de Admin (Solo Pagusa / Admin) */}
         {activeTab === 'admin' && currentUser?.role === 'admin' && (
           <AdminView
             players={players}
