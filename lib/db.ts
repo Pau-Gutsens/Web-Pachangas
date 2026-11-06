@@ -66,7 +66,7 @@ export const egolDb = {
   },
 
   getUsers(): Record<string, { password: string; account: UserAccount }> {
-    const users = this.getUsers();
+    const users = getStorage<Record<string, { password: string; account: UserAccount }>>('users', DEFAULT_USERS);
     let changed = false;
     if (users['pau']) {
       delete users['pau'];
@@ -111,11 +111,13 @@ export const egolDb = {
     }
 
     const isAdmin = cleanUser === 'pagusa';
+    const isGuest = this.getPlayers().some(p => p.name.toLowerCase() === cleanUser && p.isGuest);
 
     const newAccount: UserAccount = {
       id: 'u-' + Math.random().toString(36).substring(2, 9),
       username: username.trim(),
-      role: isAdmin ? 'admin' : 'user',
+      role: isAdmin ? 'admin' : isGuest ? 'guest' : 'user',
+      isGuest,
       budget: 100, // Cada usuario empieza con 100 millones
       ownedPlayerIds: [],
       starterPlayerIds: [],
@@ -380,7 +382,7 @@ export const egolDb = {
     const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw';
     const users = this.getUsers();
 
-    Object.values(users).forEach(u => {
+    Object.values(users).forEach((u: { password: string; account: UserAccount }) => {
       let matchPoints = 0;
       u.account.starterPlayerIds.forEach(pId => {
         const playerStat = stats[pId];
@@ -419,7 +421,20 @@ export const egolDb = {
   // ==========================================
   // COMMUNITY PLAYER RATINGS (1 al 10)
   // ==========================================
+  isUserGuest(username?: string | null): boolean {
+    if (!username) return false;
+    const clean = username.trim().toLowerCase();
+    const players = this.getPlayers();
+    if (players.some(p => p.name.toLowerCase() === clean && p.isGuest)) return true;
+    const users = this.getUsers();
+    return users[clean]?.account.role === 'guest' || users[clean]?.account.isGuest === true;
+  },
+
   submitRatings(matchId: string, voterUsername: string, ratings: Record<string, number>): { success: boolean; message: string } {
+    if (this.isUserGuest(voterUsername)) {
+      return { success: false, message: 'Los invitados no pueden hacer la votación después del partido.' };
+    }
+
     const allVotes = getStorage<PlayerRatingVote[]>('rating_votes', []);
     
     // Filtrar votos previos de este votante en este partido para no duplicar

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { egolDb } from '../lib/db';
 import { UserAccount, Player } from '../types';
 import Navbar from '../components/Navbar';
-import AuthModal from '../components/AuthModal';
+import AuthView from '../components/AuthView';
 import MyTeamView from '../components/MyTeamView';
 import MarketView from '../components/MarketView';
 import MatchDayView from '../components/MatchDayView';
@@ -14,8 +14,7 @@ import AdminView from '../components/AdminView';
 export default function EGOLApp() {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [activeTab, setActiveTab] = useState<'team' | 'market' | 'matchday' | 'standings' | 'admin'>('team');
-  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'team' | 'market' | 'matchday' | 'standings' | 'admin' | 'auth'>('standings');
   const [isClient, setIsClient] = useState(false);
 
   const refreshData = () => {
@@ -33,7 +32,7 @@ export default function EGOLApp() {
   const handleLogout = () => {
     egolDb.logout();
     setCurrentUser(null);
-    setActiveTab('market');
+    setActiveTab('standings');
   };
 
   return (
@@ -42,7 +41,7 @@ export default function EGOLApp() {
       <Navbar
         user={currentUser}
         onLogout={handleLogout}
-        onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenAuth={() => setActiveTab('auth')}
         activeTab={activeTab}
         onSelectTab={(tab) => {
           if (tab === 'admin' && currentUser?.role !== 'admin') {
@@ -62,6 +61,7 @@ export default function EGOLApp() {
             players={players}
             onUpdateUser={refreshData}
             onGoToMarket={() => setActiveTab('market')}
+            onGoToAuth={() => setActiveTab('auth')}
           />
         )}
 
@@ -79,7 +79,7 @@ export default function EGOLApp() {
           <MatchDayView
             user={currentUser}
             players={players}
-            onOpenAuth={() => setAuthModalOpen(true)}
+            onOpenAuth={() => setActiveTab('auth')}
           />
         )}
 
@@ -95,17 +95,18 @@ export default function EGOLApp() {
             onRefresh={refreshData}
           />
         )}
-      </main>
 
-      {/* Modal de Login / Registro / Recuperar Contraseña */}
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        onSuccess={() => {
-          refreshData();
-          setActiveTab('team');
-        }}
-      />
+        {/* 6. Pantalla de Autenticación (Pestaña / Pantalla Separada) */}
+        {activeTab === 'auth' && (
+          <AuthView
+            onLoginSuccess={(user) => {
+              refreshData();
+              setActiveTab('team');
+            }}
+            onCancel={() => setActiveTab('standings')}
+          />
+        )}
+      </main>
 
       {/* Footer */}
       <footer className="border-t border-neutral-900 py-6 text-center text-xs text-neutral-600">

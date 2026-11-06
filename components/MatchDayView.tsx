@@ -21,6 +21,8 @@ export default function MatchDayView({
   const [savingVote, setSavingVote] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
+  const isUserGuest = user ? egolDb.isUserGuest(user.username) : false;
+
   const loadMatches = () => {
     const list = egolDb.getMatches();
     setMatches(list);
@@ -34,7 +36,7 @@ export default function MatchDayView({
   }, []);
 
   useEffect(() => {
-    if (!selectedMatch || !user) return;
+    if (!selectedMatch || !user || isUserGuest) return;
     const existing = egolDb.getUserRatingsForMatch(selectedMatch.id, user.username);
     if (Object.keys(existing).length > 0) {
       setRatings(existing);
@@ -47,14 +49,19 @@ export default function MatchDayView({
       setHasVoted(false);
     }
     setSuccessMsg('');
-  }, [selectedMatch, user]);
+  }, [selectedMatch, user, isUserGuest]);
 
   const handleRatingChange = (playerId: string, value: number) => {
+    if (isUserGuest) return;
     setRatings(prev => ({ ...prev, [playerId]: value }));
   };
 
   const handleSubmitVotes = () => {
     if (!user) { onOpenAuth(); return; }
+    if (isUserGuest) {
+      alert('Los invitados no pueden votar en el partido.');
+      return;
+    }
     if (!selectedMatch) return;
 
     setSavingVote(true);
@@ -63,6 +70,8 @@ export default function MatchDayView({
       if (res.success) {
         setHasVoted(true);
         setSuccessMsg(res.message);
+      } else {
+        alert(res.message);
       }
     } catch (e: any) {
       alert(e.message || 'Error al guardar notas.');
@@ -238,6 +247,13 @@ export default function MatchDayView({
             )}
           </div>
 
+          {/* Aviso especial para invitados */}
+          {isUserGuest && (
+            <div className="mx-4 my-3 p-3 bg-neutral-950 border border-neutral-800 text-neutral-400 rounded-lg text-xs">
+              Los invitados no pueden realizar votaciones. Los demás miembros calificarán tu rendimiento.
+            </div>
+          )}
+
           {successMsg && (
             <div className="mx-4 my-3 p-3 bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-xs font-bold">
               {successMsg}
@@ -263,32 +279,60 @@ export default function MatchDayView({
                           {player.name}
                           {player.isGuest && <span className="text-neutral-500 font-normal ml-1">(invitado)</span>}
                         </span>
-                        <input
-                          type="range"
-                          min="1"
-                          max="10"
-                          step="0.5"
-                          value={currentRating}
-                          onChange={(e) => handleRatingChange(player.id, parseFloat(e.target.value))}
-                          className="w-full accent-amber-400 cursor-pointer h-1.5 mt-1.5"
-                        />
+                        {!isUserGuest && user && (
+                          <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            step="0.5"
+                            value={currentRating}
+                            onChange={(e) => handleRatingChange(player.id, parseFloat(e.target.value))}
+                            className="w-full accent-amber-400 cursor-pointer h-1.5 mt-1.5"
+                          />
+                        )}
                       </div>
-                      <div className="font-black text-sm text-amber-400 w-8 text-right flex-shrink-0">
-                        {currentRating}
-                      </div>
+                      {!isUserGuest && user ? (
+                        <div className="font-black text-sm text-amber-400 w-8 text-right flex-shrink-0">
+                          {currentRating}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-neutral-500 flex-shrink-0">
+                          {hasPlayedMatches && player.ratingsCount > 0 ? (
+                            <span className="flex items-center gap-1 text-amber-400 font-bold">
+                              <Star className="h-3 w-3 fill-amber-400" />
+                              {player.averageRating}
+                            </span>
+                          ) : (
+                            <span>—</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
 
               <div className="px-4 py-4 border-t border-neutral-800 flex justify-end">
-                <button
-                  onClick={handleSubmitVotes}
-                  disabled={savingVote}
-                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-lg text-xs uppercase transition"
-                >
-                  {savingVote ? 'Guardando...' : hasVoted ? 'Actualizar votos' : 'Enviar calificaciones'}
-                </button>
+                {!user ? (
+                  <button
+                    onClick={onOpenAuth}
+                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-lg text-xs uppercase transition"
+                  >
+                    Iniciar sesión para votar
+                  </button>
+                ) : isUserGuest ? (
+                  <span className="text-xs text-neutral-500 py-1">
+                    Solo los miembros oficiales pueden emitir calificaciones
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleSubmitVotes}
+                    disabled={savingVote}
+                    className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-lg text-xs uppercase transition"
+                  >
+                    {savingVote ? 'Guardando...' : hasVoted ? 'Actualizar votos' : 'Enviar calificaciones'}
+                  </button>
+                )}
               </div>
             </div>
           )}

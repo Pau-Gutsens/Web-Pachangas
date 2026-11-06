@@ -2,17 +2,15 @@
 
 import React, { useState } from 'react';
 import { egolDb } from '../lib/db';
-import { Eye, EyeOff, Lock, User, KeyRound, Sparkles } from 'lucide-react';
-import Image from 'next/image';
+import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { UserAccount } from '../types';
 
-export default function AuthModal({
-  isOpen,
-  onClose,
-  onSuccess
+export default function AuthView({
+  onLoginSuccess,
+  onCancel
 }: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
+  onLoginSuccess: (user: UserAccount) => void;
+  onCancel?: () => void;
 }) {
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [username, setUsername] = useState('');
@@ -21,8 +19,6 @@ export default function AuthModal({
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -30,17 +26,15 @@ export default function AuthModal({
 
     if (mode === 'login') {
       const res = egolDb.login(username, password);
-      if (res.success) {
-        onSuccess();
-        onClose();
+      if (res.success && res.user) {
+        onLoginSuccess(res.user);
       } else {
         setError(res.message || 'Error al iniciar sesión.');
       }
     } else if (mode === 'signup') {
       const res = egolDb.signup(username, password);
-      if (res.success) {
-        onSuccess();
-        onClose();
+      if (res.success && res.user) {
+        onLoginSuccess(res.user);
       } else {
         setError(res.message || 'Error al registrarte.');
       }
@@ -56,20 +50,26 @@ export default function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 sm:p-8 max-w-md w-full relative text-white">
-        {/* Logo EGOL */}
+    <div className="max-w-md mx-auto py-8 text-white">
+      {/* Cabecera */}
+      <div className="border-b border-neutral-800 pb-4 mb-6">
+        <h2 className="text-xl font-black text-white">
+          {mode === 'login' ? 'Iniciar Sesión' : mode === 'signup' ? 'Registro de Cuenta' : 'Recuperar Contraseña'}
+        </h2>
+      </div>
+
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 sm:p-8">
         <div className="text-center mb-6">
-          <div className="w-16 h-20 mx-auto relative mb-3">
+          <div className="w-14 h-16 mx-auto relative mb-3">
             <img
               src="/logo.png"
-              alt="EGOL Logo"
+              alt="EGOL"
               className="w-full h-full object-contain"
             />
           </div>
-          <h2 className="text-xl font-black text-white uppercase">
-            {mode === 'login' ? 'Iniciar Sesión' : mode === 'signup' ? 'Crear Cuenta' : 'Recuperar Contraseña'}
-          </h2>
+          <span className="text-xs uppercase tracking-wider text-neutral-400 font-bold block">
+            EGOL FANTASY
+          </span>
         </div>
 
         {error && (
@@ -88,15 +88,15 @@ export default function AuthModal({
           <div>
             <label className="block text-xs font-bold text-neutral-300 uppercase mb-1.5 flex items-center gap-1.5">
               <User className="h-3.5 w-3.5 text-neutral-400" />
-              Nombre de Usuario
+              Usuario
             </label>
             <input
               type="text"
               required
-              placeholder="Ej: Pagusa, Marcos..."
+              placeholder="Ej: Pagusa, Carlos..."
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-800 text-white p-3 rounded-xl focus:outline-none focus:border-amber-400 text-sm"
+              className="w-full bg-neutral-950 border border-neutral-800 text-white p-2.5 rounded-xl focus:outline-none focus:border-amber-400 text-sm"
             />
           </div>
 
@@ -112,7 +112,7 @@ export default function AuthModal({
                 placeholder="Tu contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-800 text-white p-3 pr-10 rounded-xl focus:outline-none focus:border-amber-400 text-sm"
+                className="w-full bg-neutral-950 border border-neutral-800 text-white p-2.5 pr-10 rounded-xl focus:outline-none focus:border-amber-400 text-sm"
               />
               <button
                 type="button"
@@ -126,13 +126,12 @@ export default function AuthModal({
 
           <button
             type="submit"
-            className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black uppercase tracking-wider rounded-xl transition text-xs mt-2"
+            className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black uppercase tracking-wider rounded-xl transition text-xs mt-2"
           >
             {mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Crear Cuenta' : 'Guardar Nueva Contraseña'}
           </button>
         </form>
 
-        {/* Links para cambiar de modo */}
         <div className="mt-6 pt-4 border-t border-neutral-800 flex flex-col gap-2 text-center text-xs text-neutral-400">
           {mode === 'login' ? (
             <>
@@ -162,6 +161,15 @@ export default function AuthModal({
               className="hover:text-white transition"
             >
               ← Volver a Iniciar Sesión
+            </button>
+          )}
+
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="text-neutral-500 hover:text-neutral-300 text-xs mt-2 transition"
+            >
+              Volver a la liga
             </button>
           )}
         </div>

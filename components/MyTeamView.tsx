@@ -9,18 +9,28 @@ export default function MyTeamView({
   user,
   players,
   onUpdateUser,
-  onGoToMarket
+  onGoToMarket,
+  onGoToAuth
 }: {
   user: UserAccount | null;
   players: Player[];
   onUpdateUser: () => void;
   onGoToMarket: () => void;
+  onGoToAuth?: () => void;
 }) {
   if (!user) {
     return (
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-10 text-center max-w-lg mx-auto text-white">
         <Shield className="h-10 w-10 text-amber-400 mx-auto mb-3" />
-        <h3 className="text-lg font-bold mb-2">Inicia sesión para gestionar tu equipo</h3>
+        <h3 className="text-lg font-bold mb-3">Inicia sesión para gestionar tu equipo</h3>
+        {onGoToAuth && (
+          <button
+            onClick={onGoToAuth}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase"
+          >
+            Iniciar Sesión
+          </button>
+        )}
       </div>
     );
   }

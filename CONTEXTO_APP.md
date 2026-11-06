@@ -71,8 +71,8 @@ En el fútbol amateur cualquiera puede rotar a la portería o subir al ataque. E
   2. **Mercado**: Compra y venta de jugadores con visualización de precios y tendencias.
   3. **Partido del Día**: Horario, convocatoria de equipos A vs B y calificaciones 1-10.
   4. **Clasificación**: Tabla general acumulada de puntos entre todos los mánagers.
-- **Administrador (Pau)**:
-  - Solo Pau tiene acceso a la pestaña y ruta `/admin`.
+- **Administrador (Pagusa)**:
+  - Solo Pagusa tiene acceso a la pestaña y ruta `/admin`.
   - Herramientas exclusivas: Crear nuevos partidos con horario, convocar jugadores a Equipo A y Equipo B, registrar nuevos fichajes/invitados y rellenar y publicar el acta final del partido.
 
 ---
@@ -96,7 +96,7 @@ Web-Pachangas/
 │   └── page.tsx               # Aplicación principal con cambio de pestañas
 ├── components/
 │   ├── AdminView.tsx          # Gestión de partidos, actas y altas
-│   ├── AuthModal.tsx          # Login, Registro y Recuperación con visor de clave
+│   ├── AuthView.tsx           # Pantalla y pestaña dedicada de Login, Registro y Recuperación
 │   ├── LeaderboardView.tsx    # Clasificación general de mánagers
 │   ├── MarketView.tsx         # Mercado 24/7 con fotos, precios y %
 │   ├── MatchDayView.tsx       # Partido activo y votaciones 1 al 10

@@ -1,9 +1,10 @@
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'user' | 'guest';
 
 export interface UserAccount {
   id: string;
   username: string;
   role: UserRole;
+  isGuest?: boolean;
   budget: number; // In millions (defaults to 100M)
   ownedPlayerIds: string[]; // Max 6 players
   starterPlayerIds: string[]; // Exactly 5 starters when full
