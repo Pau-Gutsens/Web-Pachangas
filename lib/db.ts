@@ -22,13 +22,13 @@ function setStorage<T>(key: string, value: T): void {
   }
 }
 
-// Initial Admin User (Pau)
+// Initial Admin User (Pagusa)
 const DEFAULT_USERS: Record<string, { password: string; account: UserAccount }> = {
-  pau: {
-    password: '123',
+  pagusa: {
+    password: '#Pagusa515',
     account: {
-      id: 'u-pau',
-      username: 'Pau',
+      id: 'u-pagusa',
+      username: 'Pagusa',
       role: 'admin',
       budget: 100, // 100 Millones
       ownedPlayerIds: [],
@@ -86,7 +86,7 @@ export const egolDb = {
       return { success: false, message: 'Este nombre de usuario ya existe. Inicia sesión.' };
     }
 
-    const isAdmin = cleanUser === 'pau';
+    const isAdmin = cleanUser === 'pagusa';
 
     const newAccount: UserAccount = {
       id: 'u-' + Math.random().toString(36).substring(2, 9),

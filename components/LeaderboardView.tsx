@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount } from '../types';
 import { egolDb } from '../lib/db';
-import { Trophy, Medal, Coins, Flame, Users } from 'lucide-react';
+import { Flame } from 'lucide-react';
 
 export default function LeaderboardView() {
   const [standings, setStandings] = useState<UserAccount[]>([]);
@@ -13,38 +13,27 @@ export default function LeaderboardView() {
   }, []);
 
   return (
-    <div className="space-y-6 text-white">
+    <div className="space-y-4 text-white">
       {/* Cabecera */}
-      <div className="bg-gradient-to-r from-neutral-900 to-neutral-950 border border-amber-500/20 rounded-3xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <span className="text-xs uppercase tracking-wider font-extrabold text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
-            Temporada Oficial EGOL
-          </span>
-          <h2 className="text-2xl font-black mt-2 text-white flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-amber-400" />
-            Clasificación General Fantasy
-          </h2>
-          <p className="text-xs text-neutral-400 mt-0.5">
-            Puntos acumulados por cada mánager con sus 5 jugadores titulares en cada jornada.
-          </p>
-        </div>
+      <div className="border-b border-neutral-800 pb-4">
+        <h2 className="text-xl font-black text-white">Clasificación General</h2>
       </div>
 
-      {/* Tabla de Clasificación */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden shadow-sm">
+      {/* Tabla */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
-              <tr className="bg-neutral-950 text-neutral-400 text-xs uppercase font-black border-b border-neutral-800">
-                <th className="p-4 text-center w-16">Pos</th>
+              <tr className="bg-neutral-950 text-neutral-500 text-xs uppercase font-bold border-b border-neutral-800">
+                <th className="p-4 text-center w-14">Pos</th>
                 <th className="p-4">Mánager</th>
-                <th className="p-4 text-center">Puntos Totales</th>
-                <th className="p-4 text-center">Último Partido</th>
+                <th className="p-4 text-center">Puntos</th>
+                <th className="p-4 text-center">Último</th>
                 <th className="p-4 text-center">Presupuesto</th>
                 <th className="p-4 text-center">Plantilla</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-800/80">
+            <tbody className="divide-y divide-neutral-800">
               {standings.map((user, idx) => {
                 const isFirst = idx === 0 && user.totalPoints > 0;
                 const isSecond = idx === 1 && user.totalPoints > 0;
@@ -53,37 +42,29 @@ export default function LeaderboardView() {
                 return (
                   <tr
                     key={user.id}
-                    className={`hover:bg-neutral-800/40 transition-colors ${
-                      isFirst ? 'bg-amber-500/5' : ''
-                    }`}
+                    className={`hover:bg-neutral-800/40 transition-colors ${isFirst ? 'bg-amber-500/5' : ''}`}
                   >
-                    <td className="p-4 text-center font-black">
-                      {isFirst ? (
-                        <span className="text-2xl" title="1º Puesto">🥇</span>
-                      ) : isSecond ? (
-                        <span className="text-2xl" title="2º Puesto">🥈</span>
-                      ) : isThird ? (
-                        <span className="text-2xl" title="3º Puesto">🥉</span>
-                      ) : (
-                        <span className="text-neutral-500 text-base">{idx + 1}º</span>
+                    <td className="p-4 text-center font-black text-sm">
+                      {isFirst ? '🥇' : isSecond ? '🥈' : isThird ? '🥉' : (
+                        <span className="text-neutral-500">{idx + 1}º</span>
                       )}
                     </td>
 
-                    <td className="p-4 font-bold text-white flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs text-amber-400 font-black">
-                        {user.username.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
+                    <td className="p-4 font-bold text-white">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs text-amber-400 font-black flex-shrink-0">
+                          {user.username.charAt(0).toUpperCase()}
+                        </div>
                         <span>{user.username}</span>
                         {isFirst && (
-                          <span className="ml-2 text-[9px] uppercase font-black bg-amber-400 text-neutral-950 px-1.5 py-0.5 rounded shadow-sm">
+                          <span className="text-[9px] uppercase font-black bg-amber-400 text-neutral-950 px-1.5 py-0.5 rounded">
                             LÍDER
                           </span>
                         )}
                       </div>
                     </td>
 
-                    <td className="p-4 text-center font-black text-amber-400 text-base">
+                    <td className="p-4 text-center font-black text-amber-400">
                       {user.totalPoints} pts
                     </td>
 
@@ -94,7 +75,7 @@ export default function LeaderboardView() {
                           +{user.lastMatchPoints}
                         </span>
                       ) : (
-                        <span className="text-neutral-500">0</span>
+                        <span className="text-neutral-600">—</span>
                       )}
                     </td>
 
@@ -115,4 +96,3 @@ export default function LeaderboardView() {
     </div>
   );
 }
-

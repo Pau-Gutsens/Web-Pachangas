@@ -107,25 +107,17 @@ export default function AdminView({
   return (
     <div className="space-y-8 text-white max-w-5xl mx-auto">
       {/* Header Admin */}
-      <div className="bg-red-950/40 border border-red-500/30 rounded-3xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <span className="text-xs uppercase tracking-wider font-extrabold text-red-400 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20 flex items-center gap-1.5 w-fit">
-            <ShieldAlert className="h-3.5 w-3.5" />
-            Acceso Exclusivo de Administrador (Pau)
-          </span>
-          <h2 className="text-2xl font-black mt-2 text-white">Panel de Control EGOL</h2>
-          <p className="text-xs text-neutral-400 mt-0.5">
-            Crea partidos con horario, convoca los equipos y rellena el acta estadística post-partido.
-          </p>
-        </div>
+      <div className="border-b border-neutral-800 pb-4 flex items-center gap-2">
+        <ShieldAlert className="h-5 w-5 text-red-400" />
+        <h2 className="text-xl font-black text-white">Panel de Control</h2>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 1. CREAR NUEVO PARTIDO CON HORARIO */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-sm">
-          <h3 className="text-base font-black text-amber-400 flex items-center gap-2 mb-4">
-            <Calendar className="h-5 w-5 text-amber-400" />
-            1. Crear Partido con Horario
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+          <h3 className="text-sm font-black text-white flex items-center gap-2 mb-4">
+            <Calendar className="h-4 w-4 text-amber-400" />
+            Crear Partido
           </h3>
 
           <form onSubmit={handleCreateMatch} className="space-y-4">
@@ -189,7 +181,7 @@ export default function AdminView({
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase transition shadow-sm"
+              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase transition"
             >
               Publicar Partido
             </button>
@@ -197,12 +189,15 @@ export default function AdminView({
         </div>
 
         {/* 2. REGISTRAR JUGADOR O INVITADO */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-sm">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+          <h3 className="text-sm font-black text-white flex items-center gap-2 mb-4">
+            <UserPlus className="h-4 w-4 text-amber-400" />
+            Añadir Jugador
+          </h3>
           <h3 className="text-base font-black text-amber-400 flex items-center gap-2 mb-4">
             <UserPlus className="h-5 w-5 text-amber-400" />
             2. Añadir Jugador o Invitado
           </h3>
-
           <form onSubmit={handleCreateNewPlayer} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
@@ -231,9 +226,7 @@ export default function AdminView({
               </label>
             </div>
 
-            <p className="text-[11px] text-neutral-500 leading-relaxed">
-              Todos los jugadores empiezan con un valor base de 20M€ y están disponibles en el mercado.
-            </p>
+            <p className="text-[11px] text-neutral-500">Valor base: 20M€. Disponible en el mercado automáticamente.</p>
 
             <button
               type="submit"
@@ -247,15 +240,15 @@ export default function AdminView({
 
       {/* 3. CONVOCATORIAS Y ASIGNACIÓN EQUIPOS (A vs B) */}
       {currentMatch && (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 space-y-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4 border-b border-neutral-800">
             <div>
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <Users className="h-5 w-5 text-amber-400" />
-                3. Convocatoria del Partido ({currentMatch.date})
+              <h3 className="text-sm font-black text-white flex items-center gap-2">
+                <Users className="h-4 w-4 text-amber-400" />
+                Convocatoria — {currentMatch.date}
               </h3>
-              <p className="text-xs text-neutral-400">
-                Horario: {currentMatch.startTime} a {currentMatch.endTime} | Formato: {currentMatch.format} vs {currentMatch.format}
+              <p className="text-xs text-neutral-500 mt-0.5">
+                {currentMatch.startTime} – {currentMatch.endTime} · {currentMatch.format} vs {currentMatch.format}
               </p>
             </div>
 
@@ -327,13 +320,10 @@ export default function AdminView({
           <div className="pt-6 border-t border-neutral-800 space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
-                <h3 className="text-lg font-black text-amber-400 flex items-center gap-2">
-                  <Award className="h-5 w-5 text-amber-400" />
-                  4. Acta del Partido (Goles, Paradas, Asistencias)
+                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <Award className="h-4 w-4 text-amber-400" />
+                  Acta del Partido
                 </h3>
-                <p className="text-xs text-neutral-400 mt-0.5">
-                  Cualquier jugador puede tener paradas o goles encajados (sin restricción de portero).
-                </p>
               </div>
 
               {/* Marcador final */}
@@ -455,7 +445,7 @@ export default function AdminView({
 
             <button
               onClick={handleSaveActa}
-              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 text-neutral-950 font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition"
             >
               Publicar Acta y Abrir Votaciones (1-10)
             </button>

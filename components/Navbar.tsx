@@ -25,14 +25,11 @@ export default function Navbar({
           <div className="w-10 h-12 relative flex-shrink-0">
             <img src="/logo.png" alt="EGOL" className="w-full h-full object-contain" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-black text-amber-400 tracking-wider">EGOL</span>
-              <span className="text-xs uppercase bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold px-1.5 py-0.5 rounded">
-                FANTASY
-              </span>
-            </div>
-            <p className="text-[11px] text-neutral-400">Liga Privada de Pachangas</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-amber-400 tracking-wider">EGOL</span>
+            <span className="text-xs uppercase bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold px-1.5 py-0.5 rounded">
+              FANTASY
+            </span>
           </div>
         </div>
 
@@ -46,7 +43,7 @@ export default function Navbar({
                 : 'text-neutral-300 hover:text-white'
             }`}
           >
-            🏆 Clasificación
+            Clasificación
           </button>
           <button
             onClick={() => onSelectTab('matchday')}
@@ -56,7 +53,7 @@ export default function Navbar({
                 : 'text-neutral-300 hover:text-white'
             }`}
           >
-            ⚽ Partido y Votos
+            Partido y Votos
           </button>
           <button
             onClick={() => onSelectTab('team')}
@@ -66,7 +63,7 @@ export default function Navbar({
                 : 'text-neutral-300 hover:text-white'
             }`}
           >
-            🛡️ Mi Equipo
+            Mi Equipo
           </button>
           <button
             onClick={() => onSelectTab('market')}
@@ -76,7 +73,7 @@ export default function Navbar({
                 : 'text-neutral-300 hover:text-white'
             }`}
           >
-            🏷️ Mercado
+            Mercado
           </button>
           {user && user.role === 'admin' && (
             <button
@@ -98,10 +95,10 @@ export default function Navbar({
           {user ? (
             <div className="flex items-center gap-3">
               {/* Presupuesto */}
-              <div className="bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+              <div className="bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
                 <Coins className="h-4 w-4 text-amber-400" />
                 <div>
-                  <p className="text-[10px] text-amber-400 font-bold uppercase leading-none">Saldo</p>
+                  <p className="text-[10px] text-neutral-400 font-bold uppercase leading-none">Saldo</p>
                   <p className="text-sm font-black text-white leading-tight">{user.budget}M€</p>
                 </div>
               </div>
@@ -130,9 +127,9 @@ export default function Navbar({
           ) : (
             <button
               onClick={onOpenAuth}
-              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider transition shadow-sm"
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider transition"
             >
-              Entrar / Registro (100M€)
+              Entrar / Registro
             </button>
           )}
         </div>
