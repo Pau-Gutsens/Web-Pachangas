@@ -148,7 +148,7 @@ export default function MatchDayView({
               >
                 <span>{m.date} ({m.startTime} - {m.endTime})</span>
                 <span className={`font-bold ${
-                  m.status === 'scoring' ? 'text-amber-400' :
+                  m.status === 'voting' ? 'text-amber-400' :
                   m.status === 'scored' ? 'text-emerald-400' : 'text-neutral-500'
                 }`}>{m.status}</span>
               </button>
