@@ -9,31 +9,14 @@ export default function MyTeamView({
   user,
   players,
   onUpdateUser,
-  onGoToMarket,
-  onGoToAuth
+  onGoToMarket
 }: {
   user: UserAccount | null;
   players: Player[];
   onUpdateUser: () => void;
   onGoToMarket: () => void;
-  onGoToAuth?: () => void;
 }) {
-  if (!user) {
-    return (
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-8 sm:p-10 text-center max-w-lg mx-auto text-white">
-        <Shield className="h-10 w-10 text-amber-400 mx-auto mb-3" />
-        <h3 className="text-base sm:text-lg font-bold mb-3">Inicia sesión para gestionar tu equipo</h3>
-        {onGoToAuth && (
-          <button
-            onClick={onGoToAuth}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase"
-          >
-            Iniciar Sesión
-          </button>
-        )}
-      </div>
-    );
-  }
+  if (!user) return null;
 
   // ¿Ha habido algún partido ya jugado?
   const hasPlayedMatches = egolDb.getMatches().some(m => m.status === 'voting' || m.status === 'scored');
@@ -76,13 +59,13 @@ export default function MyTeamView({
   };
 
   const PlayerRow = ({ player, isStarter }: { player: Player; isStarter: boolean }) => (
-    <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-neutral-800/40 transition-colors">
-      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+    <div className="flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-neutral-800/40 transition-colors">
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
         <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700 flex-shrink-0">
           <img src={player.avatarUrl || '/logo.png'} alt={player.name} className="w-full h-full object-cover" />
         </div>
-        <div className="min-w-0">
-          <span className="font-bold text-xs sm:text-sm text-white truncate block max-w-[120px] xs:max-w-none">
+        <div className="min-w-0 flex-1">
+          <span className="font-bold text-xs sm:text-sm text-white truncate block max-w-[130px] xs:max-w-none">
             {player.name}
             {player.isGuest && <span className="text-neutral-500 font-normal text-[10px] sm:text-xs ml-1">(invitado)</span>}
           </span>
@@ -100,21 +83,22 @@ export default function MyTeamView({
         </div>
       </div>
 
+      {/* Botones alineados con anchos fijos uniformes */}
       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
         <button
           onClick={() => handleToggleStarter(player.id)}
-          className="px-2.5 sm:px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-lg text-xs transition flex items-center gap-1"
+          className="w-20 sm:w-24 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-lg text-xs transition flex items-center justify-center gap-1"
         >
-          <ArrowLeftRight className="h-3 w-3" />
+          <ArrowLeftRight className="h-3 w-3 flex-shrink-0" />
           <span className="hidden xs:inline">{isStarter ? 'Banquillo' : 'Titular'}</span>
           <span className="xs:hidden">{isStarter ? 'Banq' : 'Tit'}</span>
         </button>
         <button
           onClick={() => handleSell(player.id)}
-          className="px-2 sm:px-3 py-1.5 text-neutral-400 hover:bg-neutral-800 rounded-lg text-xs font-bold transition flex items-center gap-1"
+          className="w-16 sm:w-20 py-1.5 text-neutral-400 hover:bg-neutral-800 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1"
         >
-          <Trash2 className="h-3 w-3" />
-          <span className="hidden xs:inline">Vender</span>
+          <Trash2 className="h-3 w-3 flex-shrink-0" />
+          <span>Vender</span>
         </button>
       </div>
     </div>

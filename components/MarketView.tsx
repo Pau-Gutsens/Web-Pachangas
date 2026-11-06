@@ -25,10 +25,7 @@ export default function MarketView({
   );
 
   const handleBuy = (playerId: string) => {
-    if (!user) {
-      alert('Debes iniciar sesión para comprar jugadores.');
-      return;
-    }
+    if (!user) return;
     const res = egolDb.buyPlayer(user.id, playerId);
     if (res.success) {
       setToastMessage(res.message);
@@ -107,14 +104,14 @@ export default function MarketView({
               return (
                 <div
                   key={player.id}
-                  className={`flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 ${isOwned ? 'bg-amber-500/5' : 'hover:bg-neutral-800/40'} transition-colors`}
+                  className={`flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 sm:py-3 ${isOwned ? 'bg-amber-500/5' : 'hover:bg-neutral-800/40'} transition-colors`}
                 >
-                  {/* Nombre y tipo */}
-                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  {/* Nombre y datos del jugador */}
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                     <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700 flex-shrink-0">
                       <img src={player.avatarUrl || '/logo.png'} alt={player.name} className="w-full h-full object-cover" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-bold text-xs sm:text-sm text-white truncate max-w-[130px] xs:max-w-none">
                           {player.name}
@@ -140,50 +137,54 @@ export default function MarketView({
                     </div>
                   </div>
 
-                  {/* Precio y variación */}
-                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                    <div className="text-right">
-                      <span className="font-black text-amber-400 text-xs sm:text-sm block">{player.currentPrice}M€</span>
+                  {/* Bloque Precio y Variación (Ancho fijo para alineación exacta) */}
+                  <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
+                    <div className="w-16 sm:w-20 text-right">
+                      <span className="font-black text-amber-400 text-xs sm:text-sm block whitespace-nowrap">
+                        {player.currentPrice}M€
+                      </span>
                       {hasIncreased ? (
-                        <span className="inline-flex items-center gap-0.5 text-neutral-300 text-[10px] font-bold">
+                        <span className="inline-flex items-center justify-end gap-0.5 text-emerald-400 text-[10px] font-bold">
                           <TrendingUp className="h-3 w-3" />+{player.priceChangePct}%
                         </span>
                       ) : hasDecreased ? (
-                        <span className="inline-flex items-center gap-0.5 text-neutral-400 text-[10px] font-bold">
+                        <span className="inline-flex items-center justify-end gap-0.5 text-red-400 text-[10px] font-bold">
                           <TrendingDown className="h-3 w-3" />{player.priceChangePct}%
                         </span>
                       ) : (
-                        <span className="text-neutral-600 text-[10px]">—</span>
+                        <span className="text-neutral-500 text-[10px] font-bold block">
+                          0%
+                        </span>
                       )}
                     </div>
 
-                    {/* Botón */}
-                    {isOwned ? (
-                      <button
-                        onClick={() => handleSell(player.id)}
-                        className="px-2.5 sm:px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-lg text-xs transition"
-                      >
-                        Vender
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleBuy(player.id)}
-                        disabled={!user || isTeamFull || !canAfford}
-                        className={`px-2.5 sm:px-3 py-1.5 font-black rounded-lg text-xs transition ${
-                          !user || isTeamFull || !canAfford
-                            ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-                            : 'bg-amber-500 hover:bg-amber-400 text-neutral-950'
-                        }`}
-                      >
-                        {!user
-                          ? 'Entrar'
-                          : isTeamFull
-                          ? 'Llena'
-                          : !canAfford
-                          ? 'Sin saldo'
-                          : `Fichar`}
-                      </button>
-                    )}
+                    {/* Bloque Botón (Ancho fijo para alineación exacta en toda la lista) */}
+                    <div className="w-20 sm:w-24 flex justify-end">
+                      {isOwned ? (
+                        <button
+                          onClick={() => handleSell(player.id)}
+                          className="w-full py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-lg text-xs transition text-center"
+                        >
+                          Vender
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleBuy(player.id)}
+                          disabled={!user || isTeamFull || !canAfford}
+                          className={`w-full py-1.5 font-black rounded-lg text-xs transition text-center ${
+                            !user || isTeamFull || !canAfford
+                              ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                              : 'bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-sm'
+                          }`}
+                        >
+                          {isTeamFull
+                            ? 'Llena'
+                            : !canAfford
+                            ? 'Sin saldo'
+                            : 'Fichar'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

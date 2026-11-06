@@ -14,7 +14,7 @@ import AdminView from '../components/AdminView';
 export default function EGOLApp() {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [activeTab, setActiveTab] = useState<'team' | 'market' | 'matchday' | 'standings' | 'admin' | 'auth'>('standings');
+  const [activeTab, setActiveTab] = useState<'team' | 'market' | 'matchday' | 'standings' | 'admin'>('standings');
   const [isClient, setIsClient] = useState(false);
 
   const refreshData = () => {
@@ -35,13 +35,28 @@ export default function EGOLApp() {
     setActiveTab('standings');
   };
 
+  // SI NO HAY SESIÓN INICIADA: Pantalla obligatoria de Iniciar Sesión / Registrarse
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8 selection:bg-amber-400 selection:text-neutral-950">
+        <div className="w-full max-w-md">
+          <AuthView
+            onLoginSuccess={(user) => {
+              refreshData();
+              setActiveTab('standings');
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex flex-col font-sans selection:bg-amber-400 selection:text-neutral-950">
       {/* Navbar Superior */}
       <Navbar
         user={currentUser}
         onLogout={handleLogout}
-        onOpenAuth={() => setActiveTab('auth')}
         activeTab={activeTab}
         onSelectTab={(tab) => {
           if (tab === 'admin' && currentUser?.role !== 'admin') {
@@ -61,7 +76,6 @@ export default function EGOLApp() {
             players={players}
             onUpdateUser={refreshData}
             onGoToMarket={() => setActiveTab('market')}
-            onGoToAuth={() => setActiveTab('auth')}
           />
         )}
 
@@ -79,7 +93,7 @@ export default function EGOLApp() {
           <MatchDayView
             user={currentUser}
             players={players}
-            onOpenAuth={() => setActiveTab('auth')}
+            onOpenAuth={() => {}}
           />
         )}
 
@@ -93,17 +107,6 @@ export default function EGOLApp() {
           <AdminView
             players={players}
             onRefresh={refreshData}
-          />
-        )}
-
-        {/* 6. Pantalla de Autenticación (Pestaña / Pantalla Separada) */}
-        {activeTab === 'auth' && (
-          <AuthView
-            onLoginSuccess={(user) => {
-              refreshData();
-              setActiveTab('team');
-            }}
-            onCancel={() => setActiveTab('standings')}
           />
         )}
       </main>
