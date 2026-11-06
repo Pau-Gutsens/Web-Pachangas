@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { UserAccount } from '../types';
-import { Coins, Trophy, LogOut, ShieldAlert } from 'lucide-react';
+import { Trophy, Calendar, Shield, ShoppingBag, ShieldAlert, User as UserIcon, LogOut, Coins } from 'lucide-react';
 
 export default function Navbar({
   user,
@@ -18,138 +18,213 @@ export default function Navbar({
   onSelectTab: (tab: any) => void;
 }) {
   return (
-    <header className="bg-neutral-950 border-b border-neutral-800 sticky top-0 z-40 text-white">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
-        {/* Logo and Brand */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => onSelectTab(user ? 'team' : 'standings')}>
-          <div className="w-10 h-12 relative flex-shrink-0">
-            <img src="/logo.png" alt="EGOL" className="w-full h-full object-contain" />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-black text-amber-400 tracking-wider">EGOL</span>
-            <span className="text-xs uppercase bg-neutral-900 text-amber-400 border border-neutral-800 font-bold px-1.5 py-0.5 rounded">
-              FANTASY
-            </span>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <nav className="flex items-center gap-1 bg-neutral-900 border border-neutral-800 p-1 rounded-xl overflow-x-auto max-w-full">
-          <button
-            onClick={() => onSelectTab('standings')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-              activeTab === 'standings'
-                ? 'bg-amber-400 text-neutral-950'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            Clasificación
-          </button>
-          <button
-            onClick={() => onSelectTab('matchday')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-              activeTab === 'matchday'
-                ? 'bg-amber-400 text-neutral-950'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            Partido y Votos
-          </button>
-          <button
-            onClick={() => onSelectTab('team')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-              activeTab === 'team'
-                ? 'bg-amber-400 text-neutral-950'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            Mi Equipo
-          </button>
-          <button
-            onClick={() => onSelectTab('market')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-              activeTab === 'market'
-                ? 'bg-amber-400 text-neutral-950'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            Mercado
-          </button>
-          {!user && (
+    <>
+      {/* Top Header - Sin logo ni nombre, solo stats y control */}
+      <header className="bg-neutral-950 border-b border-neutral-800 sticky top-0 z-40 text-white">
+        <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+          {/* Navegación por iconos (Flaticons sin palabras) - Desktop / Tablet */}
+          <nav className="flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 p-1 rounded-xl">
             <button
-              onClick={() => onSelectTab('auth')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
-                activeTab === 'auth'
-                  ? 'bg-amber-400 text-neutral-950'
-                  : 'text-neutral-400 hover:text-white'
+              onClick={() => onSelectTab('standings')}
+              title="Clasificación"
+              aria-label="Clasificación"
+              className={`p-2.5 rounded-lg transition flex items-center justify-center ${
+                activeTab === 'standings'
+                  ? 'bg-amber-400 text-neutral-950 shadow-sm'
+                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
               }`}
             >
-              Iniciar Sesión
+              <Trophy className="h-5 w-5" />
             </button>
-          )}
-          {user && user.role === 'admin' && (
+
             <button
-              onClick={() => onSelectTab('admin')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap flex items-center gap-1 ${
-                activeTab === 'admin'
-                  ? 'bg-red-600 text-white'
-                  : 'text-red-400 hover:text-red-300'
+              onClick={() => onSelectTab('matchday')}
+              title="Partido y Votaciones"
+              aria-label="Partido y Votaciones"
+              className={`p-2.5 rounded-lg transition flex items-center justify-center ${
+                activeTab === 'matchday'
+                  ? 'bg-amber-400 text-neutral-950 shadow-sm'
+                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
               }`}
             >
-              <ShieldAlert className="h-3.5 w-3.5" />
-              Admin
+              <Calendar className="h-5 w-5" />
             </button>
-          )}
-        </nav>
 
-        {/* User Info / Auth Button */}
-        <div className="flex items-center gap-3">
-          {user ? (
-            <div className="flex items-center gap-3">
-              {/* Presupuesto */}
-              <div className="bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-                <Coins className="h-4 w-4 text-amber-400" />
-                <div>
-                  <p className="text-[10px] text-neutral-400 font-bold uppercase leading-none">Saldo</p>
-                  <p className="text-sm font-black text-white leading-tight">{user.budget}M€</p>
+            <button
+              onClick={() => onSelectTab('team')}
+              title="Mi Equipo"
+              aria-label="Mi Equipo"
+              className={`p-2.5 rounded-lg transition flex items-center justify-center ${
+                activeTab === 'team'
+                  ? 'bg-amber-400 text-neutral-950 shadow-sm'
+                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+              }`}
+            >
+              <Shield className="h-5 w-5" />
+            </button>
+
+            <button
+              onClick={() => onSelectTab('market')}
+              title="Mercado"
+              aria-label="Mercado"
+              className={`p-2.5 rounded-lg transition flex items-center justify-center ${
+                activeTab === 'market'
+                  ? 'bg-amber-400 text-neutral-950 shadow-sm'
+                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+              }`}
+            >
+              <ShoppingBag className="h-5 w-5" />
+            </button>
+
+            {!user && (
+              <button
+                onClick={() => onSelectTab('auth')}
+                title="Iniciar Sesión / Registro"
+                aria-label="Iniciar Sesión / Registro"
+                className={`p-2.5 rounded-lg transition flex items-center justify-center ${
+                  activeTab === 'auth'
+                    ? 'bg-amber-400 text-neutral-950 shadow-sm'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                }`}
+              >
+                <UserIcon className="h-5 w-5" />
+              </button>
+            )}
+
+            {user && user.role === 'admin' && (
+              <button
+                onClick={() => onSelectTab('admin')}
+                title="Panel de Administrador"
+                aria-label="Panel de Administrador"
+                className={`p-2.5 rounded-lg transition flex items-center justify-center ${
+                  activeTab === 'admin'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'text-red-400 hover:text-red-300 hover:bg-neutral-800'
+                }`}
+              >
+                <ShieldAlert className="h-5 w-5" />
+              </button>
+            )}
+          </nav>
+
+          {/* Información del usuario / Estado de sesión */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {user ? (
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Saldo Presupuesto */}
+                <div className="bg-neutral-900 border border-neutral-800 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs">
+                  <Coins className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="font-black text-white">{user.budget}M€</span>
+                </div>
+
+                {/* Puntos acumulados */}
+                <div className="bg-neutral-900 border border-neutral-800 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs">
+                  <Trophy className="h-3.5 w-3.5 text-yellow-400" />
+                  <span className="font-black text-white">{user.totalPoints} pts</span>
+                </div>
+
+                {/* Usuario y Logout */}
+                <div className="flex items-center gap-1 pl-1">
+                  <span className="text-xs font-bold text-neutral-300 hidden sm:inline">{user.username}</span>
+                  <button
+                    onClick={onLogout}
+                    title="Cerrar Sesión"
+                    aria-label="Cerrar Sesión"
+                    className="p-1.5 text-neutral-400 hover:text-red-400 hover:bg-neutral-900 rounded-lg transition"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-
-              {/* Puntos */}
-              <div className="bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-                <Trophy className="h-4 w-4 text-yellow-400" />
-                <div>
-                  <p className="text-[10px] text-neutral-400 font-bold uppercase leading-none">Puntos</p>
-                  <p className="text-sm font-black text-white leading-tight">{user.totalPoints} pts</p>
-                </div>
-              </div>
-
-              {/* Profile / Logout */}
-              <div className="flex items-center gap-1 pl-1">
-                <span className="text-xs font-bold text-neutral-300">{user.username}</span>
-                <button
-                  onClick={onLogout}
-                  title="Cerrar Sesión"
-                  className="p-1.5 text-neutral-400 hover:text-red-400 hover:bg-neutral-900 rounded-lg transition"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => onSelectTab('auth')}
-              className={`px-4 py-2 font-black rounded-xl text-xs uppercase tracking-wider transition ${
-                activeTab === 'auth'
-                  ? 'bg-amber-400 text-neutral-950'
-                  : 'bg-amber-500 hover:bg-amber-400 text-neutral-950'
-              }`}
-            >
-              Iniciar Sesión
-            </button>
-          )}
+            ) : (
+              <button
+                onClick={() => onSelectTab('auth')}
+                title="Iniciar Sesión"
+                aria-label="Iniciar Sesión"
+                className={`p-2 rounded-lg transition flex items-center gap-1.5 text-xs font-bold ${
+                  activeTab === 'auth'
+                    ? 'bg-amber-400 text-neutral-950'
+                    : 'bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white'
+                }`}
+              >
+                <UserIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Entrar</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Barra de navegación inferior móvil fija (Mobile Friendly Flaticon Bar) */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-neutral-950/95 border-t border-neutral-800 px-4 py-2 flex items-center justify-around backdrop-blur-md">
+        <button
+          onClick={() => onSelectTab('standings')}
+          title="Clasificación"
+          aria-label="Clasificación"
+          className={`p-2.5 rounded-xl transition flex flex-col items-center justify-center ${
+            activeTab === 'standings' ? 'text-amber-400 bg-neutral-900' : 'text-neutral-500'
+          }`}
+        >
+          <Trophy className="h-5 w-5" />
+        </button>
+
+        <button
+          onClick={() => onSelectTab('matchday')}
+          title="Partido y Votos"
+          aria-label="Partido y Votos"
+          className={`p-2.5 rounded-xl transition flex flex-col items-center justify-center ${
+            activeTab === 'matchday' ? 'text-amber-400 bg-neutral-900' : 'text-neutral-500'
+          }`}
+        >
+          <Calendar className="h-5 w-5" />
+        </button>
+
+        <button
+          onClick={() => onSelectTab('team')}
+          title="Mi Equipo"
+          aria-label="Mi Equipo"
+          className={`p-2.5 rounded-xl transition flex flex-col items-center justify-center ${
+            activeTab === 'team' ? 'text-amber-400 bg-neutral-900' : 'text-neutral-500'
+          }`}
+        >
+          <Shield className="h-5 w-5" />
+        </button>
+
+        <button
+          onClick={() => onSelectTab('market')}
+          title="Mercado"
+          aria-label="Mercado"
+          className={`p-2.5 rounded-xl transition flex flex-col items-center justify-center ${
+            activeTab === 'market' ? 'text-amber-400 bg-neutral-900' : 'text-neutral-500'
+          }`}
+        >
+          <ShoppingBag className="h-5 w-5" />
+        </button>
+
+        {!user ? (
+          <button
+            onClick={() => onSelectTab('auth')}
+            title="Iniciar Sesión"
+            aria-label="Iniciar Sesión"
+            className={`p-2.5 rounded-xl transition flex flex-col items-center justify-center ${
+              activeTab === 'auth' ? 'text-amber-400 bg-neutral-900' : 'text-neutral-500'
+            }`}
+          >
+            <UserIcon className="h-5 w-5" />
+          </button>
+        ) : user.role === 'admin' ? (
+          <button
+            onClick={() => onSelectTab('admin')}
+            title="Admin"
+            aria-label="Admin"
+            className={`p-2.5 rounded-xl transition flex flex-col items-center justify-center ${
+              activeTab === 'admin' ? 'text-red-400 bg-neutral-900' : 'text-neutral-500'
+            }`}
+          >
+            <ShieldAlert className="h-5 w-5" />
+          </button>
+        ) : null}
+      </nav>
+    </>
   );
 }

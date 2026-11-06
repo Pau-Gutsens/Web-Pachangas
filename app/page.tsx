@@ -53,7 +53,7 @@ export default function EGOLApp() {
       />
 
       {/* Contenido Principal según la pestaña seleccionada */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 pb-24 sm:pb-8">
         {/* 1. Mi Equipo */}
         {activeTab === 'team' && (
           <MyTeamView
@@ -107,14 +107,6 @@ export default function EGOLApp() {
           />
         )}
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-neutral-900 py-6 text-center text-xs text-neutral-600">
-        <p className="flex items-center justify-center gap-1.5 font-semibold text-neutral-400">
-          <img src="/logo.png" alt="EGOL" className="h-4 w-4 object-contain inline" />
-          EGOL FANTASY &bull; Liga Privada de Pachangas
-        </p>
-      </footer>
     </div>
   );
 }

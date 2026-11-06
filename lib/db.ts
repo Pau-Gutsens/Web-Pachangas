@@ -382,7 +382,9 @@ export const egolDb = {
     const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw';
     const users = this.getUsers();
 
-    Object.values(users).forEach((u: { password: string; account: UserAccount }) => {
+    const userList = Object.keys(users).map(k => users[k]);
+
+    userList.forEach(u => {
       let matchPoints = 0;
       u.account.starterPlayerIds.forEach(pId => {
         const playerStat = stats[pId];
@@ -482,8 +484,8 @@ export const egolDb = {
   // ==========================================
   getLeaderboard(): UserAccount[] {
     const users = this.getUsers();
-    return Object.values(users)
-      .map(u => u.account)
+    return Object.keys(users)
+      .map(k => users[k].account)
       .sort((a, b) => b.totalPoints - a.totalPoints);
   }
 };
