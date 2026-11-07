@@ -23,7 +23,6 @@ function setStorage<T>(key: string, value: T): void {
   }
 }
 
-// Initial Admin User (Pagusa)
 const DEFAULT_USERS: Record<string, { password: string; account: UserAccount }> = {
   pagusa: {
     password: '#Pagusa515',
@@ -31,7 +30,7 @@ const DEFAULT_USERS: Record<string, { password: string; account: UserAccount }> 
       id: 'u-pagusa',
       username: 'Pagusa',
       role: 'admin',
-      budget: 100, // 100 Millones
+      budget: 100,
       ownedPlayerIds: [],
       starterPlayerIds: [],
       totalPoints: 0,
@@ -41,9 +40,6 @@ const DEFAULT_USERS: Record<string, { password: string; account: UserAccount }> 
 };
 
 export const egolDb = {
-  // ==========================================
-  // AUTHENTICATION
-  // ==========================================
   getCurrentUser(): UserAccount | null {
     const user = getStorage<UserAccount | null>('session_user', null);
     if (user && user.username.toLowerCase() === 'pau') {
@@ -57,18 +53,16 @@ export const egolDb = {
 
   getUsers(): Record<string, { password: string; account: UserAccount }> {
     const users = getStorage<Record<string, { password: string; account: UserAccount }>>('users', DEFAULT_USERS);
-    let changed = false;
-    if (users['pau']) {
-      delete users['pau'];
-      changed = true;
-    }
+
     if (!users['pagusa']) {
       users['pagusa'] = DEFAULT_USERS.pagusa;
-      changed = true;
     }
-    if (changed) {
-      setStorage('users', users);
+
+    if (users['pau']) {
+      delete users['pau'];
     }
+
+    setStorage('users', users);
     return users;
   },
 
@@ -108,7 +102,7 @@ export const egolDb = {
       username: username.trim(),
       role: isAdmin ? 'admin' : isGuest ? 'guest' : 'user',
       isGuest,
-      budget: 100, // Cada usuario empieza con 100 millones
+      budget: 100,
       ownedPlayerIds: [],
       starterPlayerIds: [],
       totalPoints: 0,
@@ -144,9 +138,6 @@ export const egolDb = {
     }
   },
 
-  // ==========================================
-  // PLAYERS & MARKET
-  // ==========================================
   getPlayers(): Player[] {
     const list = getStorage<Player[]>('players', INITIAL_PLAYERS);
     const cleaned = list.filter(p => !/^jugador/i.test(p.name.trim()));
@@ -171,7 +162,7 @@ export const egolDb = {
       name: name.trim(),
       isGuest,
       avatarUrl: avatarUrl || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80`,
-      currentPrice: 20, // 20 Millones iniciales
+      currentPrice: 20,
       previousPrice: 20,
       priceChangePct: 0,
       averageRating: 0,
@@ -184,9 +175,6 @@ export const egolDb = {
     return newPlayer;
   },
 
-  // ==========================================
-  // USER TEAM: BUY / SELL / STARTERS
-  // ==========================================
   buyPlayer(userId: string, playerId: string): { success: boolean; message: string; user?: UserAccount } {
     const users = this.getUsers();
     const currentUser = this.getCurrentUser();
@@ -211,12 +199,10 @@ export const egolDb = {
     currentUser.budget = Math.round((currentUser.budget - player.currentPrice) * 10) / 10;
     currentUser.ownedPlayerIds.push(playerId);
 
-    // Si tiene menos de 5 titulares, añadirlo a titulares automáticamente
     if (currentUser.starterPlayerIds.length < 5) {
       currentUser.starterPlayerIds.push(playerId);
     }
 
-    // Guardar usuario
     const cleanUser = currentUser.username.toLowerCase();
     users[cleanUser].account = currentUser;
     setStorage('users', users);
@@ -242,7 +228,6 @@ export const egolDb = {
     currentUser.ownedPlayerIds = currentUser.ownedPlayerIds.filter(id => id !== playerId);
     currentUser.starterPlayerIds = currentUser.starterPlayerIds.filter(id => id !== playerId);
 
-    // Guardar usuario
     const cleanUser = currentUser.username.toLowerCase();
     users[cleanUser].account = currentUser;
     setStorage('users', users);
@@ -269,9 +254,6 @@ export const egolDb = {
     return { success: true, message: 'Alineación de titulares actualizada.', user: currentUser };
   },
 
-  // ==========================================
-  // MATCHES & CONVOCATORIAS
-  // ==========================================
   getMatches(): PachangaMatch[] {
     return getStorage<PachangaMatch[]>('matches', []);
   },
@@ -285,8 +267,8 @@ export const egolDb = {
     const newMatch: PachangaMatch = {
       id: 'm-' + Math.random().toString(36).substring(2, 9),
       date: payload.date,
-      startTime: payload.startTime, // ej: "17:00"
-      endTime: payload.endTime,     // ej: "18:30"
+      startTime: payload.startTime,
+      endTime: payload.endTime,
       format: payload.format || 5,
       status: 'upcoming',
       teamA: [],
@@ -319,9 +301,6 @@ export const egolDb = {
     return match;
   },
 
-  // ==========================================
-  // MATCH ACTA & POST-MATCH SCORING
-  // ==========================================
   recordMatchActa(
     matchId: string,
     scoreA: number,
@@ -353,7 +332,7 @@ export const egolDb = {
     match.scoreA = scoreA;
     match.scoreB = scoreB;
     match.playerStats = stats;
-    match.status = 'voting'; // Abre las votaciones 1-10
+    match.status = 'voting';
 
     if (rawMatchData) {
       match.rawMatchData = rawMatchData;
@@ -362,7 +341,6 @@ export const egolDb = {
       match.rawVotes = rawVotes;
     }
 
-    // Calcular fecha de cierre (48 horas después del fin del partido)
     const [hours, minutes] = match.endTime.split(':').map(Number);
     const matchDateTime = new Date(`${match.date}T${match.endTime}:00`);
     const closedDateTime = new Date(matchDateTime.getTime() + 48 * 60 * 60 * 1000);
@@ -370,7 +348,6 @@ export const egolDb = {
 
     setStorage('matches', matches);
 
-    // Actualizar estadísticas acumuladas de jugadores
     const players = this.getPlayers();
     Object.entries(stats).forEach(([pId, st]) => {
       const p = players.find(pl => pl.id === pId);
@@ -382,7 +359,6 @@ export const egolDb = {
         p.stats.goalsAgainst += st.goalsAgainst;
         p.stats.matchesPlayed += 1;
 
-        // Actualización dinámica de precio y porcentaje (valores enteros en millones)
         const keeperPoints = (st.saves > 0 || st.goalsAgainst > 0) ? getGoalsAgainstPoints(st.goalsAgainst) : 0;
         const matchPerformance = (st.goals * 3) + (st.assists * 2) + (st.saves * 1) + keeperPoints - (st.ownGoals * 2);
         const changePercent = Math.min(25, Math.max(-20, Math.round(matchPerformance * 1.5)));
@@ -394,7 +370,6 @@ export const egolDb = {
     });
     setStorage('players', players);
 
-    // Calcular puntos de fantasy para los usuarios según sus titulares (PUNTOS ENTEROS)
     const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw';
     const users = this.getUsers();
 
@@ -405,16 +380,12 @@ export const egolDb = {
       u.account.starterPlayerIds.forEach(pId => {
         const playerStat = stats[pId];
         if (playerStat) {
-          // Puntuación oficial EGOL (Enteros):
-          // Goles +3, Asistencias +2, Paradas +1, Autogol -2
           let pts = (playerStat.goals * 3) + (playerStat.assists * 2) + (playerStat.saves * 1) - (playerStat.ownGoals * 2);
 
-          // Tramos de goles encajados si intervino como portero (paradas > 0 o goles encajados > 0)
           if (playerStat.saves > 0 || playerStat.goalsAgainst > 0) {
             pts += getGoalsAgainstPoints(playerStat.goalsAgainst);
           }
 
-          // Bono por victoria si su equipo ganó (+2 pts)
           if (winnerTeam === 'A' && match.teamA.includes(pId)) pts += 2;
           if (winnerTeam === 'B' && match.teamB.includes(pId)) pts += 2;
 
@@ -427,7 +398,6 @@ export const egolDb = {
     });
     setStorage('users', users);
 
-    // Actualizar sesión actual
     const currentSession = this.getCurrentUser();
     if (currentSession && users[currentSession.username.toLowerCase()]) {
       setStorage('session_user', users[currentSession.username.toLowerCase()].account);
@@ -436,9 +406,6 @@ export const egolDb = {
     return { success: true, match };
   },
 
-  // ==========================================
-  // COMMUNITY PLAYER RATINGS (1 al 10)
-  // ==========================================
   isUserGuest(username?: string | null): boolean {
     if (!username) return false;
     const clean = username.trim().toLowerCase();
@@ -457,7 +424,6 @@ export const egolDb = {
     const match = matches.find(m => m.id === matchId);
     if (!match) return { success: false, message: 'Partido no encontrado.' };
 
-    // Validar que no haya votado ya
     if (match.rawVotes && match.rawVotes[voterUsername.toLowerCase()]) {
       return { success: false, message: 'Ya has enviado tu votación para este partido.' };
     }
@@ -466,25 +432,15 @@ export const egolDb = {
       match.rawVotes = {};
     }
 
-    // Construir el ranking: orden de IDs de jugadores
     const sortedIds = Object.keys(ratings);
     match.rawVotes[voterUsername.toLowerCase()] = sortedIds;
 
     setStorage('matches', matches);
 
-    // Recalcular medias en los jugadores
     const players = this.getPlayers();
 
-    // Para recalcular medias de forma eficiente, necesitamos procesar todos los rankings guardados
-    // Pero como esto es un "micro-paso", solo actualizaremos la media basada en los rankings existentes.
-
-    // Nota: Para no complicar demasiado este paso, asumiremos que la UI enviará el ranking de forma que podamos procesarlo.
-    // Si la UI envía un objeto, el orden de las llaves es impredecible.
-    // Revisemos cómo se envía esto en el frontend...
-    // Como no puedo ver el frontend ahora, haré una implementación genérica.
-
-    // ... (Lógica de recalculo de medias basada en los rankings en rawVotes)
-    // Por ahora, solo guardamos el ranking. El recalculo de medias se hará en un paso posterior o se integrará aquí.
+    // Logic for recalculating average ratings based on rawVotes would go here
+    // For now, we just save the ranking.
 
     return { success: true, message: '¡Calificaciones guardadas! La nota media de los jugadores ha sido actualizada.' };
   },
@@ -499,9 +455,6 @@ export const egolDb = {
     return res;
   },
 
-  // ==========================================
-  // LEADERBOARD
-  // ==========================================
   getLeaderboard(): UserAccount[] {
     const users = this.getUsers();
     return Object.keys(users)
