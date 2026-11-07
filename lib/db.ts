@@ -40,9 +40,7 @@ const DEFAULT_USERS: Record<string, { password: string; account: UserAccount }> 
   }
 };
 
-export const db = egolDb as any;
-
-const egolDb = {
+export const egolDb = {
   // ==========================================
   // AUTHENTICATION
   // ==========================================
@@ -511,3 +509,5 @@ const egolDb = {
       .sort((a, b) => b.totalPoints - a.totalPoints);
   }
 };
+
+export const db = egolDb as any;
