@@ -9,7 +9,7 @@ export interface UserAccount {
   ownedPlayerIds: string[]; // Max 6 players
   starterPlayerIds: string[]; // Exactly 5 starters when full
   totalPoints: number;
-  lastMatchPoints?: number;
+  lastMatchPoints: number;
 }
 
 export interface PlayerStatsSummary {
@@ -52,6 +52,19 @@ export interface PachangaMatch {
     saves: number;
     goalsAgainst: number;
   }>;
+  rawMatchData?: {
+    goals: {
+      playerId: string;
+      assistantId?: string;
+    }[];
+    ownGoals: {
+      playerId: string;
+    }[];
+    scoreA: number;
+    scoreB: number;
+  };
+  rawVotes?: Record<string, number[]>; // voterUsername -> order of playerIds
+  votingClosedAt?: string | null;
 }
 
 export interface PlayerRatingVote {

@@ -1,29 +1,34 @@
-import { Member } from '../types';
+/**
+ * Configuración de puntuación y reglas de negocio de EGOL Fantasy
+ * Basado en CAMBIOS_PUNTUACION.md
+ */
+import { SCORING_CONSTANTS } from './constants';
+
+export const SCORING_CONFIG = {
+  POINTS: {
+    GOAL: 3,
+    ASSIST: 2,
+    SAVE: 1,
+    OWN_GOAL: -2,
+    WIN: 2,
+    MVP: 3,
+  },
+  GOALS_AGAINST_BRACKETS: [
+    { max: 0, pts: 10 },
+    { max: 3, pts: 5 },
+    { max: 5, pts: 3 },
+    { max: 7, pts: 2 },
+    { max: 10, pts: 1 },
+    { max: Infinity, pts: 0 },
+  ],
+};
 
 /**
- * Reglas de puntuación oficial EGOL Fantasy (Puntos enteros, sin decimales):
- * - Gol: +3 pts
- * - Asistencia: +2 pts
- * - Parada: +1 pt
- * - Autogol: -2 pts
- * - Victoria del equipo: +2 pts
- * 
- * Escala por tramos de goles encajados (para porteros / defensa en meta):
- * - 0 goles encajados: +10 pts (portería a 0)
- * - 1 a 3 goles encajados: +5 pts
- * - 4 a 5 goles encajados: +3 pts
- * - 6 a 7 goles encajados: +2 pts
- * - 8 a 10 goles encajados: +1 pt
- * - Más de 10 goles: 0 pts
+ * Obtiene puntos por goles encajados basados en los tramos configurados.
  */
-
 export function getGoalsAgainstPoints(goalsAgainst: number): number {
-  if (goalsAgainst <= 0) return 10;
-  if (goalsAgainst <= 3) return 5;
-  if (goalsAgainst <= 5) return 3;
-  if (goalsAgainst <= 7) return 2;
-  if (goalsAgainst <= 10) return 1;
-  return 0;
+  const bracket = SCORING_CONFIG.GOALS_AGAINST_BRACKETS.find(b => goalsAgainst <= b.max);
+  return bracket ? bracket.pts : 0;
 }
 
 export type PlayerStatType = 'goal' | 'assist' | 'own_goal' | 'save' | 'goal_against' | 'mvp' | 'win';
@@ -47,22 +52,53 @@ export const calculatePlayerPoints = (
 ): number => {
   switch (playerStat.type) {
     case 'goal':
-      return playerStat.value * 3;
+      return playerStat.value * SCORING_CONFIG.POINTS.GOAL;
     case 'assist':
-      return playerStat.value * 2;
+      return playerStat.value * SCORING_CONFIG.POINTS.ASSIST;
     case 'own_goal':
-      return -(playerStat.value * 2);
+      return playerStat.value * SCORING_CONFIG.POINTS.OWN_GOAL;
     case 'win':
-      return playerStat.value * 2;
+      return playerStat.value * SCORING_CONFIG.POINTS.WIN;
     case 'mvp':
-      return playerStat.value * 3;
+      return playerStat.value * SCORING_CONFIG.POINTS.MVP;
     case 'save':
-      return playerStat.value * 1;
+      return playerStat.value * SCORING_CONFIG.POINTS.SAVE;
     case 'goal_against':
       return getGoalsAgainstPoints(playerStat.value);
     default:
       return 0;
   }
+};
+
+/**
+ * Calcula la parte subjetiva (0-10) de un jugador basada en el ranking de votos.
+ *
+ * @param playerRank - La posición media del jugador (P)
+ * @param m - El número total de jugadores que cada votante debe ordenar (n - 1)
+ * @param totalVoters - El número total de votantes en la pachanga
+ * @returns La puntuación subjetiva (N_subj) redondeada a entero.
+ */
+export function calculateSubjectiveScore(
+  playerRank: number,
+  m: number,
+  totalVoters: number
+): number {
+  if (totalVoters < SCORING_CONSTANTS.SUBJETIVO.MIN_VOTANTES_PARA_NEUTRO) {
+    return SCORING_CONSTANTS.SUBJETIVO.NEUTRO;
+  }
+
+  // N_subj = 10 * (m - P) / (m - 1)
+  const score = 10 * (m - playerRank) / (m - 1);
+  return Math.round(score);
+}
+
+export const calculateObjectiveScore = (
+  bruto: number
+): number => {
+  const tope = SCORING_CONSTANTS.OBJETIVO.TOPE_OBJ;
+  const clamped = Math.min(tope, Math.max(0, bruto));
+  const score = 10 * clamped / tope;
+  return Math.round(score);
 };
 
 export const calculatePachangaScores = (
@@ -96,4 +132,3 @@ export const calculatePachangaScores = (
 
   return managerTotals;
 };
-

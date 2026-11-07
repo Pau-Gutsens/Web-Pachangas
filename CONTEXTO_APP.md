@@ -1,87 +1,87 @@
 # 👑 EGOL FANTASY — Guía y Contexto Completo de la Aplicación
 
-Documento oficial de referencia sobre la arquitectura, reglas del juego, economía, sistema de puntuación y funcionamiento técnico de la plataforma **EGOL Fantasy** (Web-Pachangas).
+Documento de referencia sobre la arquitectura, reglas del juego, economía, sistema de puntuación y funcionamiento técnico de **EGOL Fantasy** (Web-Pachangas).
+
+> **Fuente de verdad de la puntuación:** `CAMBIOS_PUNTUACION.md`. Esta guía lo resume; si hay cualquier diferencia, manda ese archivo.
 
 ---
 
 ## 1. Visión General del Proyecto
-**EGOL Fantasy** es una plataforma Fantasy moderna, rápida y adaptada al fútbol amateur ("pachangas de barrio" 5 vs 5 / 7 vs 7). A diferencia de los juegos comerciales rígidos, EGOL Fantasy está optimizado bajo la filosofía **"Set & Forget"** (Configura y Olvídate) con estética premium oscura y dorada (*Dark & Gold*), logo de escudo oficial y acceso adaptado a dispositivos móviles.
+**EGOL Fantasy** es una plataforma Fantasy para las pachangas de un grupo de amigos (unos 15 integrantes, formato 5 vs 5 / 6 vs 6). Las pachangas se juegan cada cierto tiempo, no cada semana; no viene todo el mundo ni los equipos son siempre los mismos. Filosofía **"Set & Forget"** con estética oscura y dorada (*Dark & Gold*), logo de escudo y acceso adaptado a móvil.
 
 ---
 
 ## 2. Economía y Mercado de Fichajes
-- **Presupuesto inicial**: Cada nuevo usuario registrado comienza con un capital de **100 Millones de euros (100M€)**.
-- **Precio base de los jugadores**: Todos los jugadores inician en el mercado con un valor de **20 Millones de euros (20M€)**.
-- **Límites de plantilla**:
-  - Máximo de **6 jugadores en propiedad** (5 titulares + 1 suplente/reserva).
-  - No hay mínimo obligatorio para tener menos jugadores.
-  - Para disputar y puntuar en la jornada debes alinear a tus **5 titulares**.
-- **Plantilla única y persistente**: Cada usuario mantiene su equipo entre jornadas. Para cambiar jugadores de cara al siguiente partido, simplemente acude al mercado, vende a uno y ficha a otro.
-- **Mercado 24/7**:
-  - En el mercado siempre están disponibles todos los jugadores de la liga.
-  - Cada tarjeta de jugador muestra: fotografía, nombre, precio actual en millones (ej. `20M€`) y el **porcentaje de variación** respecto al precio anterior (ej. `+10%`, `-5%`).
-  - Los invitados se muestran como jugadores normales con la etiqueta `(invitado)` al lado de su nombre.
-  - Los valores se recalculan automáticamente tras cada jornada según el rendimiento deportivo (sin decimales extraños).
+- **Presupuesto inicial**: cada usuario empieza con **100 M€**.
+- **Precio base de los jugadores**: **20 M€**.
+- **Límites de plantilla**: máximo **6 jugadores** (5 titulares + 1 reserva). Para puntuar en la jornada hay que alinear a los **5 titulares**.
+- **Plantilla persistente**: cada usuario mantiene su equipo entre jornadas y cambia jugadores vendiendo y fichando en el mercado.
+- **Mercado 24/7**: todos los jugadores de la liga están siempre disponibles. Cada tarjeta muestra foto, nombre, precio en millones y la variación respecto al precio anterior (ej. `+10%`, `-5%`).
+- **Invitados**: son jugadores normales con la etiqueta `(invitado)` junto al nombre. Vienen nunca o casi nunca.
+- **Variación de precio tras cada jornada**:
+  - `variacion_% = 15 × (puntos − media_de_puntos_de_esa_jornada) / 10`, limitada a **±15 %**.
+  - La media de puntos de esa jornada es el punto neutro, para que el mercado no se infle ni se hunda.
+  - Valores siempre en millones, sin decimales extraños.
 
 ---
 
-## 3. Sistema Oficial de Puntuación EGOL (Puntos Enteros)
-> [!IMPORTANT]
-> **Sin decimales**: Todas las puntuaciones de las jornadas son números enteros redondeados para evitar confusiones y piques matemáticos.
+## 3. Sistema Oficial de Puntuación EGOL (puntos enteros)
+Cada jugador puntúa de **0 a 20** por pachanga:
 
-### 🧤 Tramos de Goles Encajados en Portería
-Para evitar que los jugadores que defienden la meta solo resten puntos, se premia la labor defensiva mediante tramos de solidez:
-- **0 goles encajados (portería imbatida)**: **+10 pts**
-- **1 a 3 goles encajados**: **+5 pts**
-- **4 a 5 goles encajados**: **+3 pts**
-- **6 a 7 goles encajados**: **+2 pts**
-- **8 a 10 goles encajados**: **+1 pt**
-- **Más de 10 goles encajados**: **0 pts**
+`puntos = parte_subjetiva (0-10) + parte_objetiva (0-10)`, cada parte redondeada a entero.
 
-### ⚽ Estadísticas de Partido
-- **Gol marcado**: **+3 pts**
-- **Asistencia de gol**: **+2 pts**
-- **Parada**: **+1 pt**
-- **Autogol / Gol en propia meta**: **-2 pts**
-- **Victoria de equipo** (si su equipo gana el partido): **+2 pts**
+Los puntos de cada manager son la suma de los de sus 5 titulares.
 
-### 🔄 "Tots poden ser tot" (Flexibilidad Total)
-En el fútbol amateur cualquiera puede rotar a la portería o subir al ataque. En el acta estadística **se eliminó el recuadro restrictivo de seleccionar portero**:
-- Todos los jugadores disponen de los campos de Goles, Asistencias, Paradas, Goles Encajados y Autogoles.
-- Si un jugador tiene registradas paradas o goles encajados, se le aplica automáticamente la bonificación por tramos de portería.
+### 3.1 Acta del admin (lo mínimo)
+Quien descansa durante el partido apunta solo:
+- Cada **gol**: goleador y, si hubo, asistente.
+- **Autogoles**.
+
+El resultado sale de la suma de goles. **No hay** paradas, goles encajados por jugador, casilla de portero ni bonus por tramos de portería.
+
+### 3.2 Parte subjetiva (ranking, 0-10)
+- Al cerrar el acta se abre la votación. Votan solo los usuarios **convocados**, de forma anónima y sin votarse a sí mismos.
+- Cada votante **ordena a todos los demás participantes** (invitados incluidos) del 1 (mejor) al `m`, sin repetir posiciones y con el ranking completo.
+- `n` = participantes de la pachanga y `m = n − 1`.
+- `P = 0.5 × P_compañeros + 0.5 × P_rivales` (si un grupo tiene menos de 2 votos, `P` es la media de todas las posiciones).
+- `N_subj = 10 × (m − P) / (m − 1)`, redondeado.
+- Con menos de **4 votantes**, la parte subjetiva de todos es **5**.
+
+### 3.3 Parte objetiva (0-10)
+Puntos en bruto:
+- Gol **+3**, asistencia **+1**, autogol **−2**.
+- Victoria **+3**, empate **+1**, derrota **0**.
+- **MVP +3**: el jugador con mejor nota subjetiva (empate: el de más puntos en bruto).
+
+Conversión: `N_obj = 10 × clamp(bruto, 0, 20) / 20` (`OBJETIVO_MODO = "tope"`, `TOPE_OBJ = 20`).
+
+### 3.4 Ciclo de votación y datos en bruto
+- La votación se cierra cuando han votado todos los convocados o a las **48 h**.
+- Los puntos finales y la clasificación se publican al cerrar la votación (antes, "pendiente de votos").
+- Se guardan siempre los **datos en bruto** (goles, asistencias, autogoles, resultado y cada ranking completo). Los puntos y los precios se calculan a partir de ellos y de las constantes de configuración, así que cambiar una constante recalcula el historial.
+- **Nota media del cromo**: media de temporada de `N_subj`, ajustada con `(suma + 2 × media_del_grupo) / (pachangas + 2)`. Hasta 3 pachangas con nota se muestra "—".
 
 ---
 
-## 4. Partidos, Horarios y Calificaciones Comunitarias (1 al 10)
-1. **Creación con Horario**: Al crear una pachanga, el administrador define:
-   - Fecha del partido.
-   - Hora de inicio (ej. `17:00`).
-   - Hora de finalización (ej. `18:30`).
-   - Formato (ej. 5 vs 5).
-2. **Votaciones Post-Partido**:
-   - Una vez finalizada la hora del partido (o cuando el administrador cierra el acta), se abre automáticamente el panel de votación comunitaria en la pestaña **"Partido y Votos"**.
-   - Cada usuario puntúa el rendimiento de los jugadores convocados entre **1 y 10**.
-   - El sistema calcula la **nota media comunitaria** de cada jugador y la exhibe en su cromo hasta el siguiente encuentro que dispute.
+## 4. Partidos y Horarios
+Al crear una pachanga, el administrador define fecha, hora de inicio, hora de fin y formato (ej. 5 vs 5). Después convoca a los jugadores en Equipo A y Equipo B.
 
 ---
 
 ## 5. Control de Accesos y Roles
-- **Usuarios Estándar**: Acceso exclusivo y enfocado a las 4 vistas clave:
-  1. **Mi Equipo**: Gestión de tus 5 titulares + 1 reserva y alineación.
-  2. **Mercado**: Compra y venta de jugadores con visualización de precios y tendencias.
-  3. **Partido del Día**: Horario, convocatoria de equipos A vs B y calificaciones 1-10.
-  4. **Clasificación**: Tabla general acumulada de puntos entre todos los mánagers.
-- **Administrador (Pagusa)**:
-  - Solo Pagusa tiene acceso a la pestaña y ruta `/admin`.
-  - Herramientas exclusivas: Crear nuevos partidos con horario, convocar jugadores a Equipo A y Equipo B, registrar nuevos fichajes/invitados y rellenar y publicar el acta final del partido.
+- **Usuarios estándar**: cuatro vistas.
+  1. **Mi Equipo**: 5 titulares + 1 reserva.
+  2. **Mercado**: compra y venta con precios y tendencias.
+  3. **Partido del Día**: horario, equipos A vs B y votación por ranking.
+  4. **Clasificación**: tabla general acumulada de los managers.
+- **Administrador (Pagusa)**: único con acceso a `/admin`. Puede crear partidos con horario, convocar jugadores a los equipos, registrar fichajes e invitados, y rellenar y publicar el acta.
 
 ---
 
 ## 6. Autenticación y Seguridad
-- Acceso con **Usuario y Contraseña**.
-- Selector de visibilidad con botón de **ojo** (mostrar/ocultar contraseña).
-- Sistema de recuperación rápida de contraseña en caso de olvido.
-- Persistencia optimizada de sesiones y datos.
+- Usuario y contraseña, con botón de ojo para mostrar u ocultar la contraseña.
+- Recuperación rápida de contraseña.
+- Sesiones y datos persistentes.
 
 ---
 
@@ -89,29 +89,39 @@ En el fútbol amateur cualquiera puede rotar a la portería o subir al ataque. E
 ```
 Web-Pachangas/
 ├── app/
-│   ├── admin/page.tsx         # Vista protegida del panel de administración
-│   ├── api/pachangas/         # Endpoints Next.js compatibles
+│   ├── admin/page.tsx         # Panel de administración (protegido)
+│   ├── api/pachangas/         # Endpoints
 │   ├── globals.css            # Estilos globales y paleta dark/gold
-│   ├── layout.tsx             # Layout raíz con viewport y fuentes
-│   └── page.tsx               # Aplicación principal con cambio de pestañas
+│   ├── layout.tsx             # Layout raíz
+│   └── page.tsx               # Aplicación principal con pestañas
 ├── components/
-│   ├── AdminView.tsx          # Gestión de partidos, actas y altas
-│   ├── AuthView.tsx           # Pantalla y pestaña dedicada de Login, Registro y Recuperación
-│   ├── LeaderboardView.tsx    # Clasificación general de mánagers
-│   ├── MarketView.tsx         # Mercado 24/7 con fotos, precios y %
-│   ├── MatchDayView.tsx       # Partido activo y votaciones 1 al 10
-│   ├── MyTeamView.tsx         # Gestión de 5 titulares + reserva
-│   └── Navbar.tsx             # Navegación superior con logo oficial
+│   ├── AdminView.tsx          # Partidos, acta mínima y altas
+│   ├── AuthView.tsx           # Login, registro y recuperación
+│   ├── LeaderboardView.tsx    # Clasificación de mánagers
+│   ├── MarketView.tsx         # Mercado 24/7
+│   ├── MatchDayView.tsx       # Partido activo y votación por ranking
+│   ├── MyTeamView.tsx         # 5 titulares + reserva
+│   └── Navbar.tsx             # Navegación y logo
 ├── lib/
-│   ├── db.ts                  # Capa de datos, auth, cálculo de puntos y actas
-│   ├── scoring.ts             # Motor matemático de puntuación entera
-│   ├── seed.ts                # Jugadores y datos base iniciales
-│   └── supabase.ts            # Cliente Supabase preparado
+│   ├── config.ts              # Todas las constantes (TOPE_OBJ, OBJETIVO_MODO, ±15 %, mínimo de votantes...)
+│   ├── db.ts                  # Datos, auth, actas y votos (datos en bruto)
+│   ├── scoring.ts             # Motor de puntuación y precios, calculados desde los datos en bruto
+│   ├── seed.ts                # Datos iniciales
+│   └── supabase.ts            # Cliente Supabase
 ├── public/
 │   └── logo.png               # Escudo oficial dorado EGOL
 ├── types/
-│   └── index.ts               # Tipos TypeScript centralizados
+│   └── index.ts               # Tipos TypeScript
 ├── CONTEXTO_APP.md            # Este documento
-└── package.json               # Dependencias del proyecto
+├── CAMBIOS_PUNTUACION.md      # Fuente de verdad de la puntuación
+└── package.json
 ```
 
+---
+
+## 8. Descartado a propósito (no implementar)
+- Paradas y goles encajados por jugador, casilla de portero y bonus por tramos de portería.
+- Bonus de victoria a los managers.
+- Bonus de equipo por encajar pocos goles.
+- Votación de MVP aparte.
+- Cualquier cálculo de puntos que no parta de los datos en bruto.
