@@ -17,8 +17,15 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE TABLE IF NOT EXISTS pachangas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   date TIMESTAMPTZ NOT NULL,
-  status TEXT NOT NULL DEFAULT 'draft',
+  start_time TEXT DEFAULT '17:00',
+  end_time TEXT DEFAULT '18:30',
+  status TEXT NOT NULL DEFAULT 'upcoming',
   format INTEGER NOT NULL DEFAULT 5,
+  team_a JSONB DEFAULT '[]'::jsonb,
+  team_b JSONB DEFAULT '[]'::jsonb,
+  score_a INTEGER,
+  score_b INTEGER,
+  player_stats JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

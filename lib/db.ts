@@ -336,16 +336,44 @@ export const egolDb = {
       console.error('Error fetching matches:', error);
       return [];
     }
-    return data as PachangaMatch[];
+
+    return (data || []).map((m: any) => ({
+      id: m.id,
+      date: m.date ? (typeof m.date === 'string' ? m.date.split('T')[0] : new Date(m.date).toISOString().split('T')[0]) : '',
+      startTime: m.start_time || m.startTime || '17:00',
+      endTime: m.end_time || m.endTime || '18:30',
+      format: m.format || 5,
+      status: (m.status as any) || 'upcoming',
+      teamA: Array.isArray(m.team_a) ? m.team_a : (Array.isArray(m.teamA) ? m.teamA : []),
+      teamB: Array.isArray(m.team_b) ? m.team_b : (Array.isArray(m.teamB) ? m.teamB : []),
+      scoreA: m.score_a !== undefined ? m.score_a : m.scoreA,
+      scoreB: m.score_b !== undefined ? m.score_b : m.scoreB,
+      playerStats: m.player_stats || m.playerStats || {}
+    }));
   },
 
   async getMatch(id: string): Promise<PachangaMatch | undefined> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('pachangas')
       .select('*')
       .eq('id', id)
-      .single();
-    return data as PachangaMatch;
+      .maybeSingle();
+
+    if (error || !data) return undefined;
+
+    return {
+      id: data.id,
+      date: data.date ? (typeof data.date === 'string' ? data.date.split('T')[0] : new Date(data.date).toISOString().split('T')[0]) : '',
+      startTime: data.start_time || data.startTime || '17:00',
+      endTime: data.end_time || data.endTime || '18:30',
+      format: data.format || 5,
+      status: data.status || 'upcoming',
+      teamA: Array.isArray(data.team_a) ? data.team_a : (Array.isArray(data.teamA) ? data.teamA : []),
+      teamB: Array.isArray(data.team_b) ? data.team_b : (Array.isArray(data.teamB) ? data.teamB : []),
+      scoreA: data.score_a !== undefined ? data.score_a : data.scoreA,
+      scoreB: data.score_b !== undefined ? data.score_b : data.scoreB,
+      playerStats: data.player_stats || data.playerStats || {}
+    };
   },
 
   async createMatch(payload: { date: string; startTime: string; endTime: string; format: number }): Promise<PachangaMatch> {
@@ -353,36 +381,86 @@ export const egolDb = {
       .from('pachangas')
       .insert({
         date: payload.date,
+        start_time: payload.startTime,
+        end_time: payload.endTime,
         status: 'upcoming',
         format: payload.format || 5,
-        team_a: [], // Nota: Supabase usa nombres de columna diferentes a veces
+        team_a: [],
         team_b: []
       })
       .select()
       .single();
 
-    if (error) throw error;
-    return data as PachangaMatch;
+    if (error) {
+      console.error('Error creating match:', error);
+      throw error;
+    }
+
+    return {
+      id: data.id,
+      date: data.date ? data.date.split('T')[0] : payload.date,
+      startTime: data.start_time || payload.startTime,
+      endTime: data.end_time || payload.endTime,
+      format: data.format || payload.format || 5,
+      status: data.status || 'upcoming',
+      teamA: [],
+      teamB: []
+    };
   },
 
   async updateMatchTeams(matchId: string, teamA: string[], teamB: string[]): Promise<PachangaMatch | undefined> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('pachangas')
       .update({ team_a: teamA, team_b: teamB })
       .eq('id', matchId)
       .select()
-      .single();
-    return data as PachangaMatch;
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error updating match teams:', error);
+      throw error;
+    }
+
+    if (!data) return undefined;
+
+    return {
+      id: data.id,
+      date: data.date ? data.date.split('T')[0] : '',
+      startTime: data.start_time || '17:00',
+      endTime: data.end_time || '18:30',
+      format: data.format || 5,
+      status: data.status || 'upcoming',
+      teamA: data.team_a || teamA,
+      teamB: data.team_b || teamB,
+      scoreA: data.score_a,
+      scoreB: data.score_b
+    };
   },
 
   async updateMatchStatus(matchId: string, status: PachangaMatch['status']): Promise<PachangaMatch | undefined> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('pachangas')
       .update({ status })
       .eq('id', matchId)
       .select()
-      .single();
-    return data as PachangaMatch;
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error updating match status:', error);
+      throw error;
+    }
+
+    if (!data) return undefined;
+    return {
+      id: data.id,
+      date: data.date ? data.date.split('T')[0] : '',
+      startTime: data.start_time || '17:00',
+      endTime: data.end_time || '18:30',
+      format: data.format || 5,
+      status: data.status,
+      teamA: data.team_a || [],
+      teamB: data.team_b || []
+    };
   },
 
   async recordMatchActa(
@@ -391,25 +469,38 @@ export const egolDb = {
     scoreB: number,
     stats: Record<string, { goals: number; assists: number; ownGoals: number; saves: number; goalsAgainst: number; matchesPlayed: number; }>
   ): Promise<{ success: boolean; match?: PachangaMatch }> {
-    // 1. Actualizar resultados de la pachanga
-    const { data: resultData } = await supabase
-      .from('pachanga_results')
-      .upsert({
-        pachanga_id: matchId,
-        score_team_a: scoreA,
-        score_team_b: scoreB,
-        winner_team: scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw'
+    // 1. Actualizar resultado y estado a 'voting' en la tabla pachangas
+    const { data: updatedMatch, error: matchErr } = await supabase
+      .from('pachangas')
+      .update({
+        score_a: scoreA,
+        score_b: scoreB,
+        player_stats: stats,
+        status: 'voting'
       })
+      .eq('id', matchId)
       .select()
-      .single();
+      .maybeSingle();
 
-    // 2. Actualizar stats de jugadores (simplificado para el MVP)
-    // En una app completa, aquí iteraríamos y actualizaríamos cada registro en match_stats
+    if (matchErr) {
+      console.error('Error updating match with acta:', matchErr);
+    }
 
-    // 3. Actualizar puntos de managers
-    // Esta lógica sigue siendo compleja, pero aquí se dispararía la actualización en la tabla pachanga_results
+    // 2. Guardar en pachanga_results si existe la tabla
+    try {
+      await supabase
+        .from('pachanga_results')
+        .upsert({
+          pachanga_id: matchId,
+          score_team_a: scoreA,
+          score_team_b: scoreB,
+          winner_team: scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw'
+        });
+    } catch (e) {
+      console.warn('pachanga_results upsert warning:', e);
+    }
 
-    return { success: !!resultData, match: resultData as PachangaMatch };
+    return { success: !matchErr, match: updatedMatch as any };
   },
 
   isUserGuest(username?: string | null): boolean {
