@@ -49,6 +49,7 @@ export default function AdminView({
     goals: number;
     assists: number;
     ownGoals: number;
+    rating?: number;
   }>>({});
 
   const currentMatch = matches.find(m => m.id === selectedMatchId) || matches[0];
@@ -118,26 +119,26 @@ export default function AdminView({
     }
   };
 
-  const updatePlayerStat = (playerId: string, field: 'goals' | 'assists' | 'ownGoals', value: number) => {
+  const updatePlayerStat = (playerId: string, field: 'goals' | 'assists' | 'ownGoals' | 'rating', value: number) => {
     setMatchStats(prev => ({
       ...prev,
       [playerId]: {
-        ...(prev[playerId] || { goals: 0, assists: 0, ownGoals: 0 }),
-        [field]: Math.max(0, value)
+        ...(prev[playerId] || { goals: 0, assists: 0, ownGoals: 0, rating: 7 }),
+        [field]: value
       }
     }));
   };
 
   const handleSaveActa = async () => {
     if (!currentMatch) return;
-    if (!confirm('¿Deseas cerrar el partido y publicar el acta con estas estadísticas? Se actualizarán los precios y se abrirán las votaciones 1-10.')) {
+    if (!confirm('¿Deseas cerrar el partido y guardar el acta con estas estadísticas y calificaciones? Se actualizarán los precios y notas de los jugadores.')) {
       return;
     }
 
     try {
       const res = await egolDb.recordMatchActa(currentMatch.id, scoreA, scoreB, matchStats as any);
       if (res.success) {
-        alert('¡Acta publicada con éxito! Puntos sumados y votaciones 1-10 abiertas.');
+        alert('¡Acta y calificaciones guardadas con éxito! Puntos sumados y notas actualizadas.');
         await loadMatches();
         onRefresh();
       } else {
@@ -409,11 +410,12 @@ export default function AdminView({
                       <th className="p-3 text-center">Goles ⚽</th>
                       <th className="p-3 text-center">Asistencias 👟</th>
                       <th className="p-3 text-center">Autogol ❌</th>
+                      <th className="p-3 text-center">Nota (1–10) ⭐</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-800/60">
                     {currentMatchPlayers.map(player => {
-                      const st = matchStats[player.id] || { goals: 0, assists: 0, ownGoals: 0 };
+                      const st = matchStats[player.id] || { goals: 0, assists: 0, ownGoals: 0, rating: 7 };
                       const team = currentMatch.teamA?.includes(player.id) ? 'Equipo A' : 'Equipo B';
 
                       return (
@@ -456,6 +458,19 @@ export default function AdminView({
                               className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
                             />
                           </td>
+
+                          <td className="p-3 text-center">
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              step="0.5"
+                              value={st.rating ?? 7}
+                              onChange={(e) => updatePlayerStat(player.id, 'rating', parseFloat(e.target.value) || 0)}
+                              className="w-14 bg-neutral-950 border border-amber-500/40 text-center text-amber-400 font-black p-1 rounded-lg"
+                              title="Calificación del jugador (1 a 10)"
+                            />
+                          </td>
                         </tr>
                       );
                     })}
@@ -468,7 +483,7 @@ export default function AdminView({
               onClick={handleSaveActa}
               className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs uppercase tracking-wider transition"
             >
-              Publicar Acta y Abrir Votaciones (1-10)
+              Publicar Acta y Guardar Calificaciones (1–10)
             </button>
           </div>
         </div>

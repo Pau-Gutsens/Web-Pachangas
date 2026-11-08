@@ -260,18 +260,23 @@ export default function MatchDayView({
           <div className="px-3 sm:px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
             <h3 className="font-black text-xs sm:text-sm text-white flex items-center gap-2">
               <Award className="h-4 w-4 text-amber-400 flex-shrink-0" />
-              <span>Calificaciones Post-Partido (1–10)</span>
+              <span>{currentMatch.status === 'scored' ? 'Calificaciones Finales' : 'Calificaciones Post-Partido (1–10)'}</span>
             </h3>
-            {hasVoted && (
+            {hasVoted && currentMatch.status === 'voting' && (
               <span className="inline-flex items-center gap-1 text-xs font-bold text-neutral-300">
                 <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
                 <span>Guardado</span>
               </span>
             )}
+            {currentMatch.status === 'scored' && (
+              <span className="text-[10px] font-bold text-neutral-400 uppercase bg-neutral-800 px-2 py-0.5 rounded">
+                Finalizado
+              </span>
+            )}
           </div>
 
           {/* Aviso especial para invitados */}
-          {isUserGuest && (
+          {isUserGuest && currentMatch.status === 'voting' && (
             <div className="mx-3 sm:mx-4 my-3 p-3 bg-neutral-950 border border-neutral-800 text-neutral-400 rounded-lg text-xs">
               Los invitados no pueden realizar votaciones. Los demás miembros calificarán tu rendimiento.
             </div>
@@ -291,7 +296,10 @@ export default function MatchDayView({
             <div>
               <div className="divide-y divide-neutral-800">
                 {matchAttendees.map(player => {
-                  const currentRating = ratings[player.id] ?? 7;
+                  const savedRating = currentMatch.playerStats?.[player.id]?.rating;
+                  const currentRating = ratings[player.id] ?? (savedRating || 7);
+                  const displayRating = savedRating || player.averageRating || currentRating;
+
                   return (
                     <div key={player.id} className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2.5 sm:gap-4">
                       <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700 flex-shrink-0">
@@ -302,7 +310,7 @@ export default function MatchDayView({
                           {player.name}
                           {player.isGuest && <span className="text-neutral-500 font-normal ml-1 text-[10px]">(invitado)</span>}
                         </span>
-                        {!isUserGuest && user && (
+                        {!isUserGuest && user && currentMatch.status === 'voting' && (
                           <input
                             type="range"
                             min="1"
@@ -314,7 +322,13 @@ export default function MatchDayView({
                           />
                         )}
                       </div>
-                      {!isUserGuest && user ? (
+
+                      {currentMatch.status === 'scored' ? (
+                        <div className="flex items-center gap-1 font-black text-xs sm:text-sm text-amber-400 flex-shrink-0">
+                          <Star className="h-3.5 w-3.5 fill-amber-400" />
+                          <span>{displayRating}</span>
+                        </div>
+                      ) : !isUserGuest && user ? (
                         <div className="font-black text-xs sm:text-sm text-amber-400 w-8 text-right flex-shrink-0">
                           {currentRating}
                         </div>
@@ -335,28 +349,36 @@ export default function MatchDayView({
                 })}
               </div>
 
-              <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-neutral-800 flex justify-end">
-                {!user ? (
-                  <button
-                    onClick={onOpenAuth}
-                    className="w-full sm:w-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase transition"
-                  >
-                    Iniciar sesión para votar
-                  </button>
-                ) : isUserGuest ? (
-                  <span className="text-xs text-neutral-500 py-1 text-center w-full">
-                    Solo los miembros oficiales pueden emitir calificaciones
+              {currentMatch.status === 'voting' ? (
+                <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-neutral-800 flex justify-end">
+                  {!user ? (
+                    <button
+                      onClick={onOpenAuth}
+                      className="w-full sm:w-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase transition"
+                    >
+                      Iniciar sesión para votar
+                    </button>
+                  ) : isUserGuest ? (
+                    <span className="text-xs text-neutral-500 py-1 text-center w-full">
+                      Solo los miembros oficiales pueden emitir calificaciones
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleSubmitVotes}
+                      disabled={savingVote}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase transition"
+                    >
+                      {savingVote ? 'Guardando...' : hasVoted ? 'Actualizar votos' : 'Enviar calificaciones'}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="px-3 sm:px-4 py-2.5 border-t border-neutral-800 text-right">
+                  <span className="text-xs text-neutral-500 font-semibold">
+                    Partido puntuado y finalizado
                   </span>
-                ) : (
-                  <button
-                    onClick={handleSubmitVotes}
-                    disabled={savingVote}
-                    className="w-full sm:w-auto px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black rounded-xl text-xs uppercase transition"
-                  >
-                    {savingVote ? 'Guardando...' : hasVoted ? 'Actualizar votos' : 'Enviar calificaciones'}
-                  </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>

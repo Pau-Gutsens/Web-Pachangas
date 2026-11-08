@@ -467,16 +467,19 @@ export const egolDb = {
     matchId: string,
     scoreA: number,
     scoreB: number,
-    stats: Record<string, { goals: number; assists: number; ownGoals: number; saves?: number; goalsAgainst?: number; matchesPlayed?: number; }>
+    stats: Record<string, { goals: number; assists: number; ownGoals: number; rating?: number; saves?: number; goalsAgainst?: number; matchesPlayed?: number; }>
   ): Promise<{ success: boolean; match?: PachangaMatch }> {
-    // 1. Actualizar resultado y estado a 'voting' en la tabla pachangas
+    const hasRatings = Object.values(stats).some(st => st.rating !== undefined && Number(st.rating) > 0);
+    const newStatus = hasRatings ? 'scored' : 'voting';
+
+    // 1. Actualizar resultado y estado en la tabla pachangas
     const { data: updatedMatch, error: matchErr } = await supabase
       .from('pachangas')
       .update({
         score_a: scoreA,
         score_b: scoreB,
         player_stats: stats,
-        status: 'voting'
+        status: newStatus
       })
       .eq('id', matchId)
       .select()
@@ -486,18 +489,79 @@ export const egolDb = {
       console.error('Error updating match with acta:', matchErr);
     }
 
-    // 2. Guardar en pachanga_results si existe la tabla
+    // 2. Actualizar estadísticas, nota y precio de cada jugador en la tabla players de Supabase
     try {
-      await supabase
-        .from('pachanga_results')
-        .upsert({
-          pachanga_id: matchId,
-          score_team_a: scoreA,
-          score_team_b: scoreB,
-          winner_team: scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw'
-        });
+      const { data: currentPlayers } = await supabase.from('players').select('*');
+      if (currentPlayers) {
+        for (const [pId, st] of Object.entries(stats)) {
+          const p = currentPlayers.find((item: any) => item.id === pId);
+          if (p) {
+            const currentStats = p.stats || { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 };
+            const newStats = {
+              ...currentStats,
+              goals: (currentStats.goals || 0) + (st.goals || 0),
+              assists: (currentStats.assists || 0) + (st.assists || 0),
+              ownGoals: (currentStats.ownGoals || 0) + (st.ownGoals || 0),
+              matchesPlayed: (currentStats.matchesPlayed || 0) + 1
+            };
+
+            const ratingVal = st.rating !== undefined && Number(st.rating) > 0 ? Number(st.rating) : 0;
+            let newRatingsCount = p.ratings_count || 0;
+            let newAvgRating = p.average_rating || 0;
+
+            if (ratingVal > 0) {
+              const prevTotal = (p.average_rating || 0) * (p.ratings_count || 0);
+              newRatingsCount += 1;
+              newAvgRating = Math.round(((prevTotal + ratingVal) / newRatingsCount) * 10) / 10;
+            }
+
+            // Variación de precio (-15% a +15%)
+            const matchPts = (st.goals * 3) + (st.assists * 1) - (st.ownGoals * 2) + (ratingVal > 0 ? ratingVal : 6);
+            const changePct = Math.min(15, Math.max(-15, Math.round((matchPts - 7) * 2)));
+            const currentPrice = Number(p.current_price ?? 20);
+            const newPrice = Math.max(8, Math.round(currentPrice * (1 + changePct / 100)));
+
+            await supabase
+              .from('players')
+              .update({
+                stats: newStats,
+                average_rating: newAvgRating,
+                ratings_count: newRatingsCount,
+                previous_price: currentPrice,
+                current_price: newPrice,
+                price_change_pct: changePct
+              })
+              .eq('id', pId);
+          }
+        }
+      }
     } catch (e) {
-      console.warn('pachanga_results upsert warning:', e);
+      console.error('Error updating player stats in Supabase:', e);
+    }
+
+    // 3. Actualizar puntos del manager en la sesión actual
+    try {
+      const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw';
+      const currentUser = this.getCurrentUser();
+      if (currentUser && currentUser.starterPlayerIds && updatedMatch) {
+        let matchPoints = 0;
+        currentUser.starterPlayerIds.forEach(pId => {
+          const st = stats[pId];
+          if (st) {
+            let pts = (st.goals * 3) + (st.assists * 1) - (st.ownGoals * 2);
+            if (st.rating && st.rating > 0) pts += Number(st.rating);
+            if (winnerTeam === 'A' && updatedMatch.team_a?.includes(pId)) pts += 3;
+            if (winnerTeam === 'B' && updatedMatch.team_b?.includes(pId)) pts += 3;
+            if (winnerTeam === 'draw') pts += 1;
+            matchPoints += Math.max(0, Math.round(pts));
+          }
+        });
+        currentUser.lastMatchPoints = matchPoints;
+        currentUser.totalPoints = (currentUser.totalPoints || 0) + matchPoints;
+        setStorage('session_user', currentUser);
+      }
+    } catch (e) {
+      console.warn('Error calculating manager points:', e);
     }
 
     return { success: !matchErr, match: updatedMatch as any };
@@ -506,14 +570,37 @@ export const egolDb = {
   isUserGuest(username?: string | null): boolean {
     if (!username) return false;
     const clean = username.trim().toLowerCase();
-    const players = getStorage<Player[]>('players', []); // Aún usamos local para lista rápida de jugadores si es necesario
+    const players = getStorage<Player[]>('players', []);
     if (players.some(p => p.name.toLowerCase() === clean && p.isGuest)) return true;
     return false;
   },
 
   async submitRatings(matchId: string, voterUsername: string, ratings: Record<string, number>): Promise<{ success: boolean; message: string }> {
-    // Lógica para insertar en una tabla de votos (deberías crear una tabla 'votes')
-    return { success: true, message: 'Votaciones guardadas.' };
+    try {
+      const { data: currentPlayers } = await supabase.from('players').select('*');
+      if (currentPlayers) {
+        for (const [pId, ratingVal] of Object.entries(ratings)) {
+          const p = currentPlayers.find((item: any) => item.id === pId);
+          if (p && Number(ratingVal) > 0) {
+            const prevTotal = (p.average_rating || 0) * (p.ratings_count || 0);
+            const newCount = (p.ratings_count || 0) + 1;
+            const newAvg = Math.round(((prevTotal + Number(ratingVal)) / newCount) * 10) / 10;
+
+            await supabase
+              .from('players')
+              .update({
+                average_rating: newAvg,
+                ratings_count: newCount
+              })
+              .eq('id', pId);
+          }
+        }
+      }
+      return { success: true, message: '¡Calificaciones guardadas exitosamente!' };
+    } catch (e: any) {
+      console.error('Error submitting ratings:', e);
+      return { success: false, message: 'Error al guardar calificaciones.' };
+    }
   },
 
   async getUserRatingsForMatch(matchId: string, voterUsername: string): Promise<Record<string, number>> {

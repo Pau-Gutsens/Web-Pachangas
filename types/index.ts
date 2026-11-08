@@ -49,8 +49,9 @@ export interface PachangaMatch {
     goals: number;
     assists: number;
     ownGoals: number;
-    saves: number;
-    goalsAgainst: number;
+    saves?: number;
+    goalsAgainst?: number;
+    rating?: number;
   }>;
   rawMatchData?: {
     goals: {
