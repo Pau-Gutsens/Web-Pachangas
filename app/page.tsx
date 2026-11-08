@@ -15,11 +15,14 @@ export default function EGOLApp() {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [activeTab, setActiveTab] = useState<'team' | 'market' | 'matchday' | 'standings' | 'admin'>('standings');
-  const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const refreshData = () => {
-    setCurrentUser(egolDb.getCurrentUser());
-    setPlayers(egolDb.getPlayers());
+  const refreshData = async () => {
+    const user = egolDb.getCurrentUser();
+    setCurrentUser(user);
+    const fetchedPlayers = await egolDb.getPlayers();
+    setPlayers(fetchedPlayers);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -28,6 +31,15 @@ export default function EGOLApp() {
   }, []);
 
   if (!isClient) return null;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="animate-pulse text-amber-400 font-bold">Cargando...</div>
+      </div>
+    );
+  }
+
 
   const handleLogout = () => {
     egolDb.logout();

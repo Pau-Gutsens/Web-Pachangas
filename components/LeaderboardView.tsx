@@ -8,8 +8,12 @@ import { Flame } from 'lucide-react';
 export default function LeaderboardView() {
   const [standings, setStandings] = useState<UserAccount[]>([]);
 
-  useEffect(() => {
-    setStandings(egolDb.getLeaderboard());
+    useEffect(() => {
+    const fetchStandings = async () => {
+      const data = await egolDb.getLeaderboard();
+      setStandings(data);
+    };
+    fetchStandings();
   }, []);
 
   return (
