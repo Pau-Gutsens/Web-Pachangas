@@ -1,7 +1,7 @@
 "use client";
 
-import React from 'react';
-import { UserAccount, Player } from '../types';
+import React, { useState, useEffect } from 'react';
+import { UserAccount, Player, PachangaMatch } from '../types';
 import { egolDb } from '../lib/db';
 import { Shield, ArrowLeftRight, Trash2, Star, PlusCircle } from 'lucide-react';
 
@@ -18,27 +18,45 @@ export default function MyTeamView({
 }) {
   if (!user) return null;
 
-  // ¿Ha habido algún partido ya jugado?
-  const hasPlayedMatches = egolDb.getMatches().some(m => m.status === 'voting' || m.status === 'scored');
+  const [matches, setMatches] = useState<PachangaMatch[]>([]);
+  const [hasPlayedMatches, setHasPlayedMatches] = useState(false);
+
+  useEffect(() => {
+    const fetchMatches = async () => {
+      try {
+        const data = await egolDb.getMatches();
+        setMatches(data);
+        setHasPlayedMatches(data.some(m => m.status === 'voting' || m.status === 'scored'));
+      } catch (e) {
+        console.error('Error fetching matches:', e);
+      }
+    };
+    fetchMatches();
+  }, []);
 
   const ownedPlayers = players.filter(p => user.ownedPlayerIds.includes(p.id));
   const starters = ownedPlayers.filter(p => user.starterPlayerIds.includes(p.id));
   const reserves = ownedPlayers.filter(p => !user.starterPlayerIds.includes(p.id));
 
-  const handleSell = (playerId: string) => {
+  const handleSell = async (playerId: string) => {
     const player = players.find(p => p.id === playerId);
     if (!player) return;
     if (!confirm(`¿Vender a ${player.name} por ${player.currentPrice}M€?`)) return;
 
-    const res = egolDb.sellPlayer(user.id, playerId);
-    if (res.success) {
-      onUpdateUser();
-    } else {
-      alert(res.message);
+    try {
+      const res = await egolDb.sellPlayer(user.id, playerId);
+      if (res.success) {
+        onUpdateUser();
+      } else {
+        alert(res.message);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al realizar la venta.');
     }
   };
 
-  const handleToggleStarter = (playerId: string) => {
+  const handleToggleStarter = async (playerId: string) => {
     let newStarters: string[] = [];
     if (user.starterPlayerIds.includes(playerId)) {
       newStarters = user.starterPlayerIds.filter(id => id !== playerId);
@@ -50,11 +68,16 @@ export default function MyTeamView({
       newStarters = [...user.starterPlayerIds, playerId];
     }
 
-    const res = egolDb.setStarters(newStarters);
-    if (res.success) {
-      onUpdateUser();
-    } else {
-      alert(res.message);
+    try {
+      const res = await egolDb.setStarters(newStarters);
+      if (res.success) {
+        onUpdateUser();
+      } else {
+        alert(res.message);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al actualizar titulares.');
     }
   };
 
