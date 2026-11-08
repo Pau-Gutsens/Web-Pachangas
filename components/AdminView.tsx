@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Player, PachangaMatch } from '../types';
 import { egolDb } from '../lib/db';
 import { ShieldAlert, PlusCircle, Clock, Calendar, Users, Award, UserPlus, CheckCircle } from 'lucide-react';
@@ -12,8 +12,25 @@ export default function AdminView({
   players: Player[];
   onRefresh: () => void;
 }) {
-  const matches = egolDb.getMatches();
-  const [selectedMatchId, setSelectedMatchId] = useState<string>(matches[0]?.id || '');
+  const [matches, setMatches] = useState<PachangaMatch[]>([]);
+  const [selectedMatchId, setSelectedMatchId] = useState<string>('');
+
+  const loadMatches = async () => {
+    try {
+      const data = await egolDb.getMatches();
+      setMatches(data);
+      if (data.length > 0 && !selectedMatchId) {
+        setSelectedMatchId(data[0].id);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al cargar partidos de administración.');
+    }
+  };
+
+  useEffect(() => {
+    loadMatches();
+  }, []);
 
   // Formulario Crear Partido
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -38,15 +55,21 @@ export default function AdminView({
 
   const currentMatch = matches.find(m => m.id === selectedMatchId) || matches[0];
 
-  const handleCreateMatch = (e: React.FormEvent) => {
+  const handleCreateMatch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const created = egolDb.createMatch({ date, startTime, endTime, format });
-    setSelectedMatchId(created.id);
-    onRefresh();
-    alert('Partido creado con éxito.');
+    try {
+      const created = await egolDb.createMatch({ date, startTime, endTime, format });
+      await loadMatches();
+      setSelectedMatchId(created.id);
+      onRefresh();
+      alert('Partido creado con éxito.');
+    } catch (e) {
+      console.error(e);
+      alert('Error al crear el partido.');
+    }
   };
 
-  const handleAddPlayerToTeam = (playerId: string, team: 'A' | 'B') => {
+  const handleAddPlayerToTeam = async (playerId: string, team: 'A' | 'B') => {
     if (!currentMatch) return;
     const teamA = currentMatch.teamA || [];
     const teamB = currentMatch.teamB || [];
@@ -57,26 +80,44 @@ export default function AdminView({
     if (team === 'A') newA.push(playerId);
     if (team === 'B') newB.push(playerId);
 
-    egolDb.updateMatchTeams(currentMatch.id, newA, newB);
-    onRefresh();
+    try {
+      await egolDb.updateMatchTeams(currentMatch.id, newA, newB);
+      await loadMatches();
+      onRefresh();
+    } catch (e) {
+      console.error(e);
+      alert('Error al asignar el jugador al equipo.');
+    }
   };
 
-  const handleRemoveFromMatch = (playerId: string) => {
+  const handleRemoveFromMatch = async (playerId: string) => {
     if (!currentMatch) return;
     const newA = (currentMatch.teamA || []).filter(id => id !== playerId);
     const newB = (currentMatch.teamB || []).filter(id => id !== playerId);
-    egolDb.updateMatchTeams(currentMatch.id, newA, newB);
-    onRefresh();
+
+    try {
+      await egolDb.updateMatchTeams(currentMatch.id, newA, newB);
+      await loadMatches();
+      onRefresh();
+    } catch (e) {
+      console.error(e);
+      alert('Error al quitar al jugador del partido.');
+    }
   };
 
-  const handleCreateNewPlayer = (e: React.FormEvent) => {
+  const handleCreateNewPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPlayerName.trim()) return;
-    egolDb.addPlayer(newPlayerName.trim(), isGuest);
-    setNewPlayerName('');
-    setIsGuest(false);
-    onRefresh();
-    alert('Jugador registrado en el sistema.');
+    try {
+      await egolDb.addPlayer(newPlayerName.trim(), isGuest);
+      setNewPlayerName('');
+      setIsGuest(false);
+      onRefresh();
+      alert('Jugador registrado en el sistema.');
+    } catch (e) {
+      console.error(e);
+      alert('Error al registrar nuevo jugador.');
+    }
   };
 
   const updatePlayerStat = (playerId: string, field: 'goals' | 'assists' | 'ownGoals' | 'saves' | 'goalsAgainst', value: number) => {
@@ -89,16 +130,24 @@ export default function AdminView({
     }));
   };
 
-  const handleSaveActa = () => {
+  const handleSaveActa = async () => {
     if (!currentMatch) return;
     if (!confirm('¿Deseas cerrar el partido y publicar el acta con estas estadísticas? Se actualizarán los precios y se abrirán las votaciones 1-10.')) {
       return;
     }
 
-    const res = egolDb.recordMatchActa(currentMatch.id, scoreA, scoreB, matchStats);
-    if (res.success) {
-      alert('¡Acta publicada con éxito! Puntos sumados y votaciones 1-10 abiertas.');
-      onRefresh();
+    try {
+      const res = await egolDb.recordMatchActa(currentMatch.id, scoreA, scoreB, matchStats as any);
+      if (res.success) {
+        alert('¡Acta publicada con éxito! Puntos sumados y votaciones 1-10 abiertas.');
+        await loadMatches();
+        onRefresh();
+      } else {
+        alert('Error al registrar el acta.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al guardar y publicar el acta del partido.');
     }
   };
 

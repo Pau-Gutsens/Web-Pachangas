@@ -8,10 +8,15 @@ import { Flame } from 'lucide-react';
 export default function LeaderboardView() {
   const [standings, setStandings] = useState<UserAccount[]>([]);
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchStandings = async () => {
-      const data = await egolDb.getLeaderboard();
-      setStandings(data);
+      try {
+        const data = await egolDb.getLeaderboard();
+        setStandings(data);
+      } catch (e) {
+        console.error('Error fetching standings:', e);
+        alert('Error al cargar la clasificación general.');
+      }
     };
     fetchStandings();
   }, []);

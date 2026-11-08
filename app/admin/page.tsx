@@ -13,9 +13,15 @@ export default function AdminPage() {
   const [authOpen, setAuthOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
-  const refresh = () => {
-    setCurrentUser(egolDb.getCurrentUser());
-    setPlayers(egolDb.getPlayers());
+  const refresh = async () => {
+    try {
+      setCurrentUser(egolDb.getCurrentUser());
+      const fetchedPlayers = await egolDb.getPlayers();
+      setPlayers(fetchedPlayers);
+    } catch (e) {
+      console.error(e);
+      alert('Error al actualizar datos de administración.');
+    }
   };
 
   useEffect(() => {

@@ -18,34 +18,48 @@ export default function AuthView({
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+    setLoading(true);
 
-    if (mode === 'login') {
-      const res = egolDb.login(username, password);
-      if (res.success && res.user) {
-        onLoginSuccess(res.user);
-      } else {
-        setError(res.message || 'Error al iniciar sesión.');
+    try {
+      if (mode === 'login') {
+        const res = await egolDb.login(username, password);
+        if (res.success && res.user) {
+          onLoginSuccess(res.user);
+        } else {
+          setError(res.message || 'Error al iniciar sesión.');
+          alert(res.message || 'Error al iniciar sesión.');
+        }
+      } else if (mode === 'signup') {
+        const res = await egolDb.signup(username, password);
+        if (res.success && res.user) {
+          onLoginSuccess(res.user);
+        } else {
+          setError(res.message || 'Error al registrarte.');
+          alert(res.message || 'Error al registrarte.');
+        }
+      } else if (mode === 'forgot') {
+        const res = await egolDb.resetPassword(username, password);
+        if (res.success) {
+          setSuccessMsg(res.message);
+          setTimeout(() => setMode('login'), 2000);
+        } else {
+          setError(res.message);
+          alert(res.message);
+        }
       }
-    } else if (mode === 'signup') {
-      const res = egolDb.signup(username, password);
-      if (res.success && res.user) {
-        onLoginSuccess(res.user);
-      } else {
-        setError(res.message || 'Error al registrarte.');
-      }
-    } else if (mode === 'forgot') {
-      const res = egolDb.resetPassword(username, password);
-      if (res.success) {
-        setSuccessMsg(res.message);
-        setTimeout(() => setMode('login'), 2000);
-      } else {
-        setError(res.message);
-      }
+    } catch (err: any) {
+      console.error(err);
+      const msg = err?.message || 'Error de conexión. Inténtalo de nuevo.';
+      setError(msg);
+      alert(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -126,9 +140,10 @@ export default function AuthView({
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black uppercase tracking-wider rounded-xl transition text-xs mt-2"
+            disabled={loading}
+            className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-neutral-950 font-black uppercase tracking-wider rounded-xl transition text-xs mt-2"
           >
-            {mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Crear Cuenta' : 'Guardar Nueva Contraseña'}
+            {loading ? 'Cargando...' : mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Crear Cuenta' : 'Guardar Nueva Contraseña'}
           </button>
         </form>
 

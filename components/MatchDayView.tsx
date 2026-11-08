@@ -23,11 +23,16 @@ export default function MatchDayView({
 
   const isUserGuest = user ? egolDb.isUserGuest(user.username) : false;
 
-  const loadMatches = () => {
-    const list = egolDb.getMatches();
-    setMatches(list);
-    if (list.length > 0 && !selectedMatch) {
-      setSelectedMatch(list[0]);
+  const loadMatches = async () => {
+    try {
+      const list = await egolDb.getMatches();
+      setMatches(list);
+      if (list.length > 0 && !selectedMatch) {
+        setSelectedMatch(list[0]);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al cargar la lista de partidos.');
     }
   };
 
@@ -37,17 +42,27 @@ export default function MatchDayView({
 
   useEffect(() => {
     if (!selectedMatch || !user || isUserGuest) return;
-    const existing = egolDb.getUserRatingsForMatch(selectedMatch.id, user.username);
-    if (Object.keys(existing).length > 0) {
-      setRatings(existing);
-      setHasVoted(true);
-    } else {
-      const initial: Record<string, number> = {};
-      const allAtts = [...(selectedMatch.teamA || []), ...(selectedMatch.teamB || [])];
-      allAtts.forEach(id => { initial[id] = 7; });
-      setRatings(initial);
-      setHasVoted(false);
-    }
+
+    const fetchUserRatings = async () => {
+      try {
+        const existing = await egolDb.getUserRatingsForMatch(selectedMatch.id, user.username);
+        if (Object.keys(existing).length > 0) {
+          setRatings(existing);
+          setHasVoted(true);
+        } else {
+          const initial: Record<string, number> = {};
+          const allAtts = [...(selectedMatch.teamA || []), ...(selectedMatch.teamB || [])];
+          allAtts.forEach(id => { initial[id] = 7; });
+          setRatings(initial);
+          setHasVoted(false);
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Error al recuperar las calificaciones del partido.');
+      }
+    };
+
+    fetchUserRatings();
     setSuccessMsg('');
   }, [selectedMatch, user, isUserGuest]);
 
@@ -56,7 +71,7 @@ export default function MatchDayView({
     setRatings(prev => ({ ...prev, [playerId]: value }));
   };
 
-  const handleSubmitVotes = () => {
+  const handleSubmitVotes = async () => {
     if (!user) { onOpenAuth(); return; }
     if (isUserGuest) {
       alert('Los invitados no pueden votar en el partido.');
@@ -66,7 +81,7 @@ export default function MatchDayView({
 
     setSavingVote(true);
     try {
-      const res = egolDb.submitRatings(selectedMatch.id, user.username, ratings);
+      const res = await egolDb.submitRatings(selectedMatch.id, user.username, ratings);
       if (res.success) {
         setHasVoted(true);
         setSuccessMsg(res.message);
@@ -74,6 +89,7 @@ export default function MatchDayView({
         alert(res.message);
       }
     } catch (e: any) {
+      console.error(e);
       alert(e.message || 'Error al guardar notas.');
     } finally {
       setSavingVote(false);

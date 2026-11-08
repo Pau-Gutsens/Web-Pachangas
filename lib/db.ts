@@ -360,12 +360,15 @@ export const egolDb = {
   },
 
   async getLeaderboard(): Promise<UserAccount[]> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .order('total_points', { ascending: false });
 
-    if (error) return [];
+    if (error) {
+      console.error('Error fetching leaderboard:', error);
+      return [];
+    }
 
     return data?.map(p => ({
       id: p.id,

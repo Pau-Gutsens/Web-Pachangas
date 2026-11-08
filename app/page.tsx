@@ -18,19 +18,22 @@ export default function EGOLApp() {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshData = async () => {
-    const user = egolDb.getCurrentUser();
-    setCurrentUser(user);
-    const fetchedPlayers = await egolDb.getPlayers();
-    setPlayers(fetchedPlayers);
-    setIsLoading(false);
+    try {
+      const user = egolDb.getCurrentUser();
+      setCurrentUser(user);
+      const fetchedPlayers = await egolDb.getPlayers();
+      setPlayers(fetchedPlayers);
+    } catch (e) {
+      console.error(e);
+      alert('Error al cargar datos de la aplicación.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    setIsClient(true);
     refreshData();
   }, []);
-
-  if (!isClient) return null;
 
   if (isLoading) {
     return (
@@ -40,10 +43,15 @@ export default function EGOLApp() {
     );
   }
 
-
   const handleLogout = () => {
     egolDb.logout();
     setCurrentUser(null);
+    setActiveTab('standings');
+  };
+
+  const handleLoginSuccess = async (user: UserAccount) => {
+    setCurrentUser(user);
+    await refreshData();
     setActiveTab('standings');
   };
 
@@ -52,12 +60,7 @@ export default function EGOLApp() {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-8 selection:bg-amber-400 selection:text-neutral-950">
         <div className="w-full max-w-md">
-          <AuthView
-            onLoginSuccess={(user) => {
-              refreshData();
-              setActiveTab('standings');
-            }}
-          />
+          <AuthView onLoginSuccess={handleLoginSuccess} />
         </div>
       </div>
     );
