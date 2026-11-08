@@ -1,4 +1,4 @@
-import { UserAccount, Player, PachangaMatch, PlayerRatingVote } from '../types';
+import { UserAccount, Player, PachangaMatch, PlayerRatingVote, UserRole } from '../types';
 import { getGoalsAgainstPoints } from './scoring';
 import { supabase } from './supabase';
 
@@ -74,21 +74,23 @@ export const egolDb = {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('name', username.trim())
-      .single();
+      .ilike('name', username.trim())
+      .maybeSingle();
 
     if (error || !data) {
-      return { success: false, message: 'Usuario no encontrado.' };
+      return { success: false, message: 'Usuario no encontrado. Asegúrate de registrarte si es tu primera vez.' };
     }
 
-    const user = {
+    const role: UserRole = (data.role === 'admin' || cleanUser === 'pagusa') ? 'admin' : (data.role || 'member');
+
+    const user: UserAccount = {
       id: data.id,
       username: data.name,
-      role: data.role,
+      role: role,
       budget: 100,
       ownedPlayerIds: [],
       starterPlayerIds: [],
-      totalPoints: 0,
+      totalPoints: data.total_points || 0,
       lastMatchPoints: 0
     };
 
@@ -102,11 +104,37 @@ export const egolDb = {
       return { success: false, message: 'Rellena usuario y contraseña.' };
     }
 
+    // Comprobar si ya existe un perfil con ese nombre en Supabase
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('name', username.trim())
+      .maybeSingle();
+
+    if (existing) {
+      const role: UserRole = (existing.role === 'admin' || cleanUser === 'pagusa') ? 'admin' : (existing.role || 'member');
+      const user: UserAccount = {
+        id: existing.id,
+        username: existing.name,
+        role: role,
+        budget: 100,
+        ownedPlayerIds: [],
+        starterPlayerIds: [],
+        totalPoints: existing.total_points || 0,
+        lastMatchPoints: 0
+      };
+      setStorage('session_user', user);
+      return { success: true, user };
+    }
+
+    // El check constraint en PostgreSQL profiles_role_check requiere 'admin' o 'member'
+    const role = cleanUser === 'pagusa' ? 'admin' : 'member';
+
     const { data, error } = await supabase
       .from('profiles')
       .insert({
         name: username.trim(),
-        role: 'user',
+        role: role,
         alias: username.trim()
       })
       .select()
@@ -362,15 +390,14 @@ export const egolDb = {
   async getLeaderboard(): Promise<UserAccount[]> {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
-      .order('total_points', { ascending: false });
+      .select('*');
 
     if (error) {
       console.error('Error fetching leaderboard:', error);
       return [];
     }
 
-    return data?.map(p => ({
+    return (data || []).map((p: any) => ({
       id: p.id,
       username: p.name,
       role: p.role,
@@ -379,6 +406,6 @@ export const egolDb = {
       starterPlayerIds: [],
       totalPoints: p.total_points || 0,
       lastMatchPoints: 0
-    })) || [];
+    })).sort((a, b) => b.totalPoints - a.totalPoints);
   }
 };
