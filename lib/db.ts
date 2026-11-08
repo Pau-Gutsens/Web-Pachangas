@@ -173,37 +173,80 @@ export const egolDb = {
   async getPlayers(): Promise<Player[]> {
     const { data, error } = await supabase
       .from('players')
-      .select('*');
+      .select('*')
+      .order('name', { ascending: true });
 
     if (error) {
       console.error('Error fetching players:', error);
       return [];
     }
-    return data as Player[];
+
+    return (data || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      isGuest: p.is_guest ?? p.isGuest ?? false,
+      avatarUrl: p.avatar_url ?? p.avatarUrl ?? `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80`,
+      currentPrice: Number(p.current_price ?? p.currentPrice ?? 20),
+      previousPrice: Number(p.previous_price ?? p.previousPrice ?? 20),
+      priceChangePct: Number(p.price_change_pct ?? p.priceChangePct ?? 0),
+      averageRating: Number(p.average_rating ?? p.averageRating ?? 0),
+      ratingsCount: Number(p.ratings_count ?? p.ratingsCount ?? 0),
+      stats: p.stats ?? { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
+    }));
   },
 
   async savePlayer(player: Player): Promise<void> {
     const { error } = await supabase
       .from('players')
-      .upsert(player);
+      .upsert({
+        id: player.id,
+        name: player.name,
+        is_guest: player.isGuest,
+        avatar_url: player.avatarUrl,
+        current_price: player.currentPrice,
+        previous_price: player.previousPrice,
+        price_change_pct: player.priceChangePct,
+        average_rating: player.averageRating,
+        ratings_count: player.ratingsCount,
+        stats: player.stats
+      });
     if (error) console.error('Error saving player:', error);
   },
 
   async addPlayer(name: string, isGuest: boolean, avatarUrl?: string): Promise<Player> {
+    const defaultAvatar = isGuest
+      ? `https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=250&q=80`
+      : `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80`;
+
     const { data, error } = await supabase
       .from('players')
       .insert({
         name: name.trim(),
         is_guest: isGuest,
-        avatar_url: avatarUrl || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80`,
+        avatar_url: avatarUrl || defaultAvatar,
         current_price: 20,
-        previous_price: 20
+        previous_price: 20,
+        price_change_pct: 0,
+        average_rating: 0,
+        ratings_count: 0,
+        stats: { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
       })
       .select()
       .single();
 
     if (error) throw error;
-    return data as Player;
+    return {
+      id: data.id,
+      name: data.name,
+      isGuest: data.is_guest ?? isGuest,
+      avatarUrl: data.avatar_url,
+      currentPrice: Number(data.current_price ?? 20),
+      previousPrice: Number(data.previous_price ?? 20),
+      priceChangePct: Number(data.price_change_pct ?? 0),
+      averageRating: Number(data.average_rating ?? 0),
+      ratingsCount: Number(data.ratings_count ?? 0),
+      stats: data.stats || { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
+    };
   },
 
   async buyPlayer(userId: string, playerId: string): Promise<{ success: boolean; message: string; user?: UserAccount }> {
@@ -218,6 +261,8 @@ export const egolDb = {
 
     if (!player) return { success: false, message: 'Jugador no encontrado.' };
 
+    const price = Number(player.current_price ?? player.currentPrice ?? 20);
+
     if (currentUser.ownedPlayerIds.includes(playerId)) {
       return { success: false, message: 'Ya tienes a este jugador en tu plantilla.' };
     }
@@ -226,16 +271,12 @@ export const egolDb = {
       return { success: false, message: 'Límite alcanzado.' };
     }
 
-    if (currentUser.budget < player.current_price) {
+    if (currentUser.budget < price) {
       return { success: false, message: 'Presupuesto insuficiente.' };
     }
 
-    // Actualizar presupuesto y propiedad en LocalStorage y en Supabase
-    const newBudget = Math.round((currentUser.budget - player.current_price) * 10) / 10;
-
-    // Aquí actualizamos el perfil en Supabase (o la tabla de owned_players si existiera)
-    // Por ahora, actualizamos el objeto local y lo guardamos.
-    // Nota: Deberías crear una tabla 'user_players' para persistir esto correctamente en Supabase.
+    // Actualizar presupuesto y propiedad
+    const newBudget = Math.round((currentUser.budget - price) * 10) / 10;
     currentUser.budget = newBudget;
     currentUser.ownedPlayerIds.push(playerId);
 
@@ -263,7 +304,8 @@ export const egolDb = {
       return { success: false, message: 'No tienes a este jugador en tu plantilla.' };
     }
 
-    currentUser.budget = Math.round((currentUser.budget + player.current_price) * 10) / 10;
+    const price = Number(player.current_price ?? player.currentPrice ?? 20);
+    currentUser.budget = Math.round((currentUser.budget + price) * 10) / 10;
     currentUser.ownedPlayerIds = currentUser.ownedPlayerIds.filter(id => id !== playerId);
     currentUser.starterPlayerIds = currentUser.starterPlayerIds.filter(id => id !== playerId);
 

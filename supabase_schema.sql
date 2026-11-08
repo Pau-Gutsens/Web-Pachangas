@@ -3,7 +3,7 @@
 -- Ejecuta este script en el SQL Editor de tu proyecto en Supabase
 -- ========================================================
 
--- 1. Tabla de perfiles / miembros (15 miembros del grupo)
+-- 1. Tabla de perfiles / managers (usuarios registrados de la app)
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -22,7 +22,22 @@ CREATE TABLE IF NOT EXISTS pachangas (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Tabla de asistentes a pachanga (miembros e invitados)
+-- 3. Tabla de jugadores fantasy (futbolistas gestionados por el admin)
+CREATE TABLE IF NOT EXISTS players (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  is_guest BOOLEAN DEFAULT FALSE,
+  avatar_url TEXT,
+  current_price NUMERIC DEFAULT 20,
+  previous_price NUMERIC DEFAULT 20,
+  price_change_pct NUMERIC DEFAULT 0,
+  average_rating NUMERIC DEFAULT 0,
+  ratings_count INTEGER DEFAULT 0,
+  stats JSONB DEFAULT '{"goals":0,"assists":0,"ownGoals":0,"saves":0,"goalsAgainst":0,"matchesPlayed":0}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Tabla de asistentes a pachanga (miembros e invitados)
 CREATE TABLE IF NOT EXISTS pachanga_attendees (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   pachanga_id UUID NOT NULL REFERENCES pachangas(id) ON DELETE CASCADE,
@@ -33,7 +48,7 @@ CREATE TABLE IF NOT EXISTS pachanga_attendees (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Tabla de elecciones de Fantasy por manager
+-- 5. Tabla de elecciones de Fantasy por manager
 CREATE TABLE IF NOT EXISTS fantasy_picks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   pachanga_id UUID NOT NULL REFERENCES pachangas(id) ON DELETE CASCADE,
@@ -44,7 +59,7 @@ CREATE TABLE IF NOT EXISTS fantasy_picks (
   UNIQUE(pachanga_id, manager_id)
 );
 
--- 5. Tabla de estadísticas de partido
+-- 6. Tabla de estadísticas de partido
 CREATE TABLE IF NOT EXISTS match_stats (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   pachanga_id UUID NOT NULL REFERENCES pachangas(id) ON DELETE CASCADE,
@@ -55,7 +70,7 @@ CREATE TABLE IF NOT EXISTS match_stats (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. Tabla de resultados y puntuaciones finales calculadas
+-- 7. Tabla de resultados y puntuaciones finales calculadas
 CREATE TABLE IF NOT EXISTS pachanga_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   pachanga_id UUID NOT NULL UNIQUE REFERENCES pachangas(id) ON DELETE CASCADE,
@@ -69,23 +84,21 @@ CREATE TABLE IF NOT EXISTS pachanga_results (
 
 -- ========================================================
 -- PERMISOS Y SEGURIDAD (RLS)
--- Permitir acceso libre para que la aplicación funcione al 100%
 -- ========================================================
 ALTER TABLE pachangas DISABLE ROW LEVEL SECURITY;
 ALTER TABLE pachanga_attendees DISABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE players DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fantasy_picks DISABLE ROW LEVEL SECURITY;
 ALTER TABLE match_stats DISABLE ROW LEVEL SECURITY;
 ALTER TABLE pachanga_results DISABLE ROW LEVEL SECURITY;
 
 -- ========================================================
--- INSERCIÓN DE LOS MIEMBROS INICIALES
--- (Solo se insertan si la tabla está vacía)
+-- INSERCIÓN DEL ADMINISTRADOR
+-- (Solo se inserta Pagusa como admin inicial si la tabla está vacía)
 -- ========================================================
 INSERT INTO profiles (id, name, role, alias)
 SELECT * FROM (VALUES
-  ('a0000000-0000-0000-0000-000000000001'::uuid, 'Pagusa', 'admin', 'Pagusa'),
-  ('a0000000-0000-0000-0000-000000000002'::uuid, 'Carlos', 'guest', 'Carlos')
+  ('a0000000-0000-0000-0000-000000000001'::uuid, 'Pagusa', 'admin', 'Pagusa')
 ) AS v(id, name, role, alias)
 WHERE NOT EXISTS (SELECT 1 FROM profiles);
-
