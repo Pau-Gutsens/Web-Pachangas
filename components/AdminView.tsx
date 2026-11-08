@@ -49,8 +49,6 @@ export default function AdminView({
     goals: number;
     assists: number;
     ownGoals: number;
-    saves: number;
-    goalsAgainst: number;
   }>>({});
 
   const currentMatch = matches.find(m => m.id === selectedMatchId) || matches[0];
@@ -120,11 +118,11 @@ export default function AdminView({
     }
   };
 
-  const updatePlayerStat = (playerId: string, field: 'goals' | 'assists' | 'ownGoals' | 'saves' | 'goalsAgainst', value: number) => {
+  const updatePlayerStat = (playerId: string, field: 'goals' | 'assists' | 'ownGoals', value: number) => {
     setMatchStats(prev => ({
       ...prev,
       [playerId]: {
-        ...(prev[playerId] || { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0 }),
+        ...(prev[playerId] || { goals: 0, assists: 0, ownGoals: 0 }),
         [field]: Math.max(0, value)
       }
     }));
@@ -404,20 +402,18 @@ export default function AdminView({
               </p>
             ) : (
               <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
-                <table className="w-full min-w-[560px] text-left text-xs border-collapse">
+                <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-neutral-950 text-neutral-400 uppercase font-black border-b border-neutral-800">
                       <th className="p-3">Jugador</th>
                       <th className="p-3 text-center">Goles ⚽</th>
                       <th className="p-3 text-center">Asistencias 👟</th>
-                      <th className="p-3 text-center">Paradas 🧤</th>
-                      <th className="p-3 text-center">Goles Encajados 🥅</th>
                       <th className="p-3 text-center">Autogol ❌</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-800/60">
                     {currentMatchPlayers.map(player => {
-                      const st = matchStats[player.id] || { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0 };
+                      const st = matchStats[player.id] || { goals: 0, assists: 0, ownGoals: 0 };
                       const team = currentMatch.teamA?.includes(player.id) ? 'Equipo A' : 'Equipo B';
 
                       return (
@@ -447,26 +443,6 @@ export default function AdminView({
                               min="0"
                               value={st.assists}
                               onChange={(e) => updatePlayerStat(player.id, 'assists', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
-                            />
-                          </td>
-
-                          <td className="p-3 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              value={st.saves}
-                              onChange={(e) => updatePlayerStat(player.id, 'saves', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
-                            />
-                          </td>
-
-                          <td className="p-3 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              value={st.goalsAgainst}
-                              onChange={(e) => updatePlayerStat(player.id, 'goalsAgainst', parseInt(e.target.value) || 0)}
                               className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
                             />
                           </td>

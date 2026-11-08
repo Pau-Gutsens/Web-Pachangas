@@ -467,7 +467,7 @@ export const egolDb = {
     matchId: string,
     scoreA: number,
     scoreB: number,
-    stats: Record<string, { goals: number; assists: number; ownGoals: number; saves: number; goalsAgainst: number; matchesPlayed: number; }>
+    stats: Record<string, { goals: number; assists: number; ownGoals: number; saves?: number; goalsAgainst?: number; matchesPlayed?: number; }>
   ): Promise<{ success: boolean; match?: PachangaMatch }> {
     // 1. Actualizar resultado y estado a 'voting' en la tabla pachangas
     const { data: updatedMatch, error: matchErr } = await supabase
