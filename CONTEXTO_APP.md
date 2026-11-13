@@ -2,7 +2,7 @@
 
 Documento de referencia sobre la arquitectura, reglas del juego, economía, sistema de puntuación y funcionamiento técnico de **EGOL Fantasy** (Web-Pachangas).
 
-> **Fuente de verdad de la puntuación:** `CAMBIOS_PUNTUACION.md`. Esta guía lo resume; si hay cualquier diferencia, manda ese archivo.
+> **Fuentes de verdad:** `CAMBIOS_PUNTUACION.md` para la puntuación y `CAMBIOS_MERCADO.md` para precios, mercado, ranking y votaciones. Esta guía los resume; si hay cualquier diferencia, mandan esos archivos.
 
 ---
 
@@ -12,16 +12,17 @@ Documento de referencia sobre la arquitectura, reglas del juego, economía, sist
 ---
 
 ## 2. Economía y Mercado de Fichajes
+- **Cifras en miles**: precios y saldos se guardan como entero en K€ (20 M€ = 20000) y se muestran como "17,35 M€" o "850 K€". Los precios se redondean a múltiplos de 10 K€.
 - **Presupuesto inicial**: cada usuario empieza con **100 M€**.
 - **Precio base de los jugadores**: **20 M€**.
+- **Primeras 5 compras**: las 5 primeras compras de cada cuenta cuestan 20 M€ aunque el precio real sea otro, para que un usuario nuevo pueda montar un equipo entero. Después todo se compra al precio real. Vender siempre paga el precio real.
 - **Límites de plantilla**: máximo **6 jugadores** (5 titulares + 1 reserva). Para puntuar en la jornada hay que alinear a los **5 titulares**.
 - **Plantilla persistente**: cada usuario mantiene su equipo entre jornadas y cambia jugadores vendiendo y fichando en el mercado.
 - **Mercado 24/7**: todos los jugadores de la liga están siempre disponibles. Cada tarjeta muestra foto, nombre, precio en millones y la variación respecto al precio anterior (ej. `+10%`, `-5%`).
 - **Invitados**: son jugadores normales con la etiqueta `(invitado)` junto al nombre. Vienen nunca o casi nunca.
 - **Variación de precio tras cada jornada**:
-  - `variacion_% = 15 × (puntos − media_de_puntos_de_esa_jornada) / 10`, limitada a **±15 %**.
-  - La media de puntos de esa jornada es el punto neutro, para que el mercado no se infle ni se hunda.
-  - Valores siempre en millones, sin decimales extraños.
+  - `variacion_% = clamp(2,5 × (puntos − media_de_puntos_de_esa_jornada), −15, +15)`.
+  - La media de puntos de esa jornada es el punto neutro, para que el mercado no se infle ni se hunda. Dos puntuaciones distintas dan variaciones distintas salvo en el tope.
 
 ---
 
@@ -32,12 +33,13 @@ Cada jugador puntúa de **0 a 20** por pachanga:
 
 Los puntos de cada manager son la suma de los de sus 5 titulares.
 
-### 3.1 Acta del admin (lo mínimo)
+### 3.1 Acta del admin (modo directo)
 Quien descansa durante el partido apunta solo:
-- Cada **gol**: goleador y, si hubo, asistente.
+- Cada **gol**: goleador y, si hubo, asistente (dos toques).
 - **Autogoles**.
+- **Salvada** (opcional): acción que evita un gol casi seguro (parada o despeje sobre la línea). +2, máximo 3 por jugador y partido.
 
-El resultado sale de la suma de goles. **No hay** paradas, goles encajados por jugador, casilla de portero ni bonus por tramos de portería.
+El resultado sale de la suma de goles. La app cuadra los goles con el marcador antes de cerrar el acta, muestra el marcador en directo a todos y da 24 h a los jugadores para pedir correcciones. **No hay** goles encajados por jugador, casilla de portero ni bonus por tramos de portería. Detalles en `CAMBIOS_PUNTUACION.md`.
 
 ### 3.2 Parte subjetiva (ranking, 0-10)
 - Al cerrar el acta se abre la votación. Votan solo los usuarios **convocados**, de forma anónima y sin votarse a sí mismos.
@@ -49,7 +51,7 @@ El resultado sale de la suma de goles. **No hay** paradas, goles encajados por j
 
 ### 3.3 Parte objetiva (0-10)
 Puntos en bruto:
-- Gol **+3**, asistencia **+1**, autogol **−2**.
+- Gol **+3**, asistencia **+1**, autogol **−2**, salvada **+2** (máx. 3 por partido).
 - Victoria **+3**, empate **+1**, derrota **0**.
 - **MVP +3**: el jugador con mejor nota subjetiva (empate: el de más puntos en bruto).
 
@@ -73,7 +75,7 @@ Al crear una pachanga, el administrador define fecha, hora de inicio, hora de fi
   1. **Mi Equipo**: 5 titulares + 1 reserva.
   2. **Mercado**: compra y venta con precios y tendencias.
   3. **Partido del Día**: horario, equipos A vs B y votación por ranking.
-  4. **Clasificación**: tabla general acumulada de los managers.
+  4. **Clasificación**: tabla general acumulada de todos los managers y pestaña "Última jornada" con el ranking de managers y de jugadores de ese partido.
 - **Administrador (Pagusa)**: único con acceso a `/admin`. Puede crear partidos con horario, convocar jugadores a los equipos, registrar fichajes e invitados, y rellenar y publicar el acta.
 
 ---

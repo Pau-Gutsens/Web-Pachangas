@@ -1,8 +1,10 @@
 import { UserAccount, Player, PachangaMatch, PlayerRatingVote, UserRole } from '../types';
 import { getGoalsAgainstPoints } from './scoring';
 import { supabase } from './supabase';
+import { PESO_VOTOS, PESO_STATS, TOPE_OBJ, OBJETIVO_MODO, REDONDEO, PRECIO_COMPRA_INICIAL_MODO, COMPRAS_INICIALES, PRECIO_COMPRA_INICIAL, PRECIO_REDONDEO } from './config';
 
 const PREFIX = 'egol_fantasy_';
+
 
 function getStorage<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') return defaultValue;
@@ -91,8 +93,10 @@ export const egolDb = {
       ownedPlayerIds: [],
       starterPlayerIds: [],
       totalPoints: data.total_points || 0,
-      lastMatchPoints: 0
+      lastMatchPoints: 0,
+      compras_iniciales: 0
     };
+
 
     setStorage('session_user', user);
     return { success: true, user };
@@ -152,8 +156,10 @@ export const egolDb = {
       ownedPlayerIds: [],
       starterPlayerIds: [],
       totalPoints: 0,
-      lastMatchPoints: 0
+      lastMatchPoints: 0,
+      compras_iniciales: 0
     };
+
 
     setStorage('session_user', newAccount);
     return { success: true, user: newAccount };
@@ -276,7 +282,12 @@ export const egolDb = {
     }
 
     // Actualizar presupuesto y propiedad
-    const newBudget = Math.round((currentUser.budget - price) * 10) / 10;
+    let actualPrice = price;
+    if (currentUser.compras_iniciales < COMPRAS_INICIALES) {
+      actualPrice = PRECIO_COMPRA_INICIAL;
+    }
+
+    const newBudget = Math.round((currentUser.budget - actualPrice) * 10) / 10;
     currentUser.budget = newBudget;
     currentUser.ownedPlayerIds.push(playerId);
 
@@ -284,8 +295,13 @@ export const egolDb = {
       currentUser.starterPlayerIds.push(playerId);
     }
 
+    if (currentUser.compras_iniciales < COMPRAS_INICIALES) {
+      currentUser.compras_iniciales += 1;
+    }
+
     setStorage('session_user', currentUser);
     return { success: true, message: `¡Has fichado a ${player.name}!`, user: currentUser };
+
   },
 
   async sellPlayer(userId: string, playerId: string): Promise<{ success: boolean; message: string; user?: UserAccount }> {
@@ -516,10 +532,24 @@ export const egolDb = {
             }
 
             // Variación de precio (-15% a +15%)
-            const matchPts = (st.goals * 3) + (st.assists * 1) - (st.ownGoals * 2) + (ratingVal > 0 ? ratingVal : 6);
-            const changePct = Math.min(15, Math.max(-15, Math.round((matchPts - 7) * 2)));
+            const playerPoints = (st.goals * 3) + (st.assists * 1) - (st.ownGoals * 2) + (st.rating > 0 ? st.rating : 6);
+            const obj = Math.round(Math.min(TOPE_OBJ, Math.max(0, playerPoints)) / TOPE_OBJ * 10);
+            const subj = Math.round(st.rating > 0 ? st.rating : 5);
+            const total = obj + subj;
+
+            const allPoints = Object.values(stats).map(s => {
+              const pPts = (s.goals * 3) + (s.assists * 1) - (s.ownGoals * 2) + (s.rating > 0 ? s.rating : 6);
+              const pObj = Math.round(Math.min(TOPE_OBJ, Math.max(0, pPts)) / TOPE_OBJ * 10);
+              const pSubj = Math.round(s.rating > 0 ? s.rating : 5);
+              return pObj + pSubj;
+            });
+            const media_de_la_jornada = allPoints.reduce((a, b) => a + b, 0) / allPoints.length;
+
+            const changePct = Math.min(15, Math.max(-15, Math.round(2.5 * (total - media_de_la_jornada))));
             const currentPrice = Number(p.current_price ?? 20);
-            const newPrice = Math.max(8, Math.round(currentPrice * (1 + changePct / 100)));
+            const newPrice = Math.max(8, Math.round((currentPrice * (1 + changePct / 100)) / PRECIO_REDONDEO) * PRECIO_REDONDEO);
+
+
 
             await supabase
               .from('players')
@@ -582,6 +612,9 @@ export const egolDb = {
         for (const [pId, ratingVal] of Object.entries(ratings)) {
           const p = currentPlayers.find((item: any) => item.id === pId);
           if (p && Number(ratingVal) > 0) {
+            if (p.name.toLowerCase() === voterUsername.toLowerCase()) {
+              throw new Error('No puedes votar por ti mismo.');
+            }
             const prevTotal = (p.average_rating || 0) * (p.ratings_count || 0);
             const newCount = (p.ratings_count || 0) + 1;
             const newAvg = Math.round(((prevTotal + Number(ratingVal)) / newCount) * 10) / 10;

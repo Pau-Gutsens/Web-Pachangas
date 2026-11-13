@@ -41,7 +41,7 @@ export default function MyTeamView({
   const handleSell = async (playerId: string) => {
     const player = players.find(p => p.id === playerId);
     if (!player) return;
-    if (!confirm(`¿Vender a ${player.name} por ${player.currentPrice}M€?`)) return;
+    if (!confirm(`¿Vender a ${player.name} por ${formatCurrency(player.currentPrice)}?`)) return;
 
     try {
       const res = await egolDb.sellPlayer(user.id, playerId);
@@ -93,7 +93,7 @@ export default function MyTeamView({
             {player.isGuest && <span className="text-neutral-500 font-normal text-[10px] sm:text-xs ml-1">(invitado)</span>}
           </span>
           <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-neutral-500 mt-0.5">
-            <span className="font-bold text-amber-400">{player.currentPrice}M€</span>
+            <span className="font-bold text-amber-400">{formatCurrency(player.currentPrice)}</span>
             <span>G: {player.stats.goals}</span>
             <span>A: {player.stats.assists}</span>
             {hasPlayedMatches && player.ratingsCount > 0 && (

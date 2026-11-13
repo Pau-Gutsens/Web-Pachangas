@@ -9,13 +9,30 @@ Cada jugador puntúa entre **0 y 20** en cada pachanga:
 
 Los puntos de cada manager son la suma de los puntos de sus jugadores alineados, como hasta ahora.
 
-## 1. Acta del admin (lo mínimo)
-Lo apunta quien está descansando durante el partido, así que solo:
-- Cada **gol**: goleador y, si hubo, asistente (un toque por gol).
+## 1. Acta del admin: modo directo (lo mínimo)
+Lo apunta quien está descansando durante el partido, así que tiene que ser rápido y a prueba de fallos. Solo se registra:
+- Cada **gol**: goleador y, si hubo, asistente (dos toques por gol, con botón "sin asistencia").
 - **Autogoles**.
+- **Salvada** (opcional): un botón y se elige quién. Ver sección 3.
 - El resultado se calcula solo de los goles.
 
-**Eliminar:** paradas, goles encajados por jugador, casilla de portero y el bonus por tramos de portería. Defensas y porteros puntúan por la parte subjetiva.
+**Eliminar:** goles encajados por jugador, casilla de portero, el bonus por tramos de portería y el contador de "todas las paradas".
+
+### 1.1 Modo directo
+- Pantalla con el marcador grande y un botón por equipo ("Gol blanco", "Gol azul").
+- Botón **deshacer** siempre visible.
+- El marcador se ve en directo en el móvil de todos los convocados, para que cualquier error se detecte y corrija en el momento.
+- Funciona aunque se pierda la cobertura un momento (guarda en local y sincroniza al volver).
+
+### 1.2 Cuadre automático con el resultado
+- Los goles atribuidos a los jugadores de un equipo, más los autogoles del rival, deben coincidir con el marcador.
+- Si no cuadra, al cerrar el acta se avisa: "Al equipo X le faltan N goles por atribuir" y no se puede cerrar hasta resolverlo.
+- Las asistencias no se pueden cuadrar así.
+
+### 1.3 Ventana de corrección de los jugadores
+- Al cerrar el acta, cada convocado ve sus goles, asistencias y salvadas con un botón "no está bien" y puede pedir una corrección o añadir una acción que falta.
+- La ventana dura **24 h**. El admin acepta o rechaza cada petición.
+- La votación se abre a la vez que esta ventana. Los puntos finales se calculan al cerrar ambas.
 
 ## 2. Parte subjetiva (ranking, 0-10)
 1. Cuando se cierra el acta se abre la votación. Votan solo los usuarios **convocados** a esa pachanga.
@@ -33,7 +50,10 @@ Lo apunta quien está descansando durante el partido, así que solo:
 ## 3. Parte objetiva (0-10)
 Puntos en bruto de cada jugador:
 - Gol +3, asistencia +1, autogol −2.
+- **Salvada +2**, máximo **3 por jugador y partido** (`SALVADA_PTS = 2`, `SALVADA_MAX = 3`).
 - Victoria +3, empate +1, derrota 0.
+
+**Qué es una salvada:** acción que evita un gol casi seguro, ya sea una parada de un tiro que iba a gol o un despeje sobre la línea. Un tiro flojo a las manos, un balón que iba fuera o un despeje normal **no** cuentan. Vale para cualquier jugador, no solo para el portero.
 - **MVP +3**: el MVP es el jugador con mejor `N_subj` de la pachanga (empate: el de más puntos en bruto). No hay votación aparte.
 
 Conversión a 0-10, con un tope para que una goleada no se dispare:
@@ -49,17 +69,17 @@ Constante `OBJETIVO_MODO`:
 - La nota media del cromo se muestra como media de temporada de `N_subj`, ajustada con `(suma + 2 * media_del_grupo) / (pachangas + 2)`, y solo desde 3 pachangas; antes se muestra "—".
 
 ## 5. Valor de los jugadores en el mercado
-- Variación tras cada jornada: `variacion_% = 15 * (puntos - media_de_puntos_de_esa_jornada) / 10`, limitada a **±15 %**.
-- La media de la jornada es el punto neutro: con 0 puntos baja casi lo máximo y con 20 puntos sube lo máximo. Así el mercado no se infla ni se deprime globalmente.
-- Valores en millones sin decimales extraños, como ahora.
+- **Esta sección está sustituida por `CAMBIOS_MERCADO.md`** (fórmula de variación, cifras en miles y compras iniciales). Si hay diferencia, manda ese archivo.
+- Resumen: `variacion_% = clamp(2,5 * (puntos - media_de_puntos_de_esa_jornada), -15, +15)`; la media de la jornada es el punto neutro.
 
 ## 6. Datos en bruto y recálculo
-- Guarda siempre los **datos en bruto**: cada gol (goleador y asistente), autogoles, resultado y cada ranking de voto completo. Nunca guardes solo los puntos finales.
+- Guarda siempre los **datos en bruto**: cada gol (goleador y asistente), autogoles, salvadas, resultado y cada ranking de voto completo. Nunca guardes solo los puntos finales.
 - Los puntos de jugadores y managers, y los precios, **se calculan a partir de esos datos y de las constantes de configuración**. Si se cambia una constante (por ejemplo `TOPE_OBJ`), se recalcula todo el historial.
 - Los partidos de este grupo suelen tener más de 5 goles por equipo (el del 6 de noviembre fue 15-11). Con 3 o 4 pachangas reales conviene revisar `TOPE_OBJ` y, si hace falta, probar `OBJETIVO_MODO`.
 
 ## 7. Descartado a propósito (no implementar)
-- Paradas y goles encajados por jugador, casilla de portero y bonus por tramos de portería: no se pueden apuntar en directo y premiaban a quien menos tiempo estaba en portería.
+- Contar todas las paradas, goles encajados por jugador, casilla de portero y bonus por tramos de portería: no se pueden apuntar en directo y premiaban a quien más o menos tiempo estaba en portería. Solo cuenta la **salvada** (sección 3), que es una acción puntual y clara.
+- Penaltis, tarjetas, tiros a puerta, pases clave y recuperaciones: difíciles de apuntar sin dedicarse solo a eso; lo subjetivo lo cubre la votación.
 - Bonus de equipo por encajar pocos goles: siempre hay más de 5 goles por equipo.
 - Votación separada de MVP: se deriva de la parte subjetiva.
 
@@ -69,5 +89,9 @@ Constante `OBJETIVO_MODO`:
 - Menos de 4 votantes → 5 para todos.
 - Un votante no puede votarse a sí mismo ni dejar ranking incompleto o con repetidos; un manager que no jugó no puede votar.
 - Objetiva: 8 goles + victoria = 27 en bruto → 10; autogol que deja el bruto en negativo → 0.
+- Salvadas: +2 cada una y máximo 3 por jugador y partido (la cuarta no suma).
+- Cuadre: si los goles atribuidos más los autogoles del rival no coinciden con el marcador, no se puede cerrar el acta.
+- Ventana de corrección: una petición aceptada recalcula los puntos; una rechazada no cambia nada.
+- Deshacer en el modo directo elimina solo el último evento.
 - MVP asignado al mejor `N_subj`, con desempate.
-- Variación de precio dentro de ±15 % y media de jornada como punto neutro.
+- Variación de precio: ver los tests de `CAMBIOS_MERCADO.md`.

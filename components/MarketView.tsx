@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Player } from '../types';
 import { egolDb } from '../lib/db';
-import { TrendingUp, TrendingDown, Star, Search } from 'lucide-react';
+import { formatCurrency } from '../lib/utils';ide-react';
 
 export default function MarketView({
   user,
@@ -55,7 +55,7 @@ export default function MarketView({
     if (!user) return;
     const player = players.find(p => p.id === playerId);
     if (!player) return;
-    if (!confirm(`¿Vender a ${player.name} por ${player.currentPrice}M€?`)) return;
+    if (!confirm(`¿Vender a ${player.name} por ${formatCurrency(player.currentPrice)}?`)) return;
 
     try {
       const res = await egolDb.sellPlayer(user.id, playerId);
@@ -161,7 +161,7 @@ export default function MarketView({
                   <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
                     <div className="w-16 sm:w-20 text-right">
                       <span className="font-black text-amber-400 text-xs sm:text-sm block whitespace-nowrap">
-                        {player.currentPrice}M€
+                        {formatCurrency(player.currentPrice)}
                       </span>
                       {hasIncreased ? (
                         <span className="inline-flex items-center justify-end gap-0.5 text-emerald-400 text-[10px] font-bold">
