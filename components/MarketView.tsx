@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Player } from '../types';
 import { egolDb } from '../lib/db';
-import { formatCurrency } from '../lib/utils';ide-react';
+import { formatCurrency } from '../lib/utils';
 
 export default function MarketView({
   user,
