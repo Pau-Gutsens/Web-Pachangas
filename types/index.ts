@@ -10,7 +10,7 @@ export interface UserAccount {
   starterPlayerIds: string[]; // Exactly 5 starters when full
   totalPoints: number;
   lastMatchPoints: number;
-  compras_iniciales: number;
+  compras_iniciales?: number;
 }
 
 export interface PlayerStatsSummary {

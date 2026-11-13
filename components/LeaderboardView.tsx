@@ -143,7 +143,9 @@ export default function LeaderboardView() {
                       </div>
                     </div>
                     <div className="flex items-center justify-center">
-                      <div className="text-2xl font-black text-neutral-600">{lastMatch.status === 'draw' ? 'Empate' : 'vs'}</div>
+                      <div className="text-2xl font-black text-neutral-600">
+                        {lastMatch.scoreA !== undefined && lastMatch.scoreB !== undefined && lastMatch.scoreA === lastMatch.scoreB ? 'Empate' : 'vs'}
+                      </div>
                     </div>
                     <div className="p-4 bg-neutral-800 rounded-xl border border-neutral-700">
                       <div className="text-sm text-neutral-400 mb-1">Equipo B</div>

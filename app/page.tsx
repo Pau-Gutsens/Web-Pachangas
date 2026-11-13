@@ -19,7 +19,7 @@ export default function EGOLApp() {
 
   const refreshData = async () => {
     try {
-      const user = egolDb.getCurrentUser();
+      const user = await egolDb.syncCurrentUser();
       setCurrentUser(user);
       const fetchedPlayers = await egolDb.getPlayers();
       setPlayers(fetchedPlayers);

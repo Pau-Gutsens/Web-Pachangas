@@ -10,8 +10,22 @@ CREATE TABLE IF NOT EXISTS profiles (
   role TEXT DEFAULT 'member',
   alias TEXT,
   avatar_url TEXT,
+  budget NUMERIC DEFAULT 100,
+  owned_player_ids JSONB DEFAULT '[]'::jsonb,
+  starter_player_ids JSONB DEFAULT '[]'::jsonb,
+  total_points INTEGER DEFAULT 0,
+  last_match_points INTEGER DEFAULT 0,
+  compras_iniciales INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Si la tabla profiles ya existía previamente, asegurar que tenga todas las columnas necesarias:
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS budget NUMERIC DEFAULT 100;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS owned_player_ids JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS starter_player_ids JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS total_points INTEGER DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_match_points INTEGER DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS compras_iniciales INTEGER DEFAULT 0;
 
 -- 2. Tabla de pachangas
 CREATE TABLE IF NOT EXISTS pachangas (

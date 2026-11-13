@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { UserAccount, Player, PachangaMatch } from '../types';
 import { egolDb } from '../lib/db';
 import { Shield, ArrowLeftRight, Trash2, Star, PlusCircle } from 'lucide-react';
+import { formatCurrency } from '../lib/utils';
 
 export default function MyTeamView({
   user,

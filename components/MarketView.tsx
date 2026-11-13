@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { UserAccount, Player } from '../types';
 import { egolDb } from '../lib/db';
 import { formatCurrency } from '../lib/utils';
+import { Search, Star, TrendingUp, TrendingDown } from 'lucide-react';
 
 export default function MarketView({
   user,

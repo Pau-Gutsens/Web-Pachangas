@@ -25,6 +25,22 @@ function setStorage<T>(key: string, value: T): void {
   }
 }
 
+function mapProfileToUser(data: any): UserAccount {
+  const cleanUser = (data.name || '').trim().toLowerCase();
+  const role: UserRole = (data.role === 'admin' || cleanUser === 'pagusa') ? 'admin' : (data.role || 'member');
+  return {
+    id: data.id,
+    username: data.name,
+    role: role,
+    budget: data.budget !== undefined && data.budget !== null ? Number(data.budget) : 100,
+    ownedPlayerIds: Array.isArray(data.owned_player_ids) ? data.owned_player_ids : (Array.isArray(data.ownedPlayerIds) ? data.ownedPlayerIds : []),
+    starterPlayerIds: Array.isArray(data.starter_player_ids) ? data.starter_player_ids : (Array.isArray(data.starterPlayerIds) ? data.starterPlayerIds : []),
+    totalPoints: Number(data.total_points ?? data.totalPoints ?? 0),
+    lastMatchPoints: Number(data.last_match_points ?? data.lastMatchPoints ?? 0),
+    compras_iniciales: Number(data.compras_iniciales ?? 0)
+  };
+}
+
 export const egolDb = {
   getCurrentUser(): UserAccount | null {
     const user = getStorage<UserAccount | null>('session_user', null);
@@ -35,6 +51,28 @@ export const egolDb = {
       return null;
     }
     return user;
+  },
+
+  async syncCurrentUser(): Promise<UserAccount | null> {
+    const cached = this.getCurrentUser();
+    if (!cached || !cached.id) return cached;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', cached.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        const freshUser = mapProfileToUser(data);
+        setStorage('session_user', freshUser);
+        return freshUser;
+      }
+    } catch (e) {
+      console.warn('Error syncing current user:', e);
+    }
+    return cached;
   },
 
   async getUsers(): Promise<Record<string, { password: string; account: UserAccount }>> {
@@ -49,21 +87,9 @@ export const egolDb = {
 
     const users: Record<string, { password: string; account: UserAccount }> = {};
     data?.forEach((profile: any) => {
-      // Como la tabla profiles no tiene password (por seguridad),
-      // manejamos esto con cuidado. Para este MVP, asumimos que la
-      // lógica de login se validará mediante una clave de acceso.
       users[profile.name.toLowerCase()] = {
-        password: '', // En un entorno real, usaríamos Supabase Auth
-        account: {
-          id: profile.id,
-          username: profile.name,
-          role: profile.role,
-          budget: 100,
-          ownedPlayerIds: [],
-          starterPlayerIds: [],
-          totalPoints: 0,
-          lastMatchPoints: 0
-        }
+        password: '',
+        account: mapProfileToUser(profile)
       };
     });
     return users;
@@ -83,21 +109,7 @@ export const egolDb = {
       return { success: false, message: 'Usuario no encontrado. Asegúrate de registrarte si es tu primera vez.' };
     }
 
-    const role: UserRole = (data.role === 'admin' || cleanUser === 'pagusa') ? 'admin' : (data.role || 'member');
-
-    const user: UserAccount = {
-      id: data.id,
-      username: data.name,
-      role: role,
-      budget: 100,
-      ownedPlayerIds: [],
-      starterPlayerIds: [],
-      totalPoints: data.total_points || 0,
-      lastMatchPoints: 0,
-      compras_iniciales: 0
-    };
-
-
+    const user = mapProfileToUser(data);
     setStorage('session_user', user);
     return { success: true, user };
   },
@@ -116,17 +128,7 @@ export const egolDb = {
       .maybeSingle();
 
     if (existing) {
-      const role: UserRole = (existing.role === 'admin' || cleanUser === 'pagusa') ? 'admin' : (existing.role || 'member');
-      const user: UserAccount = {
-        id: existing.id,
-        username: existing.name,
-        role: role,
-        budget: 100,
-        ownedPlayerIds: [],
-        starterPlayerIds: [],
-        totalPoints: existing.total_points || 0,
-        lastMatchPoints: 0
-      };
+      const user = mapProfileToUser(existing);
       setStorage('session_user', user);
       return { success: true, user };
     }
@@ -134,33 +136,43 @@ export const egolDb = {
     // El check constraint en PostgreSQL profiles_role_check requiere 'admin' o 'member'
     const role = cleanUser === 'pagusa' ? 'admin' : 'member';
 
-    const { data, error } = await supabase
+    let data: any = null;
+    const fullInsert = await supabase
       .from('profiles')
       .insert({
         name: username.trim(),
         role: role,
-        alias: username.trim()
+        alias: username.trim(),
+        budget: 100,
+        owned_player_ids: [],
+        starter_player_ids: [],
+        total_points: 0,
+        last_match_points: 0,
+        compras_iniciales: 0
       })
       .select()
       .single();
 
-    if (error) {
-      return { success: false, message: 'Error al registrar: ' + error.message };
+    if (!fullInsert.error && fullInsert.data) {
+      data = fullInsert.data;
+    } else {
+      const fallback = await supabase
+        .from('profiles')
+        .insert({
+          name: username.trim(),
+          role: role,
+          alias: username.trim()
+        })
+        .select()
+        .single();
+
+      if (fallback.error) {
+        return { success: false, message: 'Error al registrar: ' + fallback.error.message };
+      }
+      data = fallback.data;
     }
 
-    const newAccount: UserAccount = {
-      id: data.id,
-      username: data.name,
-      role: data.role,
-      budget: 100,
-      ownedPlayerIds: [],
-      starterPlayerIds: [],
-      totalPoints: 0,
-      lastMatchPoints: 0,
-      compras_iniciales: 0
-    };
-
-
+    const newAccount = mapProfileToUser(data);
     setStorage('session_user', newAccount);
     return { success: true, user: newAccount };
   },
@@ -283,7 +295,7 @@ export const egolDb = {
 
     // Actualizar presupuesto y propiedad
     let actualPrice = price;
-    if (currentUser.compras_iniciales < COMPRAS_INICIALES) {
+    if ((currentUser.compras_iniciales || 0) < COMPRAS_INICIALES) {
       actualPrice = PRECIO_COMPRA_INICIAL;
     }
 
@@ -295,11 +307,26 @@ export const egolDb = {
       currentUser.starterPlayerIds.push(playerId);
     }
 
-    if (currentUser.compras_iniciales < COMPRAS_INICIALES) {
-      currentUser.compras_iniciales += 1;
+    if ((currentUser.compras_iniciales || 0) < COMPRAS_INICIALES) {
+      currentUser.compras_iniciales = (currentUser.compras_iniciales || 0) + 1;
     }
 
     setStorage('session_user', currentUser);
+
+    try {
+      await supabase
+        .from('profiles')
+        .update({
+          budget: currentUser.budget,
+          owned_player_ids: currentUser.ownedPlayerIds,
+          starter_player_ids: currentUser.starterPlayerIds,
+          compras_iniciales: currentUser.compras_iniciales || 0
+        })
+        .eq('id', currentUser.id);
+    } catch (e) {
+      console.warn('Could not sync profile to Supabase on buyPlayer:', e);
+    }
+
     return { success: true, message: `¡Has fichado a ${player.name}!`, user: currentUser };
 
   },
@@ -326,6 +353,20 @@ export const egolDb = {
     currentUser.starterPlayerIds = currentUser.starterPlayerIds.filter(id => id !== playerId);
 
     setStorage('session_user', currentUser);
+
+    try {
+      await supabase
+        .from('profiles')
+        .update({
+          budget: currentUser.budget,
+          owned_player_ids: currentUser.ownedPlayerIds,
+          starter_player_ids: currentUser.starterPlayerIds
+        })
+        .eq('id', currentUser.id);
+    } catch (e) {
+      console.warn('Could not sync profile to Supabase on sellPlayer:', e);
+    }
+
     return { success: true, message: `Has vendido a ${player.name}.`, user: currentUser };
   },
 
@@ -339,6 +380,18 @@ export const egolDb = {
 
     currentUser.starterPlayerIds = starterIds;
     setStorage('session_user', currentUser);
+
+    try {
+      await supabase
+        .from('profiles')
+        .update({
+          starter_player_ids: currentUser.starterPlayerIds
+        })
+        .eq('id', currentUser.id);
+    } catch (e) {
+      console.warn('Could not sync starters to Supabase:', e);
+    }
+
     return { success: true, message: 'Alineación de titulares actualizada.', user: currentUser };
   },
 
@@ -569,27 +622,47 @@ export const egolDb = {
       console.error('Error updating player stats in Supabase:', e);
     }
 
-    // 3. Actualizar puntos del manager en la sesión actual
+    // 3. Actualizar puntos de TODOS los managers en Supabase
     try {
       const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw';
-      const currentUser = this.getCurrentUser();
-      if (currentUser && currentUser.starterPlayerIds && updatedMatch) {
-        let matchPoints = 0;
-        currentUser.starterPlayerIds.forEach(pId => {
-          const st = stats[pId];
-          if (st) {
-            let pts = (st.goals * 3) + (st.assists * 1) - (st.ownGoals * 2);
-            if (st.rating && st.rating > 0) pts += Number(st.rating);
-            if (winnerTeam === 'A' && updatedMatch.team_a?.includes(pId)) pts += 3;
-            if (winnerTeam === 'B' && updatedMatch.team_b?.includes(pId)) pts += 3;
-            if (winnerTeam === 'draw') pts += 1;
-            matchPoints += Math.max(0, Math.round(pts));
+      const { data: allProfiles } = await supabase.from('profiles').select('*');
+      if (allProfiles && allProfiles.length > 0) {
+        for (const prof of allProfiles) {
+          const starterIds: string[] = Array.isArray(prof.starter_player_ids)
+            ? prof.starter_player_ids
+            : (Array.isArray(prof.starterPlayerIds) ? prof.starterPlayerIds : []);
+
+          let matchPoints = 0;
+          starterIds.forEach(pId => {
+            const st = stats[pId];
+            if (st) {
+              let pts = (st.goals * 3) + (st.assists * 1) - (st.ownGoals * 2);
+              if (st.rating && Number(st.rating) > 0) pts += Number(st.rating);
+              if (winnerTeam === 'A' && updatedMatch?.team_a?.includes(pId)) pts += 3;
+              if (winnerTeam === 'B' && updatedMatch?.team_b?.includes(pId)) pts += 3;
+              if (winnerTeam === 'draw') pts += 1;
+              matchPoints += Math.max(0, Math.round(pts));
+            }
+          });
+
+          const currentTotal = Number(prof.total_points || 0);
+          const newTotal = currentTotal + matchPoints;
+
+          try {
+            await supabase
+              .from('profiles')
+              .update({
+                last_match_points: matchPoints,
+                total_points: newTotal
+              })
+              .eq('id', prof.id);
+          } catch (err) {
+            console.warn(`Error updating points in Supabase for ${prof.name}:`, err);
           }
-        });
-        currentUser.lastMatchPoints = matchPoints;
-        currentUser.totalPoints = (currentUser.totalPoints || 0) + matchPoints;
-        setStorage('session_user', currentUser);
+        }
       }
+
+      await this.syncCurrentUser();
     } catch (e) {
       console.warn('Error calculating manager points:', e);
     }
@@ -650,15 +723,8 @@ export const egolDb = {
       return [];
     }
 
-    return (data || []).map((p: any) => ({
-      id: p.id,
-      username: p.name,
-      role: p.role,
-      budget: 100,
-      ownedPlayerIds: [],
-      starterPlayerIds: [],
-      totalPoints: p.total_points || 0,
-      lastMatchPoints: 0
-    })).sort((a, b) => b.totalPoints - a.totalPoints);
+    return (data || [])
+      .map((p: any) => mapProfileToUser(p))
+      .sort((a, b) => b.totalPoints - a.totalPoints);
   }
 };
