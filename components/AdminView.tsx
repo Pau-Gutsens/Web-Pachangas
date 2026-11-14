@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player, PachangaMatch, UserAccount, MatchEvent } from '../types';
 import { egolDb, isMarketOrLineupLocked } from '../lib/db';
+import { formatCurrency } from '../lib/utils';
 import { ShieldAlert, PlusCircle, Clock, Calendar, Users, Award, UserPlus, CheckCircle, RotateCcw, AlertTriangle, ShieldCheck, XCircle, Undo2, Play, Flame, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function AdminView({
@@ -557,7 +558,7 @@ export default function AdminView({
                 <div>
                   <span className="font-bold text-white text-sm block">{acc.username}</span>
                   <span className="text-[11px] text-neutral-400">
-                    Rol: {acc.role} · Saldo: {acc.budget} K€
+                    Rol: {acc.role} · Saldo: {formatCurrency(acc.budget)}
                   </span>
                 </div>
 

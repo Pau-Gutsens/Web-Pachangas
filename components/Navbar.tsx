@@ -3,6 +3,7 @@
 import React from 'react';
 import { UserAccount } from '../types';
 import { Trophy, Calendar, Shield, ShoppingBag, ShieldAlert, LogOut, Coins } from 'lucide-react';
+import { formatCurrency } from '../lib/utils';
 
 export default function Navbar({
   user,
@@ -115,7 +116,7 @@ export default function Navbar({
               {/* Saldo Presupuesto */}
               <div className="h-8 bg-neutral-900 border border-neutral-800 px-2 sm:px-2.5 rounded-lg flex items-center gap-1.5 text-xs">
                 <Coins className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-                <span className="font-black text-white">{user.budget}M€</span>
+                <span className="font-black text-white">{formatCurrency(user.budget)}</span>
               </div>
 
               {/* Puntos acumulados */}
