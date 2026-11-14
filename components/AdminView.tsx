@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Player, PachangaMatch, UserAccount } from '../types';
+import { Player, PachangaMatch, UserAccount, MatchEvent } from '../types';
 import { egolDb, isMarketOrLineupLocked } from '../lib/db';
-import { ShieldAlert, PlusCircle, Clock, Calendar, Users, Award, UserPlus, CheckCircle, RotateCcw, AlertTriangle, ShieldCheck, XCircle } from 'lucide-react';
+import { ShieldAlert, PlusCircle, Clock, Calendar, Users, Award, UserPlus, CheckCircle, RotateCcw, AlertTriangle, ShieldCheck, XCircle, Undo2, Play, Flame, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function AdminView({
   players,
@@ -56,6 +56,13 @@ export default function AdminView({
     ownGoals: number;
     saves: number;
   }>>({});
+
+  // Modo Directo (En Vivo)
+  const [directGoalModal, setDirectGoalModal] = useState<{ team: 'A' | 'B'; scorerId?: string; step: 'scorer' | 'assist' } | null>(null);
+  const [directOwnGoalModal, setDirectOwnGoalModal] = useState(false);
+  const [directSaveModal, setDirectSaveModal] = useState(false);
+  const [isEventLoading, setIsEventLoading] = useState(false);
+  const [showManualTable, setShowManualTable] = useState(false);
 
   const currentMatch = matches.find(m => m.id === selectedMatchId) || matches[0];
 
@@ -262,6 +269,118 @@ export default function AdminView({
     } catch (e: any) {
       console.error(e);
       alert(e.message || 'Error al cancelar partido.');
+    }
+  };
+
+  const handleStartMatchLive = async () => {
+    if (!currentMatch) return;
+    try {
+      await egolDb.setMatchLive(currentMatch.id);
+      await loadData();
+      onRefresh();
+    } catch (e) {
+      console.error(e);
+      alert('Error al iniciar partido.');
+    }
+  };
+
+  const handleRecordGoal = async (scorerId: string, assistantId?: string) => {
+    if (!currentMatch || !directGoalModal) return;
+    setIsEventLoading(true);
+    try {
+      const targetTeam = directGoalModal.team;
+      const teamArr = targetTeam === 'A' ? (currentMatch.teamA || []) : (currentMatch.teamB || []);
+      if (!teamArr.includes(scorerId)) {
+        await egolDb.addPlayerToMatchTeam(currentMatch.id, scorerId, targetTeam);
+      }
+      if (assistantId && !teamArr.includes(assistantId)) {
+        await egolDb.addPlayerToMatchTeam(currentMatch.id, assistantId, targetTeam);
+      }
+
+      const res = await egolDb.addMatchEvent(currentMatch.id, {
+        type: 'goal',
+        team: directGoalModal.team,
+        playerId: scorerId,
+        assistantId: assistantId || undefined
+      });
+      if (res.success) {
+        setDirectGoalModal(null);
+        await loadData();
+        onRefresh();
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al registrar gol.');
+    } finally {
+      setIsEventLoading(false);
+    }
+  };
+
+  const handleRecordOwnGoal = async (playerId: string) => {
+    if (!currentMatch) return;
+    setIsEventLoading(true);
+    try {
+      const isTeamA = currentMatch.teamA?.includes(playerId);
+      const res = await egolDb.addMatchEvent(currentMatch.id, {
+        type: 'own_goal',
+        team: isTeamA ? 'A' : 'B',
+        playerId
+      });
+      if (res.success) {
+        setDirectOwnGoalModal(false);
+        await loadData();
+        onRefresh();
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al registrar autogol.');
+    } finally {
+      setIsEventLoading(false);
+    }
+  };
+
+  const handleRecordSave = async (playerId: string) => {
+    if (!currentMatch) return;
+    setIsEventLoading(true);
+    try {
+      const isTeamA = currentMatch.teamA?.includes(playerId);
+      const res = await egolDb.addMatchEvent(currentMatch.id, {
+        type: 'save',
+        team: isTeamA ? 'A' : 'B',
+        playerId
+      });
+      if (res.success) {
+        setDirectSaveModal(false);
+        await loadData();
+        onRefresh();
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al registrar salvada.');
+    } finally {
+      setIsEventLoading(false);
+    }
+  };
+
+  const handleUndoEvent = async () => {
+    if (!currentMatch) return;
+    if (!confirm('¿Deshacer el último evento registrado?')) return;
+    setIsEventLoading(true);
+    try {
+      const res = await egolDb.undoLastMatchEvent(currentMatch.id);
+      if (res.success) {
+        await loadData();
+        onRefresh();
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al deshacer evento.');
+    } finally {
+      setIsEventLoading(false);
     }
   };
 
@@ -658,152 +777,408 @@ export default function AdminView({
             </div>
           </div>
 
-          {/* 5. ACTA DEL PARTIDO CON CUADRE AUTOMÁTICO (SECCIÓN 5) */}
-          <div className="pt-6 border-t border-neutral-800 space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          {/* 5. MODO DIRECTO (EN VIVO) Y ACTA DEL PARTIDO (SECCIÓN 5) */}
+          <div className="pt-6 border-t border-neutral-800 space-y-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div>
-                <h3 className="text-sm font-black text-white flex items-center gap-2">
-                  <Award className="h-4 w-4 text-amber-400" />
-                  Acta del Partido
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-amber-400" />
+                  Modo Directo (Apuntar Partido en Vivo)
                 </h3>
-                <p className="text-xs text-neutral-500">
-                  Cuadre automático: los goles de cada equipo más los autogoles rivales deben coincidir con el marcador.
+                <p className="text-xs text-neutral-400">
+                  Dos toques por gol (goleador + asistente). Deshacer siempre visible. Sincroniza al instante.
                 </p>
               </div>
 
-              {/* Marcador final */}
-              <div className="flex items-center gap-2 bg-neutral-950 border border-neutral-800 p-2 rounded-2xl">
-                <div className="text-center">
-                  <span className="text-[10px] font-bold text-blue-400 block">Equipo A</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={scoreA}
-                    onChange={(e) => setScoreA(parseInt(e.target.value) || 0)}
-                    className="w-14 bg-neutral-900 border border-neutral-700 text-center font-black text-white text-lg rounded-xl p-1"
-                  />
+              {currentMatch.status === 'upcoming' && (
+                <button
+                  onClick={handleStartMatchLive}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md"
+                >
+                  <Play className="h-3.5 w-3.5 fill-white" />
+                  Comenzar Partido (Poner En Juego)
+                </button>
+              )}
+            </div>
+
+            {/* MARCADOR GIGANTE EN DIRECTO */}
+            <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-5 shadow-inner">
+              <div className="grid grid-cols-3 items-center text-center">
+                <div>
+                  <span className="text-xs font-black uppercase text-blue-400 block mb-1">
+                    Equipo A ({currentMatch.teamA?.length || 0})
+                  </span>
+                  <span className="text-4xl sm:text-6xl font-black text-white">
+                    {currentMatch.scoreA ?? scoreA}
+                  </span>
                 </div>
-                <span className="font-black text-neutral-500 text-xs">-</span>
-                <div className="text-center">
-                  <span className="text-[10px] font-bold text-red-400 block">Equipo B</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={scoreB}
-                    onChange={(e) => setScoreB(parseInt(e.target.value) || 0)}
-                    className="w-14 bg-neutral-900 border border-neutral-700 text-center font-black text-white text-lg rounded-xl p-1"
-                  />
+
+                <div className="flex flex-col items-center justify-center">
+                  <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border mb-1.5 ${
+                    currentMatch.status === 'live'
+                      ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse'
+                      : currentMatch.status === 'voting'
+                      ? 'bg-amber-400/20 text-amber-400 border-amber-400/30'
+                      : 'bg-neutral-800 text-neutral-400 border-neutral-700'
+                  }`}>
+                    {currentMatch.status === 'live' ? '● En Juego' : currentMatch.status === 'voting' ? 'Votación' : 'Activo'}
+                  </span>
+                  <span className="text-neutral-600 text-xs font-black uppercase">VS</span>
+                </div>
+
+                <div>
+                  <span className="text-xs font-black uppercase text-red-400 block mb-1">
+                    Equipo B ({currentMatch.teamB?.length || 0})
+                  </span>
+                  <span className="text-4xl sm:text-6xl font-black text-white">
+                    {currentMatch.scoreB ?? scoreB}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Banner de Cuadre Automático */}
-            <div className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-between gap-3 ${
-              isBalanced ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-400' : 'bg-red-950/40 border-red-500/40 text-red-400'
-            }`}>
-              <div className="flex items-center gap-2">
-                {isBalanced ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                <span>
-                  {isBalanced
-                    ? 'Cuadre perfecto: Los goles y autogoles atribuidos coinciden exactamente con el marcador final.'
-                    : `Goles sin cuadrar — Equipo A: ${diffA > 0 ? `faltan ${diffA}` : diffA < 0 ? `sobran ${Math.abs(diffA)}` : 'cuadrado'} · Equipo B: ${diffB > 0 ? `faltan ${diffB}` : diffB < 0 ? `sobran ${Math.abs(diffB)}` : 'cuadrado'}`}
-                </span>
-              </div>
+            {/* BOTONES GIGANTES DE GOL (MODO DIRECTO) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={() => setDirectGoalModal({ team: 'A', step: 'scorer' })}
+                disabled={isEventLoading}
+                className="py-4 px-4 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white font-black rounded-2xl text-base uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
+              >
+                <span>⚽ Gol Equipo A</span>
+              </button>
+
+              <button
+                onClick={() => setDirectGoalModal({ team: 'B', step: 'scorer' })}
+                disabled={isEventLoading}
+                className="py-4 px-4 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-black rounded-2xl text-base uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
+              >
+                <span>⚽ Gol Equipo B</span>
+              </button>
             </div>
 
-            {/* Tabla de Jugadores Convocados */}
-            {currentMatchPlayers.length === 0 ? (
-              <p className="p-4 text-center text-xs text-neutral-500 italic">
-                Convoca al menos un jugador a los equipos para rellenar el acta.
-              </p>
-            ) : (
-              <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-neutral-950 text-neutral-400 uppercase font-black border-b border-neutral-800">
-                      <th className="p-3">Jugador</th>
-                      <th className="p-3 text-center">Goles (+3) ⚽</th>
-                      <th className="p-3 text-center">Asistencias (+1) 👟</th>
-                      <th className="p-3 text-center">Autogol (-2) ❌</th>
-                      <th className="p-3 text-center">Salvada (+2, máx 3) 🧤</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-800/60">
-                    {currentMatchPlayers.map(player => {
-                      const st = matchStats[player.id] || { goals: 0, assists: 0, ownGoals: 0, saves: 0 };
-                      const team = currentMatch.teamA?.includes(player.id) ? 'Equipo A' : 'Equipo B';
+            {/* ACCIONES SECUNDARIAS (AUTOGOL, SALVADA, DESHACER) */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                onClick={() => setDirectOwnGoalModal(true)}
+                disabled={isEventLoading}
+                className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700/80 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+              >
+                <span>❌ Autogol</span>
+              </button>
 
-                      return (
-                        <tr key={player.id} className="hover:bg-neutral-800/30">
-                          <td className="p-3 font-bold text-white flex items-center gap-2">
-                            <span>{player.name} {player.isGuest && <span className="text-neutral-400 font-normal">(invitado)</span>}</span>
-                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                              team === 'Equipo A' ? 'bg-blue-950 text-blue-400' : 'bg-red-950 text-red-400'
-                            }`}>
-                              {team}
-                            </span>
-                          </td>
+              <button
+                onClick={() => setDirectSaveModal(true)}
+                disabled={isEventLoading}
+                className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+              >
+                <span>🧤 Salvada (+2 pts, máx 3)</span>
+              </button>
 
-                          <td className="p-3 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              value={st.goals}
-                              onChange={(e) => updatePlayerStat(player.id, 'goals', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
-                            />
-                          </td>
+              <button
+                onClick={handleUndoEvent}
+                disabled={isEventLoading || !currentMatch.events || currentMatch.events.length === 0}
+                className={`ml-auto px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                  currentMatch.events && currentMatch.events.length > 0
+                    ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-600 shadow-sm cursor-pointer'
+                    : 'bg-neutral-950 text-neutral-600 border-neutral-800 cursor-not-allowed'
+                }`}
+                title="Deshacer el último gol o evento apuntado"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+                <span>Deshacer Último ({currentMatch.events?.length || 0})</span>
+              </button>
+            </div>
 
-                          <td className="p-3 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              value={st.assists}
-                              onChange={(e) => updatePlayerStat(player.id, 'assists', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
-                            />
-                          </td>
+            {/* MODAL DE REGISTRO DE GOL (2 TOQUES: GOLEADOR + ASISTENCIA) */}
+            {directGoalModal && (
+              <div className="p-4 bg-neutral-950 border border-amber-400/40 rounded-2xl space-y-4 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                  <span className="font-black text-sm text-amber-400 uppercase">
+                    {directGoalModal.step === 'scorer'
+                      ? `⚽ Paso 1: ¿Quién marcó para el Equipo ${directGoalModal.team}?`
+                      : `👟 Paso 2: ¿Quién dio la asistencia?`}
+                  </span>
+                  <button
+                    onClick={() => setDirectGoalModal(null)}
+                    className="text-neutral-500 hover:text-white text-xs px-2 py-0.5"
+                  >
+                    Cancelar ✕
+                  </button>
+                </div>
 
-                          <td className="p-3 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              value={st.ownGoals}
-                              onChange={(e) => updatePlayerStat(player.id, 'ownGoals', parseInt(e.target.value) || 0)}
-                              className="w-12 bg-neutral-950 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
-                            />
-                          </td>
+                {directGoalModal.step === 'scorer' ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {(() => {
+                      const teamFilter = directGoalModal.team === 'A' ? currentMatch.teamA : currentMatch.teamB;
+                      const availablePlayers = teamFilter && teamFilter.length > 0
+                        ? players.filter(p => teamFilter.includes(p.id))
+                        : players;
+                      return availablePlayers.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => setDirectGoalModal(prev => prev ? { ...prev, scorerId: p.id, step: 'assist' } : null)}
+                          className="p-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-xs font-bold text-white text-left transition flex items-center gap-2"
+                        >
+                          <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 flex-shrink-0">
+                            <img src={p.avatarUrl || '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
+                          </div>
+                          <span className="truncate">{p.name}</span>
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {(() => {
+                        const teamFilter = directGoalModal.team === 'A' ? currentMatch.teamA : currentMatch.teamB;
+                        const availableAssistants = teamFilter && teamFilter.length > 0
+                          ? players.filter(p => teamFilter.includes(p.id) && p.id !== directGoalModal.scorerId)
+                          : players.filter(p => p.id !== directGoalModal.scorerId);
+                        return availableAssistants.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => handleRecordGoal(directGoalModal.scorerId!, p.id)}
+                            className="p-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-xs font-bold text-white text-left transition flex items-center gap-2"
+                          >
+                            <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 flex-shrink-0">
+                              <img src={p.avatarUrl || '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
+                            </div>
+                            <span className="truncate">{p.name}</span>
+                          </button>
+                        ));
+                      })()}
+                    </div>
 
-                          <td className="p-3 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              max="3"
-                              value={st.saves}
-                              onChange={(e) => updatePlayerStat(player.id, 'saves', Math.min(3, parseInt(e.target.value) || 0))}
-                              className="w-12 bg-neutral-950 border border-amber-500/40 text-center text-amber-400 font-bold p-1 rounded-lg"
-                              title="Salvadas puntuales que evitaron gol claro (máx 3)"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                    <button
+                      onClick={() => handleRecordGoal(directGoalModal.scorerId!, undefined)}
+                      className="w-full py-3 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition shadow-md"
+                    >
+                      ⚽ Gol sin Asistencia (Jugada Individual)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            <button
-              onClick={handleSaveActa}
-              disabled={!isBalanced}
-              className={`w-full py-3 font-black rounded-xl text-xs uppercase tracking-wider transition ${
-                isBalanced
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg cursor-pointer'
-                  : 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-              }`}
-            >
-              {isBalanced ? 'Cerrar Acta y Abrir Votaciones' : 'Corrige los goles para que cuadre el acta'}
-            </button>
+            {/* MODAL DE AUTOGOL */}
+            {directOwnGoalModal && (
+              <div className="p-4 bg-neutral-950 border border-red-500/40 rounded-2xl space-y-4 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                  <span className="font-black text-sm text-red-400 uppercase">
+                    ❌ ¿Quién metió el autogol? (Suma gol al rival)
+                  </span>
+                  <button
+                    onClick={() => setDirectOwnGoalModal(false)}
+                    className="text-neutral-500 hover:text-white text-xs px-2 py-0.5"
+                  >
+                    Cancelar ✕
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {currentMatchPlayers.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleRecordOwnGoal(p.id)}
+                      className="p-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-xs font-bold text-white text-left transition flex items-center gap-2"
+                    >
+                      <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 flex-shrink-0">
+                        <img src={p.avatarUrl || '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
+                      </div>
+                      <span className="truncate">{p.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* MODAL DE SALVADA */}
+            {directSaveModal && (
+              <div className="p-4 bg-neutral-950 border border-amber-500/40 rounded-2xl space-y-4 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                  <span className="font-black text-sm text-amber-400 uppercase">
+                    🧤 ¿Quién hizo la salvada? (Evitó gol claro, máx 3)
+                  </span>
+                  <button
+                    onClick={() => setDirectSaveModal(false)}
+                    className="text-neutral-500 hover:text-white text-xs px-2 py-0.5"
+                  >
+                    Cancelar ✕
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {currentMatchPlayers.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleRecordSave(p.id)}
+                      className="p-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-xs font-bold text-white text-left transition flex items-center gap-2"
+                    >
+                      <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 flex-shrink-0">
+                        <img src={p.avatarUrl || '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
+                      </div>
+                      <span className="truncate">{p.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TIMELINE DE EVENTOS EN DIRECTO */}
+            {currentMatch.events && currentMatch.events.length > 0 && (
+              <div className="bg-neutral-950/70 border border-neutral-800 rounded-xl p-3.5 space-y-2">
+                <span className="text-[11px] font-black uppercase text-neutral-400 flex items-center gap-1.5">
+                  <Flame className="h-3.5 w-3.5 text-amber-400" />
+                  Eventos del Partido ({currentMatch.events.length})
+                </span>
+                <div className="divide-y divide-neutral-900 max-h-40 overflow-y-auto">
+                  {[...currentMatch.events].reverse().map((ev, idx) => {
+                    const p = players.find(item => item.id === ev.playerId);
+                    const asst = ev.assistantId ? players.find(item => item.id === ev.assistantId) : null;
+                    const num = currentMatch.events!.length - idx;
+
+                    return (
+                      <div key={ev.id || idx} className="py-1.5 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-neutral-500 font-mono text-[10px]">#{num}</span>
+                          <span className="font-bold text-white">
+                            {ev.type === 'goal' ? '⚽ Gol de ' : ev.type === 'own_goal' ? '❌ Autogol de ' : '🧤 Salvada de '}
+                            {p ? p.name : 'Jugador'}
+                          </span>
+                          {asst && (
+                            <span className="text-neutral-400 text-[11px]">
+                              (asistencia: <strong className="text-neutral-200">{asst.name}</strong>)
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${
+                          ev.team === 'A' ? 'text-blue-400 bg-blue-500/10' : 'text-red-400 bg-red-500/10'
+                        }`}>
+                          Equipo {ev.team}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* BOTÓN PARA FINALIZAR Y CERRAR ACTA */}
+            <div className="pt-2">
+              <button
+                onClick={handleSaveActa}
+                disabled={!isBalanced}
+                className={`w-full py-3.5 font-black rounded-xl text-xs uppercase tracking-wider transition shadow-lg ${
+                  isBalanced
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer'
+                    : 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                }`}
+              >
+                {isBalanced
+                  ? 'Cerrar Acta y Abrir Votaciones (48 Horas)'
+                  : `Cuadra los goles para cerrar el acta (${diffA !== 0 ? `Equipo A: ${diffA}` : ''} ${diffB !== 0 ? `Equipo B: ${diffB}` : ''})`}
+              </button>
+            </div>
+
+            {/* ACORDEÓN PARA TABLA MANUAL DE NÚMEROS */}
+            <div className="pt-2">
+              <button
+                onClick={() => setShowManualTable(!showManualTable)}
+                className="w-full py-2 bg-neutral-950 border border-neutral-800 hover:bg-neutral-900 rounded-xl text-xs font-bold text-neutral-400 flex items-center justify-center gap-2 transition"
+              >
+                <span>{showManualTable ? 'Ocultar tabla manual de números' : 'Ver / Editar tabla manual detallada'}</span>
+                {showManualTable ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+
+              {showManualTable && (
+                <div className="mt-3 space-y-4 p-4 bg-neutral-950 border border-neutral-800 rounded-xl">
+                  {/* Banner de Cuadre Automático */}
+                  <div className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-between gap-3 ${
+                    isBalanced ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-400' : 'bg-red-950/40 border-red-500/40 text-red-400'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {isBalanced ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                      <span>
+                        {isBalanced
+                          ? 'Cuadre perfecto: Los goles y autogoles coinciden con el marcador.'
+                          : `Goles sin cuadrar — Equipo A: ${diffA > 0 ? `faltan ${diffA}` : diffA < 0 ? `sobran ${Math.abs(diffA)}` : 'cuadrado'} · Equipo B: ${diffB > 0 ? `faltan ${diffB}` : diffB < 0 ? `sobran ${Math.abs(diffB)}` : 'cuadrado'}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {currentMatchPlayers.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-neutral-900 text-neutral-400 uppercase font-black border-b border-neutral-800">
+                            <th className="p-2.5">Jugador</th>
+                            <th className="p-2.5 text-center">Goles (+3) ⚽</th>
+                            <th className="p-2.5 text-center">Asist (+1) 👟</th>
+                            <th className="p-2.5 text-center">Autogol (-2) ❌</th>
+                            <th className="p-2.5 text-center">Salvada (máx 3) 🧤</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-800">
+                          {currentMatchPlayers.map(player => {
+                            const st = matchStats[player.id] || { goals: 0, assists: 0, ownGoals: 0, saves: 0 };
+                            const team = currentMatch.teamA?.includes(player.id) ? 'Equipo A' : 'Equipo B';
+
+                            return (
+                              <tr key={player.id} className="hover:bg-neutral-900/50">
+                                <td className="p-2.5 font-bold text-white flex items-center gap-2">
+                                  <span>{player.name} {player.isGuest && <span className="text-neutral-400 font-normal">(invitado)</span>}</span>
+                                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                                    team === 'Equipo A' ? 'bg-blue-950 text-blue-400' : 'bg-red-950 text-red-400'
+                                  }`}>
+                                    {team}
+                                  </span>
+                                </td>
+                                <td className="p-2.5 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={st.goals}
+                                    onChange={(e) => updatePlayerStat(player.id, 'goals', parseInt(e.target.value) || 0)}
+                                    className="w-12 bg-neutral-900 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
+                                  />
+                                </td>
+                                <td className="p-2.5 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={st.assists}
+                                    onChange={(e) => updatePlayerStat(player.id, 'assists', parseInt(e.target.value) || 0)}
+                                    className="w-12 bg-neutral-900 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
+                                  />
+                                </td>
+                                <td className="p-2.5 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={st.ownGoals}
+                                    onChange={(e) => updatePlayerStat(player.id, 'ownGoals', parseInt(e.target.value) || 0)}
+                                    className="w-12 bg-neutral-900 border border-neutral-800 text-center text-white font-bold p-1 rounded-lg"
+                                  />
+                                </td>
+                                <td className="p-2.5 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="3"
+                                    value={st.saves}
+                                    onChange={(e) => updatePlayerStat(player.id, 'saves', Math.min(3, parseInt(e.target.value) || 0))}
+                                    className="w-12 bg-neutral-900 border border-amber-500/40 text-center text-amber-400 font-bold p-1 rounded-lg"
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -75,6 +75,7 @@ ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS player_stats JSONB DEFAULT '{}'::
 ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS events JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS lineup_snapshots JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS corrections JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS raw_votes JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS is_official BOOLEAN DEFAULT TRUE;
 
 -- Actualizar restricción de estados para admitir todos los estados:
@@ -160,11 +161,16 @@ ALTER TABLE match_stats DISABLE ROW LEVEL SECURITY;
 ALTER TABLE pachanga_results DISABLE ROW LEVEL SECURITY;
 
 -- ========================================================
--- INSERCIÓN DEL ADMINISTRADOR
--- (Solo se inserta Pagusa como admin inicial si la tabla está vacía)
+-- INSERCIÓN Y VINCULACIÓN DEL ADMINISTRADOR (PAGUSA ↔ GUTSENS)
 -- ========================================================
 INSERT INTO profiles (id, name, role, alias)
 SELECT * FROM (VALUES
   ('a0000000-0000-0000-0000-000000000001'::uuid, 'Pagusa', 'admin', 'Pagusa')
 ) AS v(id, name, role, alias)
-WHERE NOT EXISTS (SELECT 1 FROM profiles);
+WHERE NOT EXISTS (SELECT 1 FROM profiles WHERE LOWER(name) = 'pagusa');
+
+-- Vincular Pagusa a Gutsens automáticamente:
+UPDATE profiles 
+SET linked_player_id = (SELECT id FROM players WHERE LOWER(name) = 'gutsens' LIMIT 1),
+    link_status = 'approved'
+WHERE LOWER(name) = 'pagusa';

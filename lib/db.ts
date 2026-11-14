@@ -1,9 +1,52 @@
-import { UserAccount, Player, PachangaMatch, UserRole, CorrectionRequest, LineupSnapshot } from '../types';
+import { UserAccount, Player, PachangaMatch, UserRole, CorrectionRequest, LineupSnapshot, MatchEvent } from '../types';
 import { calculateMatchScores, calculateManagerPoints } from './scoring';
 import { supabase } from './supabase';
 import { TITULARES, MAX_PLANTILLA } from './config';
 
 const PREFIX = 'egol_fantasy_';
+
+export function computeStatsAndScoreFromEvents(
+  events: MatchEvent[],
+  allPlayerIds: string[]
+): {
+  scoreA: number;
+  scoreB: number;
+  stats: Record<string, { goals: number; assists: number; ownGoals: number; saves: number }>;
+} {
+  let scoreA = 0;
+  let scoreB = 0;
+  const stats: Record<string, { goals: number; assists: number; ownGoals: number; saves: number }> = {};
+
+  for (const id of allPlayerIds) {
+    stats[id] = { goals: 0, assists: 0, ownGoals: 0, saves: 0 };
+  }
+
+  for (const ev of events) {
+    if (!stats[ev.playerId]) {
+      stats[ev.playerId] = { goals: 0, assists: 0, ownGoals: 0, saves: 0 };
+    }
+    if (ev.assistantId && !stats[ev.assistantId]) {
+      stats[ev.assistantId] = { goals: 0, assists: 0, ownGoals: 0, saves: 0 };
+    }
+
+    if (ev.type === 'goal') {
+      if (ev.team === 'A') scoreA++;
+      else scoreB++;
+      stats[ev.playerId].goals++;
+      if (ev.assistantId) {
+        stats[ev.assistantId].assists++;
+      }
+    } else if (ev.type === 'own_goal') {
+      if (ev.team === 'A') scoreB++;
+      else scoreA++;
+      stats[ev.playerId].ownGoals++;
+    } else if (ev.type === 'save') {
+      stats[ev.playerId].saves = Math.min(3, (stats[ev.playerId].saves || 0) + 1);
+    }
+  }
+
+  return { scoreA, scoreB, stats };
+}
 
 export function isMarketOrLineupLocked(matches: PachangaMatch[]): { isLocked: boolean; reason?: string } {
   // Los partidos cancelados nunca bloquean el mercado ni las alineaciones
@@ -620,6 +663,7 @@ export const egolDb = {
       rawVotes: m.raw_votes || m.rawVotes || {},
       lineupSnapshots: m.lineup_snapshots || m.lineupSnapshots || {},
       corrections: m.corrections || [],
+      events: Array.isArray(m.events) ? m.events : [],
       isOfficial: m.is_official ?? m.isOfficial ?? true
     }));
   },
@@ -648,6 +692,7 @@ export const egolDb = {
       rawVotes: data.raw_votes || data.rawVotes || {},
       lineupSnapshots: data.lineup_snapshots || data.lineupSnapshots || {},
       corrections: data.corrections || [],
+      events: Array.isArray(data.events) ? data.events : [],
       isOfficial: data.is_official ?? data.isOfficial ?? true
     };
   },
@@ -751,6 +796,16 @@ export const egolDb = {
       scoreA: data.score_a,
       scoreB: data.score_b
     };
+  },
+
+  async addPlayerToMatchTeam(matchId: string, playerId: string, team: 'A' | 'B'): Promise<void> {
+    const match = await this.getMatch(matchId);
+    if (!match) return;
+    const teamA = (match.teamA || []).filter(id => id !== playerId);
+    const teamB = (match.teamB || []).filter(id => id !== playerId);
+    if (team === 'A') teamA.push(playerId);
+    if (team === 'B') teamB.push(playerId);
+    await this.updateMatchTeams(matchId, teamA, teamB);
   },
 
   async updateMatchStatus(matchId: string, status: PachangaMatch['status']): Promise<PachangaMatch | undefined> {
@@ -1070,6 +1125,102 @@ export const egolDb = {
       return { success: false, message: error.message };
     }
     return { success: true, message: `Petición marcada como ${newStatus === 'approved' ? 'aprobada' : 'rechazada'}.` };
+  },
+
+  async addMatchEvent(
+    matchId: string,
+    eventData: Omit<MatchEvent, 'id' | 'createdAt'>
+  ): Promise<{ success: boolean; message: string; match?: PachangaMatch }> {
+    const match = await this.getMatch(matchId);
+    if (!match) return { success: false, message: 'Partido no encontrado.' };
+
+    const newEvent: MatchEvent = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ev-${Date.now()}`,
+      ...eventData,
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedEvents = [...(match.events || []), newEvent];
+    const allConvocados = [...(match.teamA || []), ...(match.teamB || [])];
+    const { scoreA, scoreB, stats } = computeStatsAndScoreFromEvents(updatedEvents, allConvocados);
+
+    // Si el partido estaba en upcoming o created, al apuntar el primer evento pasa a 'live'
+    const newStatus = (match.status === 'upcoming' || match.status === 'created') ? 'live' : match.status;
+
+    let { data, error } = await supabase
+      .from('pachangas')
+      .update({
+        events: updatedEvents,
+        score_a: scoreA,
+        score_b: scoreB,
+        player_stats: stats,
+        status: newStatus
+      })
+      .eq('id', matchId)
+      .select()
+      .maybeSingle();
+
+    if (error && (error.code === '23514' || error.message?.includes('pachangas_status_check'))) {
+      const fallbackStatus = newStatus === 'live' ? 'open' : newStatus;
+      const retry = await supabase
+        .from('pachangas')
+        .update({
+          events: updatedEvents,
+          score_a: scoreA,
+          score_b: scoreB,
+          player_stats: stats,
+          status: fallbackStatus
+        })
+        .eq('id', matchId)
+        .select()
+        .maybeSingle();
+      if (!retry.error) {
+        data = retry.data;
+        error = null;
+      }
+    }
+
+    if (error) {
+      console.error('Error adding match event:', error);
+      return { success: false, message: error.message };
+    }
+
+    return { success: true, message: 'Evento registrado con éxito.', match: data as any };
+  },
+
+  async undoLastMatchEvent(matchId: string): Promise<{ success: boolean; message: string; match?: PachangaMatch }> {
+    const match = await this.getMatch(matchId);
+    if (!match) return { success: false, message: 'Partido no encontrado.' };
+    if (!match.events || match.events.length === 0) {
+      return { success: false, message: 'No hay eventos para deshacer.' };
+    }
+
+    const updatedEvents = match.events.slice(0, -1);
+    const allConvocados = [...(match.teamA || []), ...(match.teamB || [])];
+    const { scoreA, scoreB, stats } = computeStatsAndScoreFromEvents(updatedEvents, allConvocados);
+
+    const { data, error } = await supabase
+      .from('pachangas')
+      .update({
+        events: updatedEvents,
+        score_a: scoreA,
+        score_b: scoreB,
+        player_stats: stats
+      })
+      .eq('id', matchId)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error undoing match event:', error);
+      return { success: false, message: error.message };
+    }
+
+    return { success: true, message: 'Último evento deshecho.', match: data as any };
+  },
+
+  async setMatchLive(matchId: string): Promise<{ success: boolean; message: string }> {
+    return this.updateMatchStatus(matchId, 'live').then(m => ({ success: !!m, message: 'Partido en juego (Modo Directo activado).' }));
   },
 
   async publishFinalMatchResults(matchId: string): Promise<{ success: boolean; message: string }> {

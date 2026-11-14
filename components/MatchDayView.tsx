@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Player, PachangaMatch } from '../types';
 import { egolDb } from '../lib/db';
-import { Calendar, Clock, Star, CheckCircle, Award, ChevronDown, ChevronUp, Users, ArrowUp, ArrowDown, HelpCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Star, CheckCircle, Award, ChevronDown, ChevronUp, Users, ArrowUp, ArrowDown, HelpCircle, AlertCircle, Flame, Play, Undo2, XCircle, ShieldAlert } from 'lucide-react';
 
 export default function MatchDayView({
   user,
@@ -48,6 +48,136 @@ export default function MatchDayView({
 
   // Historial de partidos (todos los partidos que están finalizados o archivados)
   const historyMatches = matches.filter(m => m.id !== activeMatch?.id);
+
+  // Modo Directo (Admin)
+  const [directGoalModal, setDirectGoalModal] = useState<{ team: 'A' | 'B'; scorerId?: string; step: 'scorer' | 'assist' } | null>(null);
+  const [directOwnGoalModal, setDirectOwnGoalModal] = useState(false);
+  const [directSaveModal, setDirectSaveModal] = useState(false);
+  const [isEventLoading, setIsEventLoading] = useState(false);
+
+  const handleStartMatchLive = async () => {
+    if (!activeMatch) return;
+    try {
+      await egolDb.setMatchLive(activeMatch.id);
+      await loadMatches();
+    } catch (e) {
+      console.error(e);
+      alert('Error al iniciar partido.');
+    }
+  };
+
+  const handleRecordGoal = async (scorerId: string, assistantId?: string) => {
+    if (!activeMatch || !directGoalModal) return;
+    setIsEventLoading(true);
+    try {
+      const targetTeam = directGoalModal.team;
+      const teamArr = targetTeam === 'A' ? (activeMatch.teamA || []) : (activeMatch.teamB || []);
+      if (!teamArr.includes(scorerId)) {
+        await egolDb.addPlayerToMatchTeam(activeMatch.id, scorerId, targetTeam);
+      }
+      if (assistantId && !teamArr.includes(assistantId)) {
+        await egolDb.addPlayerToMatchTeam(activeMatch.id, assistantId, targetTeam);
+      }
+
+      const res = await egolDb.addMatchEvent(activeMatch.id, {
+        type: 'goal',
+        team: directGoalModal.team,
+        playerId: scorerId,
+        assistantId: assistantId || undefined
+      });
+      if (res.success) {
+        setDirectGoalModal(null);
+        await loadMatches();
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al registrar gol.');
+    } finally {
+      setIsEventLoading(false);
+    }
+  };
+
+  const handleRecordOwnGoal = async (playerId: string) => {
+    if (!activeMatch) return;
+    setIsEventLoading(true);
+    try {
+      const isTeamA = activeMatch.teamA?.includes(playerId);
+      const res = await egolDb.addMatchEvent(activeMatch.id, {
+        type: 'own_goal',
+        team: isTeamA ? 'A' : 'B',
+        playerId
+      });
+      if (res.success) {
+        setDirectOwnGoalModal(false);
+        await loadMatches();
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al registrar autogol.');
+    } finally {
+      setIsEventLoading(false);
+    }
+  };
+
+  const handleRecordSave = async (playerId: string) => {
+    if (!activeMatch) return;
+    setIsEventLoading(true);
+    try {
+      const isTeamA = activeMatch.teamA?.includes(playerId);
+      const res = await egolDb.addMatchEvent(activeMatch.id, {
+        type: 'save',
+        team: isTeamA ? 'A' : 'B',
+        playerId
+      });
+      if (res.success) {
+        setDirectSaveModal(false);
+        await loadMatches();
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al registrar salvada.');
+    } finally {
+      setIsEventLoading(false);
+    }
+  };
+
+  const handleUndoEvent = async () => {
+    if (!activeMatch) return;
+    if (!confirm('¿Deshacer el último evento registrado?')) return;
+    setIsEventLoading(true);
+    try {
+      const res = await egolDb.undoLastMatchEvent(activeMatch.id);
+      if (res.success) {
+        await loadMatches();
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al deshacer evento.');
+    } finally {
+      setIsEventLoading(false);
+    }
+  };
+
+  const handleCancelMatch = async () => {
+    if (!activeMatch) return;
+    if (!confirm('¿Seguro que quieres cancelar este partido? El mercado y las alineaciones se desbloquearán inmediatamente.')) return;
+    try {
+      const res = await egolDb.cancelMatch(activeMatch.id);
+      if (res.success) {
+        alert(res.message);
+        await loadMatches();
+      } else {
+        alert(res.message);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al cancelar partido.');
+    }
+  };
 
   const userLinkedPlayerId = (user?.linkStatus === 'approved' && user?.linkedPlayerId) ? user.linkedPlayerId : null;
   const allConvocados = activeMatch ? [...(activeMatch.teamA || []), ...(activeMatch.teamB || [])] : [];
@@ -232,16 +362,291 @@ export default function MatchDayView({
                 </div>
               </div>
 
-              {/* Si ya hay marcador provisional o de acta */}
-              {activeMatch.scoreA !== undefined && activeMatch.scoreB !== undefined && (
-                <div className="flex items-center gap-2 self-start sm:self-auto bg-neutral-950 border border-neutral-800 px-4 py-2 rounded-xl font-black text-lg">
-                  <span className="text-blue-400">{activeMatch.scoreA}</span>
-                  <span className="text-neutral-600 text-xs uppercase">VS</span>
-                  <span className="text-red-400">{activeMatch.scoreB}</span>
+              {/* Marcador en vivo */}
+              <div className="flex items-center gap-3 self-start sm:self-auto bg-neutral-950 border border-neutral-800 px-5 py-2.5 rounded-2xl font-black shadow-inner">
+                <div className="text-center">
+                  <span className="text-[10px] text-blue-400 uppercase font-black block">Eq. A</span>
+                  <span className="text-2xl sm:text-3xl text-white">{activeMatch.scoreA ?? 0}</span>
+                </div>
+                <span className="text-neutral-600 text-xs font-black uppercase px-1">VS</span>
+                <div className="text-center">
+                  <span className="text-[10px] text-red-400 uppercase font-black block">Eq. B</span>
+                  <span className="text-2xl sm:text-3xl text-white">{activeMatch.scoreB ?? 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* MODO DIRECTO (EN VIVO) PARA EL ADMINISTRADOR */}
+          {user?.role === 'admin' && (
+            <div className="p-4 sm:p-5 bg-neutral-950/90 border-b border-neutral-800 space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-amber-400" />
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                      Modo Directo (Apuntar en Vivo)
+                      <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-bold border border-red-500/30">
+                        Admin
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-neutral-400">
+                      Dos toques por gol. Se sincroniza al momento con todos los convocados.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {activeMatch.status === 'upcoming' && (
+                    <button
+                      onClick={handleStartMatchLive}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md"
+                    >
+                      <Play className="h-3.5 w-3.5 fill-white" />
+                      Poner En Juego
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleCancelMatch}
+                    className="px-2.5 py-1.5 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm"
+                    title="Cancela este partido y desbloquea el mercado y las alineaciones"
+                  >
+                    <XCircle className="h-3.5 w-3.5 text-red-400" />
+                    Cancelar Partido
+                  </button>
+                </div>
+              </div>
+
+              {/* BOTONES GIGANTES DE GOL (MODO DIRECTO) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setDirectGoalModal({ team: 'A', step: 'scorer' })}
+                  disabled={isEventLoading}
+                  className="py-3.5 px-4 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white font-black rounded-2xl text-sm uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                >
+                  <span>⚽ Gol Equipo A ({activeMatch.teamA?.length || 0})</span>
+                </button>
+
+                <button
+                  onClick={() => setDirectGoalModal({ team: 'B', step: 'scorer' })}
+                  disabled={isEventLoading}
+                  className="py-3.5 px-4 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-black rounded-2xl text-sm uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                >
+                  <span>⚽ Gol Equipo B ({activeMatch.teamB?.length || 0})</span>
+                </button>
+              </div>
+
+              {/* ACCIONES SECUNDARIAS (AUTOGOL, SALVADA, DESHACER) */}
+              <div className="flex flex-wrap gap-2 pt-1 items-center">
+                <button
+                  onClick={() => setDirectOwnGoalModal(true)}
+                  disabled={isEventLoading}
+                  className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700/80 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>❌ Autogol</span>
+                </button>
+
+                <button
+                  onClick={() => setDirectSaveModal(true)}
+                  disabled={isEventLoading}
+                  className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>🧤 Salvada (+2 pts, máx 3)</span>
+                </button>
+
+                <button
+                  onClick={handleUndoEvent}
+                  disabled={isEventLoading || !activeMatch.events || activeMatch.events.length === 0}
+                  className={`ml-auto px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                    activeMatch.events && activeMatch.events.length > 0
+                      ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-600 shadow-sm cursor-pointer'
+                      : 'bg-neutral-950 text-neutral-600 border-neutral-800 cursor-not-allowed'
+                  }`}
+                  title="Deshacer el último gol o evento apuntado"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                  <span>Deshacer Último ({activeMatch.events?.length || 0})</span>
+                </button>
+              </div>
+
+              {/* MODAL DIRECTO GOL (2 TOQUES: GOLEADOR + ASISTENCIA) */}
+              {directGoalModal && (
+                <div className="p-4 bg-neutral-900 border border-amber-400/40 rounded-2xl space-y-4 shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                    <span className="font-black text-xs sm:text-sm text-amber-400 uppercase">
+                      {directGoalModal.step === 'scorer'
+                        ? `⚽ ¿Quién marcó para el Equipo ${directGoalModal.team}?`
+                        : `👟 ¿Quién dio la asistencia?`}
+                    </span>
+                    <button
+                      onClick={() => setDirectGoalModal(null)}
+                      className="text-neutral-400 hover:text-white text-xs px-2 py-0.5 cursor-pointer"
+                    >
+                      Cancelar ✕
+                    </button>
+                  </div>
+
+                  {directGoalModal.step === 'scorer' ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {(() => {
+                        const teamFilter = directGoalModal.team === 'A' ? activeMatch.teamA : activeMatch.teamB;
+                        const available = teamFilter && teamFilter.length > 0
+                          ? players.filter(p => teamFilter.includes(p.id))
+                          : players;
+                        return available.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => setDirectGoalModal(prev => prev ? { ...prev, scorerId: p.id, step: 'assist' } : null)}
+                            className="p-3 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-xs font-bold text-white text-left transition flex items-center gap-2 cursor-pointer"
+                          >
+                            <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 flex-shrink-0">
+                              <img src={p.avatarUrl || '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
+                            </div>
+                            <span className="truncate">{p.name}</span>
+                          </button>
+                        ));
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {(() => {
+                          const teamFilter = directGoalModal.team === 'A' ? activeMatch.teamA : activeMatch.teamB;
+                          const availableAssist = teamFilter && teamFilter.length > 0
+                            ? players.filter(p => teamFilter.includes(p.id) && p.id !== directGoalModal.scorerId)
+                            : players.filter(p => p.id !== directGoalModal.scorerId);
+                          return availableAssist.map(p => (
+                            <button
+                              key={p.id}
+                              onClick={() => handleRecordGoal(directGoalModal.scorerId!, p.id)}
+                              className="p-3 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-xs font-bold text-white text-left transition flex items-center gap-2 cursor-pointer"
+                            >
+                              <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 flex-shrink-0">
+                                <img src={p.avatarUrl || '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
+                              </div>
+                              <span className="truncate">{p.name}</span>
+                            </button>
+                          ));
+                        })()}
+                      </div>
+
+                      <button
+                        onClick={() => handleRecordGoal(directGoalModal.scorerId!, undefined)}
+                        className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition shadow-md cursor-pointer"
+                      >
+                        ⚽ Gol sin Asistencia (Jugada Individual)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MODAL AUTOGOL */}
+              {directOwnGoalModal && (
+                <div className="p-4 bg-neutral-900 border border-red-500/40 rounded-2xl space-y-3 shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                    <span className="font-black text-xs sm:text-sm text-red-400 uppercase">
+                      ❌ ¿Quién cometió el Autogol? (-2 pts para el jugador)
+                    </span>
+                    <button
+                      onClick={() => setDirectOwnGoalModal(false)}
+                      className="text-neutral-400 hover:text-white text-xs px-2 py-0.5 cursor-pointer"
+                    >
+                      Cancelar ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {(() => {
+                      const allConvs = [...(activeMatch.teamA || []), ...(activeMatch.teamB || [])];
+                      const available = allConvs.length > 0 ? players.filter(p => allConvs.includes(p.id)) : players;
+                      return available.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => handleRecordOwnGoal(p.id)}
+                          className="p-2.5 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-xs font-bold text-white text-left transition flex items-center gap-2 cursor-pointer"
+                        >
+                          <span className="truncate">{p.name}</span>
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* MODAL SALVADA */}
+              {directSaveModal && (
+                <div className="p-4 bg-neutral-900 border border-amber-400/40 rounded-2xl space-y-3 shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                    <span className="font-black text-xs sm:text-sm text-amber-400 uppercase">
+                      🧤 ¿Quién realizó la Salvada? (+2 pts, máx 3 por jugador)
+                    </span>
+                    <button
+                      onClick={() => setDirectSaveModal(false)}
+                      className="text-neutral-400 hover:text-white text-xs px-2 py-0.5 cursor-pointer"
+                    >
+                      Cancelar ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {(() => {
+                      const allConvs = [...(activeMatch.teamA || []), ...(activeMatch.teamB || [])];
+                      const available = allConvs.length > 0 ? players.filter(p => allConvs.includes(p.id)) : players;
+                      return available.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => handleRecordSave(p.id)}
+                          className="p-2.5 bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-xs font-bold text-white text-left transition flex items-center gap-2 cursor-pointer"
+                        >
+                          <span className="truncate">{p.name}</span>
+                        </button>
+                      ));
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
-          </div>
+          )}
+
+          {/* TIMELINE EN DIRECTO DE EVENTOS (VISIBLE PARA TODOS) */}
+          {activeMatch.events && activeMatch.events.length > 0 && (
+            <div className="px-4 py-3 bg-neutral-950/60 border-b border-neutral-800/80">
+              <span className="text-[11px] font-black uppercase text-amber-400 flex items-center gap-1.5 mb-2">
+                <Flame className="h-3.5 w-3.5" />
+                Línea de Tiempo del Partido ({activeMatch.events.length} acciones)
+              </span>
+              <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto">
+                {[...activeMatch.events].reverse().map((ev, i) => {
+                  const p = players.find(x => x.id === ev.playerId);
+                  const a = ev.assistantId ? players.find(x => x.id === ev.assistantId) : null;
+                  return (
+                    <div
+                      key={ev.id || i}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${
+                        ev.type === 'goal'
+                          ? ev.team === 'A'
+                            ? 'bg-blue-950/60 border-blue-500/40 text-blue-200'
+                            : 'bg-red-950/60 border-red-500/40 text-red-200'
+                          : ev.type === 'own_goal'
+                          ? 'bg-neutral-900 border-red-500/50 text-red-300'
+                          : 'bg-amber-950/40 border-amber-500/40 text-amber-300'
+                      }`}
+                    >
+                      <span>
+                        {ev.type === 'goal' && '⚽'}
+                        {ev.type === 'own_goal' && '❌'}
+                        {ev.type === 'save' && '🧤'}
+                      </span>
+                      <span>{p ? p.name : 'Jugador'}</span>
+                      {a && <span className="text-[10px] text-neutral-400">(asist. {a.name})</span>}
+                      {ev.type === 'own_goal' && <span className="text-[10px] text-red-400">(autogol)</span>}
+                      {ev.type === 'save' && <span className="text-[10px] text-amber-400">(salvada)</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Información de los dos equipos y futbolistas convocados */}
           <div className="p-4 sm:p-5">
