@@ -1,0 +1,116 @@
+[
+  {
+    "id": "5a9033d2-24c7-4191-88d2-08714dd13743",
+    "date": "2026-11-06T00:00:00+00:00",
+    "status": "scored",
+    "format": 8,
+    "created_at": "2026-11-02T21:15:50.956284+00:00",
+    "team_a": [],
+    "team_b": [],
+    "start_time": "17:00",
+    "end_time": "18:30",
+    "score_a": 15,
+    "score_b": 11,
+    "player_stats": {
+      "0fd2e411-99b0-402c-a560-f16f7ab09aa4": {
+        "goals": 1,
+        "rating": 4,
+        "assists": 1,
+        "ownGoals": 0
+      },
+      "3b2efa63-3df2-4c80-8975-73c75caa8a3d": {
+        "goals": 3,
+        "rating": 6,
+        "assists": 1,
+        "ownGoals": 0
+      },
+      "41543dc0-54b0-4b69-a150-dc0e27329d5b": {
+        "goals": 3,
+        "rating": 3,
+        "assists": 2,
+        "ownGoals": 0
+      },
+      "4bf81058-5b41-4504-96df-8ef161e8841c": {
+        "goals": 1,
+        "rating": 4,
+        "assists": 0,
+        "ownGoals": 0
+      },
+      "4f542c92-e0ac-455a-bfba-67f3a7bfb699": {
+        "goals": 2,
+        "rating": 4,
+        "assists": 1,
+        "ownGoals": 0
+      },
+      "7e0ca9b9-70e1-43ad-a0c7-087b6b0f3691": {
+        "goals": 8,
+        "rating": 10,
+        "assists": 0,
+        "ownGoals": 0
+      },
+      "93d9541b-d46a-430b-b897-edd81570313c": {
+        "goals": 1,
+        "rating": 6,
+        "assists": 0,
+        "ownGoals": 0
+      },
+      "973009b2-6ef6-45c3-924c-e014b36709d4": {
+        "goals": 0,
+        "rating": 2,
+        "assists": 1,
+        "ownGoals": 0
+      },
+      "9a61b8c3-177f-41fe-ac5c-e3c007b26e3b": {
+        "goals": 4,
+        "rating": 7,
+        "assists": 2,
+        "ownGoals": 0
+      },
+      "a57716fa-13a6-4c1e-a8ef-1cd4cad9508a": {
+        "goals": 0,
+        "rating": 5,
+        "assists": 2,
+        "ownGoals": 0
+      },
+      "db45c0d4-9afe-4cd8-ade0-4cefb23cbb49": {
+        "goals": 1,
+        "rating": 3,
+        "assists": 0,
+        "ownGoals": 0
+      },
+      "fec85166-db58-4694-99b9-563c1aa01362": {
+        "goals": 2,
+        "rating": 7,
+        "assists": 0,
+        "ownGoals": 0
+      }
+    }
+  },
+  {
+    "id": "640ffbd6-0ee2-44a9-b428-773e43410c6a",
+    "date": "2026-11-14T00:00:00+00:00",
+    "status": "upcoming",
+    "format": 5,
+    "created_at": "2026-11-14T19:05:29.050535+00:00",
+    "team_a": [
+      "5ba03ee6-629d-4da6-b6fc-05cd4898fa37",
+      "9a61b8c3-177f-41fe-ac5c-e3c007b26e3b",
+      "0e367247-7ea4-4ea9-a165-a772e49088c8",
+      "84418b53-c2d6-4a91-b9be-48a693caaa9f",
+      "4bf81058-5b41-4504-96df-8ef161e8841c",
+      "fec85166-db58-4694-99b9-563c1aa01362"
+    ],
+    "team_b": [
+      "93d9541b-d46a-430b-b897-edd81570313c",
+      "4f542c92-e0ac-455a-bfba-67f3a7bfb699",
+      "a57716fa-13a6-4c1e-a8ef-1cd4cad9508a",
+      "380d6486-ec1b-47dc-bf90-8e214a812170",
+      "db45c0d4-9afe-4cd8-ade0-4cefb23cbb49"
+    ],
+    "start_time": "20:07",
+    "end_time": "20:30",
+    "score_a": null,
+    "score_b": null,
+    "player_stats": {}
+  }
+]

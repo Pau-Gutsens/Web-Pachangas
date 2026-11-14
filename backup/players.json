@@ -1,0 +1,382 @@
+[
+  {
+    "id": "3b2efa63-3df2-4c80-8975-73c75caa8a3d",
+    "name": "Merino",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 23,
+    "previous_price": 20,
+    "price_change_pct": 15,
+    "average_rating": 6,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 3,
+      "saves": 0,
+      "assists": 1,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:27:06.799488+00:00"
+  },
+  {
+    "id": "0e367247-7ea4-4ea9-a165-a772e49088c8",
+    "name": "Caubin",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 0,
+    "average_rating": 0,
+    "ratings_count": 0,
+    "stats": {
+      "goals": 0,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 0
+    },
+    "created_at": "2026-11-08T19:24:19.450508+00:00"
+  },
+  {
+    "id": "ce470862-4bac-49d5-becb-2abbe2cff860",
+    "name": "Gutsens",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 0,
+    "average_rating": 0,
+    "ratings_count": 0,
+    "stats": {
+      "goals": 0,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 0
+    },
+    "created_at": "2026-11-08T19:24:58.728784+00:00"
+  },
+  {
+    "id": "5ba03ee6-629d-4da6-b6fc-05cd4898fa37",
+    "name": "Arnau",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 0,
+    "average_rating": 0,
+    "ratings_count": 0,
+    "stats": {
+      "goals": 0,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 0
+    },
+    "created_at": "2026-11-08T19:26:27.878581+00:00"
+  },
+  {
+    "id": "380d6486-ec1b-47dc-bf90-8e214a812170",
+    "name": "Roger",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 0,
+    "average_rating": 0,
+    "ratings_count": 0,
+    "stats": {
+      "goals": 0,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 0
+    },
+    "created_at": "2026-11-08T19:26:30.421731+00:00"
+  },
+  {
+    "id": "170e4afe-1c58-474c-9b30-47bfb73a4b78",
+    "name": "Franques",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 0,
+    "average_rating": 0,
+    "ratings_count": 0,
+    "stats": {
+      "goals": 0,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 0
+    },
+    "created_at": "2026-11-08T19:26:42.602889+00:00"
+  },
+  {
+    "id": "84418b53-c2d6-4a91-b9be-48a693caaa9f",
+    "name": "Clos",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 0,
+    "average_rating": 0,
+    "ratings_count": 0,
+    "stats": {
+      "goals": 0,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 0
+    },
+    "created_at": "2026-11-08T19:27:12.388709+00:00"
+  },
+  {
+    "id": "c468892c-ca45-4d2c-b64c-e89183ff8b22",
+    "name": "Pol Fdz",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 0,
+    "average_rating": 0,
+    "ratings_count": 0,
+    "stats": {
+      "goals": 0,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 0
+    },
+    "created_at": "2026-11-08T19:30:20.03434+00:00"
+  },
+  {
+    "id": "7e0ca9b9-70e1-43ad-a0c7-087b6b0f3691",
+    "name": "Gerard",
+    "is_guest": true,
+    "avatar_url": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=250&q=80",
+    "current_price": 23,
+    "previous_price": 20,
+    "price_change_pct": 15,
+    "average_rating": 10,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 8,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:25:55.138452+00:00"
+  },
+  {
+    "id": "93d9541b-d46a-430b-b897-edd81570313c",
+    "name": "Uri",
+    "is_guest": true,
+    "avatar_url": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=250&q=80",
+    "current_price": 21,
+    "previous_price": 20,
+    "price_change_pct": 4,
+    "average_rating": 6,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 1,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:42:11.943483+00:00"
+  },
+  {
+    "id": "a57716fa-13a6-4c1e-a8ef-1cd4cad9508a",
+    "name": "Salinas",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 0,
+    "average_rating": 5,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 0,
+      "saves": 0,
+      "assists": 2,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:22:34.537145+00:00"
+  },
+  {
+    "id": "4bf81058-5b41-4504-96df-8ef161e8841c",
+    "name": "Davila",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 0,
+    "average_rating": 4,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 1,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:24:07.327162+00:00"
+  },
+  {
+    "id": "0fd2e411-99b0-402c-a560-f16f7ab09aa4",
+    "name": "Pedret",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": 2,
+    "average_rating": 4,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 1,
+      "saves": 0,
+      "assists": 1,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:24:34.987169+00:00"
+  },
+  {
+    "id": "4f542c92-e0ac-455a-bfba-67f3a7bfb699",
+    "name": "Serrano",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 22,
+    "previous_price": 20,
+    "price_change_pct": 8,
+    "average_rating": 4,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 2,
+      "saves": 0,
+      "assists": 1,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:25:41.942759+00:00"
+  },
+  {
+    "id": "db45c0d4-9afe-4cd8-ade0-4cefb23cbb49",
+    "name": "Ribe",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 20,
+    "previous_price": 20,
+    "price_change_pct": -2,
+    "average_rating": 3,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 1,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:24:14.160716+00:00"
+  },
+  {
+    "id": "41543dc0-54b0-4b69-a150-dc0e27329d5b",
+    "name": "Lombun",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 23,
+    "previous_price": 20,
+    "price_change_pct": 14,
+    "average_rating": 3,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 3,
+      "saves": 0,
+      "assists": 2,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:24:27.237938+00:00"
+  },
+  {
+    "id": "973009b2-6ef6-45c3-924c-e014b36709d4",
+    "name": "Ramos",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 18,
+    "previous_price": 20,
+    "price_change_pct": -8,
+    "average_rating": 2,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 0,
+      "saves": 0,
+      "assists": 1,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:27:27.942719+00:00"
+  },
+  {
+    "id": "fec85166-db58-4694-99b9-563c1aa01362",
+    "name": "Eloy",
+    "is_guest": true,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 22,
+    "previous_price": 20,
+    "price_change_pct": 12,
+    "average_rating": 7,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 2,
+      "saves": 0,
+      "assists": 0,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:23:25.150772+00:00"
+  },
+  {
+    "id": "9a61b8c3-177f-41fe-ac5c-e3c007b26e3b",
+    "name": "Bernus",
+    "is_guest": false,
+    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80",
+    "current_price": 23,
+    "previous_price": 20,
+    "price_change_pct": 15,
+    "average_rating": 7,
+    "ratings_count": 1,
+    "stats": {
+      "goals": 4,
+      "saves": 0,
+      "assists": 2,
+      "ownGoals": 0,
+      "goalsAgainst": 0,
+      "matchesPlayed": 1
+    },
+    "created_at": "2026-11-08T19:24:23.095551+00:00"
+  }
+]

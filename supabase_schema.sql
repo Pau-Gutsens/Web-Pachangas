@@ -10,22 +10,26 @@ CREATE TABLE IF NOT EXISTS profiles (
   role TEXT DEFAULT 'member',
   alias TEXT,
   avatar_url TEXT,
-  budget NUMERIC DEFAULT 100,
+  budget NUMERIC DEFAULT 100000, -- en K€ (100 M€)
   owned_player_ids JSONB DEFAULT '[]'::jsonb,
   starter_player_ids JSONB DEFAULT '[]'::jsonb,
+  captain_id UUID,
+  linked_player_id UUID REFERENCES players(id) ON DELETE SET NULL,
+  link_status TEXT DEFAULT 'none',
   total_points INTEGER DEFAULT 0,
   last_match_points INTEGER DEFAULT 0,
-  compras_iniciales INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Si la tabla profiles ya existía previamente, asegurar que tenga todas las columnas necesarias:
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS budget NUMERIC DEFAULT 100;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS budget NUMERIC DEFAULT 100000;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS owned_player_ids JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS starter_player_ids JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS captain_id UUID;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS linked_player_id UUID;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS link_status TEXT DEFAULT 'none';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS total_points INTEGER DEFAULT 0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_match_points INTEGER DEFAULT 0;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS compras_iniciales INTEGER DEFAULT 0;
 
 -- Asegurar que el id se genere automáticamente y no dependa de auth.users:
 ALTER TABLE profiles ALTER COLUMN id SET DEFAULT gen_random_uuid();
@@ -68,10 +72,15 @@ ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS score_a INTEGER;
 ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS score_b INTEGER;
 ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS player_stats JSONB DEFAULT '{}'::jsonb;
 
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS events JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS lineup_snapshots JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS corrections JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS is_official BOOLEAN DEFAULT TRUE;
+
 -- Actualizar restricción de estados para admitir todos los estados:
 ALTER TABLE pachangas DROP CONSTRAINT IF EXISTS pachangas_status_check;
 ALTER TABLE pachangas ADD CONSTRAINT pachangas_status_check 
-  CHECK (status IN ('upcoming', 'live', 'voting', 'scored', 'draft', 'open', 'closed', 'cancelled'));
+  CHECK (status IN ('created', 'locked', 'live', 'voting', 'published', 'upcoming', 'scored', 'draft', 'open', 'closed', 'cancelled'));
 
 -- 3. Tabla de jugadores fantasy (futbolistas gestionados por el admin)
 CREATE TABLE IF NOT EXISTS players (
@@ -79,14 +88,20 @@ CREATE TABLE IF NOT EXISTS players (
   name TEXT NOT NULL,
   is_guest BOOLEAN DEFAULT FALSE,
   avatar_url TEXT,
-  current_price NUMERIC DEFAULT 20,
-  previous_price NUMERIC DEFAULT 20,
+  current_price NUMERIC DEFAULT 20000, -- en K€ (20 M€)
+  previous_price NUMERIC DEFAULT 20000,
   price_change_pct NUMERIC DEFAULT 0,
   average_rating NUMERIC DEFAULT 0,
   ratings_count INTEGER DEFAULT 0,
-  stats JSONB DEFAULT '{"goals":0,"assists":0,"ownGoals":0,"saves":0,"goalsAgainst":0,"matchesPlayed":0}'::jsonb,
+  stats JSONB DEFAULT '{"goals":0,"assists":0,"ownGoals":0,"saves":0,"matchesPlayed":0}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Asegurar tipos numéricos para precios en K€ y decimales en valoraciones:
+ALTER TABLE players ALTER COLUMN average_rating TYPE NUMERIC USING average_rating::numeric;
+ALTER TABLE players ALTER COLUMN price_change_pct TYPE NUMERIC USING price_change_pct::numeric;
+ALTER TABLE players ALTER COLUMN current_price TYPE NUMERIC USING current_price::numeric;
+ALTER TABLE players ALTER COLUMN previous_price TYPE NUMERIC USING previous_price::numeric;
 
 -- 4. Tabla de asistentes a pachanga (miembros e invitados)
 CREATE TABLE IF NOT EXISTS pachanga_attendees (

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Player, PachangaMatch } from '../types';
 import { egolDb } from '../lib/db';
-import { Calendar, Clock, Star, CheckCircle, Award, ChevronDown, ChevronUp, Users } from 'lucide-react';
+import { Calendar, Clock, Star, CheckCircle, Award, ChevronDown, ChevronUp, Users, ArrowUp, ArrowDown, HelpCircle, AlertCircle } from 'lucide-react';
 
 export default function MatchDayView({
   user,
@@ -16,10 +16,16 @@ export default function MatchDayView({
 }) {
   const [matches, setMatches] = useState<PachangaMatch[]>([]);
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
-  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [orderedRanking, setOrderedRanking] = useState<string[]>([]);
   const [hasVoted, setHasVoted] = useState(false);
   const [savingVote, setSavingVote] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Petición de corrección (ventana de 24h)
+  const [showCorrectionForm, setShowCorrectionForm] = useState(false);
+  const [correctionDesc, setCorrectionDesc] = useState('');
+  const [savingCorrection, setSavingCorrection] = useState(false);
+  const [correctionMsg, setCorrectionMsg] = useState('');
 
   const isUserGuest = user ? egolDb.isUserGuest(user.username) : false;
 
@@ -43,54 +49,76 @@ export default function MatchDayView({
   // Historial de partidos (todos los partidos que están finalizados o archivados)
   const historyMatches = matches.filter(m => m.id !== activeMatch?.id);
 
-  // Cargar calificaciones si el partido activo está en votación
-  useEffect(() => {
-    if (!activeMatch || activeMatch.status !== 'voting' || !user || isUserGuest) return;
+  const userLinkedPlayerId = (user?.linkStatus === 'approved' && user?.linkedPlayerId) ? user.linkedPlayerId : null;
+  const allConvocados = activeMatch ? [...(activeMatch.teamA || []), ...(activeMatch.teamB || [])] : [];
+  const isConvoked = userLinkedPlayerId ? allConvocados.includes(userLinkedPlayerId) : false;
+  const otherConvocados = allConvocados.filter(id => id !== userLinkedPlayerId);
 
-    const fetchUserRatings = async () => {
+  // Cargar ranking previo o inicializar con los demás participantes
+  useEffect(() => {
+    if (!activeMatch || activeMatch.status !== 'voting' || !user || !userLinkedPlayerId || !isConvoked) {
+      return;
+    }
+
+    const fetchRanking = async () => {
       try {
-        const existing = await egolDb.getUserRatingsForMatch(activeMatch.id, user.username);
-        if (Object.keys(existing).length > 0) {
-          setRatings(existing);
+        const existing = await egolDb.getRankingVoteForUser(activeMatch.id, userLinkedPlayerId);
+        if (existing && existing.length > 0) {
+          // Filtrar por si alguien ya no estuviera convocado y añadir los que falten
+          const validExisting = existing.filter(id => otherConvocados.includes(id));
+          const missing = otherConvocados.filter(id => !validExisting.includes(id));
+          setOrderedRanking([...validExisting, ...missing]);
           setHasVoted(true);
         } else {
-          const initial: Record<string, number> = {};
-          const allAtts = [...(activeMatch.teamA || []), ...(activeMatch.teamB || [])];
-          allAtts.forEach(id => {
-            const saved = activeMatch.playerStats?.[id]?.rating;
-            initial[id] = saved && Number(saved) > 0 ? Number(saved) : 7;
-          });
-          setRatings(initial);
+          setOrderedRanking([...otherConvocados]);
           setHasVoted(false);
         }
       } catch (e) {
-        console.error('Error fetching ratings:', e);
+        console.error('Error fetching ranking vote:', e);
+        setOrderedRanking([...otherConvocados]);
       }
     };
 
-    fetchUserRatings();
+    fetchRanking();
     setSuccessMsg('');
-  }, [activeMatch, user, isUserGuest]);
+  }, [activeMatch?.id, activeMatch?.status, user?.id, userLinkedPlayerId, isConvoked]);
 
-  const handleRatingChange = (playerId: string, value: number) => {
-    if (isUserGuest) return;
-    setRatings(prev => ({ ...prev, [playerId]: value }));
+  const moveUp = (index: number) => {
+    if (index <= 0) return;
+    setOrderedRanking(prev => {
+      const copy = [...prev];
+      const temp = copy[index - 1];
+      copy[index - 1] = copy[index];
+      copy[index] = temp;
+      return copy;
+    });
   };
 
-  const handleSubmitVotes = async () => {
+  const moveDown = (index: number) => {
+    if (index >= orderedRanking.length - 1) return;
+    setOrderedRanking(prev => {
+      const copy = [...prev];
+      const temp = copy[index + 1];
+      copy[index + 1] = copy[index];
+      copy[index] = temp;
+      return copy;
+    });
+  };
+
+  const handleSubmitRanking = async () => {
     if (!user) {
       onOpenAuth();
       return;
     }
-    if (isUserGuest) {
-      alert('Los invitados no pueden votar en el partido.');
+    if (!userLinkedPlayerId || !isConvoked) {
+      alert('Solo los jugadores convocados con cuenta vinculada pueden votar.');
       return;
     }
     if (!activeMatch) return;
 
     setSavingVote(true);
     try {
-      const res = await egolDb.submitRatings(activeMatch.id, user.username, ratings);
+      const res = await egolDb.submitRankingVote(activeMatch.id, userLinkedPlayerId, orderedRanking);
       if (res.success) {
         setHasVoted(true);
         setSuccessMsg(res.message);
@@ -99,9 +127,38 @@ export default function MatchDayView({
       }
     } catch (e: any) {
       console.error(e);
-      alert(e.message || 'Error al guardar notas.');
+      alert(e.message || 'Error al guardar el ranking.');
     } finally {
       setSavingVote(false);
+    }
+  };
+
+  const handleSendCorrection = async () => {
+    if (!user || !userLinkedPlayerId || !activeMatch) return;
+    if (!correctionDesc.trim()) {
+      alert('Escribe los detalles de la corrección.');
+      return;
+    }
+
+    setSavingCorrection(true);
+    try {
+      const res = await egolDb.submitCorrectionRequest(
+        activeMatch.id,
+        user.id,
+        userLinkedPlayerId,
+        correctionDesc.trim()
+      );
+      if (res.success) {
+        setCorrectionMsg(res.message);
+        setCorrectionDesc('');
+        setTimeout(() => setShowCorrectionForm(false), 2000);
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al enviar corrección.');
+    } finally {
+      setSavingCorrection(false);
     }
   };
 
@@ -128,7 +185,7 @@ export default function MatchDayView({
 
   return (
     <div className="space-y-6 text-white">
-      {/* 1. SECCIÓN: PARTIDO ACTIVO / PRÓXIMO PARTIDO QUE SE VA A CELEBRAR */}
+      {/* 1. SECCIÓN: PARTIDO ACTIVO / PRÓXIMO PARTIDO */}
       {activeMatch ? (
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-lg">
           {/* Cabecera del partido activo */}
@@ -144,12 +201,12 @@ export default function MatchDayView({
                 {activeMatch.status === 'live'
                   ? '● En Juego'
                   : activeMatch.status === 'voting'
-                  ? '⭐ Votaciones Abiertas'
+                  ? '⭐ Votaciones Abiertas (48h)'
                   : 'Próximo Encuentro'}
               </span>
 
               <span className="text-xs text-neutral-400 font-semibold">
-                Formato {activeMatch.format || 5} vs {activeMatch.format || 5}
+                Formato libre ({activeMatch.teamA?.length || 0} vs {activeMatch.teamB?.length || 0})
               </span>
             </div>
 
@@ -280,81 +337,202 @@ export default function MatchDayView({
               </div>
             </div>
 
-            {/* Votación interactiva si el partido está en fase de votación */}
+            {/* SECCIÓN 6.2: VOTACIÓN POR RANKING ENTRE PARTICIPANTES */}
             {activeMatch.status === 'voting' && (
               <div className="mt-5 bg-neutral-950 border border-neutral-800 rounded-xl p-4 sm:p-5">
-                <div className="flex items-center justify-between mb-3 border-b border-neutral-800 pb-2.5">
-                  <h4 className="font-black text-sm text-amber-400 flex items-center gap-2">
-                    <Award className="h-4 w-4" />
-                    Vota el rendimiento de los jugadores (1 al 10)
-                  </h4>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 border-b border-neutral-800 pb-3">
+                  <div>
+                    <h4 className="font-black text-sm text-amber-400 flex items-center gap-2">
+                      <Award className="h-4 w-4" />
+                      Votación de Participantes (Ranking de Mejor a Peor)
+                    </h4>
+                    <p className="text-xs text-neutral-400 mt-0.5">
+                      Ordena a todos los demás participantes de este partido. El 1º es el mejor; el último es el peor. Tu voto es 100% anónimo.
+                    </p>
+                  </div>
                   {hasVoted && (
-                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 self-start sm:self-auto bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
                       <CheckCircle className="h-3.5 w-3.5" />
-                      Guardado
+                      Ranking guardado
                     </span>
                   )}
                 </div>
 
                 {successMsg && (
-                  <div className="mb-3 p-3 bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-lg text-xs font-bold">
+                  <div className="mb-4 p-3 bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 rounded-lg text-xs font-bold flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
                     {successMsg}
                   </div>
                 )}
 
-                <div className="divide-y divide-neutral-900">
-                  {[...(activeMatch.teamA || []), ...(activeMatch.teamB || [])].map(pId => {
-                    const p = players.find(item => item.id === pId);
-                    if (!p) return null;
-                    const curRating = ratings[pId] ?? 7;
-
-                    return (
-                      <div key={pId} className="py-2.5 flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-full overflow-hidden bg-neutral-800 flex-shrink-0">
-                          <img src={p.avatarUrl || '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="font-bold text-xs text-white truncate block">{p.name}</span>
-                          {!isUserGuest && user && (
-                            <input
-                              type="range"
-                              min="1"
-                              max="10"
-                              step="0.5"
-                              value={curRating}
-                              onChange={(e) => handleRatingChange(pId, parseFloat(e.target.value))}
-                              className="w-full accent-amber-400 cursor-pointer h-2 mt-1"
-                            />
-                          )}
-                        </div>
-                        <span className="font-black text-xs text-amber-400 w-8 text-right flex-shrink-0">
-                          {curRating}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 flex justify-end">
-                  {!user ? (
+                {!user ? (
+                  <div className="text-center py-6">
+                    <p className="text-xs text-neutral-400 mb-3">
+                      Inicia sesión con tu cuenta vinculada para emitir tu ranking de votos.
+                    </p>
                     <button
                       onClick={onOpenAuth}
-                      className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition"
+                      className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition shadow-md"
                     >
-                      Inicia sesión para votar
+                      Iniciar Sesión
                     </button>
-                  ) : isUserGuest ? (
-                    <span className="text-xs text-neutral-500">Los invitados no pueden emitir votos</span>
-                  ) : (
-                    <button
-                      onClick={handleSubmitVotes}
-                      disabled={savingVote}
-                      className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition"
-                    >
-                      {savingVote ? 'Guardando...' : hasVoted ? 'Actualizar notas' : 'Enviar notas'}
-                    </button>
-                  )}
-                </div>
+                  </div>
+                ) : !userLinkedPlayerId || !isConvoked ? (
+                  <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-400 flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-white block mb-0.5">Votación exclusiva de participantes</span>
+                      <span>
+                        Solo los futbolistas convocados que jugaron este partido tienen derecho a voto.
+                        Tu cuenta {user.linkedPlayerId ? 'está vinculada a un jugador no convocado en este encuentro' : 'no tiene ningún jugador vinculado'}.
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {orderedRanking.map((pId, idx) => {
+                        const p = players.find(item => item.id === pId);
+                        if (!p) return null;
+                        const isTeamA = activeMatch.teamA?.includes(pId);
+
+                        return (
+                          <div
+                            key={pId}
+                            className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 transition ${
+                              idx === 0
+                                ? 'bg-amber-500/10 border-amber-400/40'
+                                : 'bg-neutral-900 border-neutral-800'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs flex-shrink-0 ${
+                                idx === 0
+                                  ? 'bg-amber-400 text-neutral-950'
+                                  : idx === 1
+                                  ? 'bg-neutral-300 text-neutral-950'
+                                  : idx === 2
+                                  ? 'bg-amber-700 text-white'
+                                  : 'bg-neutral-800 text-neutral-400'
+                              }`}>
+                                {idx + 1}º
+                              </span>
+
+                              <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700 flex-shrink-0">
+                                <img src={p.avatarUrl || '/logo.png'} alt={p.name} className="w-full h-full object-cover" />
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-xs text-white truncate">{p.name}</span>
+                                  {p.isGuest && (
+                                    <span className="text-[10px] text-neutral-500 font-normal">(invitado)</span>
+                                  )}
+                                  <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${
+                                    isTeamA ? 'text-blue-400 bg-blue-500/10' : 'text-red-400 bg-red-500/10'
+                                  }`}>
+                                    {isTeamA ? 'Equipo A' : 'Equipo B'}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-neutral-400">
+                                  {idx === 0 ? '⭐ Mejor del partido (Top 1)' : idx === orderedRanking.length - 1 ? 'Última posición' : `Posición ${idx + 1}`}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Botones para subir / bajar */}
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                onClick={() => moveUp(idx)}
+                                disabled={idx === 0}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                                  idx === 0
+                                    ? 'bg-neutral-950 text-neutral-700 cursor-not-allowed'
+                                    : 'bg-neutral-800 hover:bg-neutral-700 text-amber-400'
+                                }`}
+                                title="Subir de puesto"
+                              >
+                                <ArrowUp className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => moveDown(idx)}
+                                disabled={idx === orderedRanking.length - 1}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                                  idx === orderedRanking.length - 1
+                                    ? 'bg-neutral-950 text-neutral-700 cursor-not-allowed'
+                                    : 'bg-neutral-800 hover:bg-neutral-700 text-amber-400'
+                                }`}
+                                title="Bajar de puesto"
+                              >
+                                <ArrowDown className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <span className="text-[11px] text-neutral-500">
+                        {orderedRanking.length} participantes ordenados · Cada posición debe ser única y sin vacíos.
+                      </span>
+
+                      <button
+                        onClick={handleSubmitRanking}
+                        disabled={savingVote}
+                        className="w-full sm:w-auto px-6 py-2.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase tracking-wider transition shadow-md"
+                      >
+                        {savingVote ? 'Guardando ranking...' : hasVoted ? 'Actualizar mi ranking' : 'Enviar mi ranking'}
+                      </button>
+                    </div>
+
+                    {/* VENTANA DE CORRECCIÓN (SECCIÓN 5) */}
+                    <div className="mt-6 pt-4 border-t border-neutral-800/80">
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => setShowCorrectionForm(!showCorrectionForm)}
+                          className="text-xs text-amber-400 hover:underline flex items-center gap-1.5 font-bold"
+                        >
+                          <HelpCircle className="h-3.5 w-3.5" />
+                          ¿Tus estadísticas de este partido no son correctas? Pedir corrección (24h)
+                        </button>
+                      </div>
+
+                      {showCorrectionForm && (
+                        <div className="mt-3 p-3.5 bg-neutral-900 border border-neutral-800 rounded-xl space-y-3">
+                          <p className="text-[11px] text-neutral-400">
+                            Describe qué dato falta o es erróneo en el acta (ej: "di una asistencia en el segundo gol", "el autogol fue del rival"). El administrador lo revisará.
+                          </p>
+                          <textarea
+                            value={correctionDesc}
+                            onChange={(e) => setCorrectionDesc(e.target.value)}
+                            placeholder="Detalles de la corrección..."
+                            rows={2}
+                            className="w-full bg-neutral-950 border border-neutral-800 text-white p-2.5 rounded-lg text-xs focus:ring-1 focus:ring-amber-400"
+                          />
+                          {correctionMsg && (
+                            <p className="text-xs text-emerald-400 font-bold">{correctionMsg}</p>
+                          )}
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setShowCorrectionForm(false)}
+                              className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs font-bold transition"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={handleSendCorrection}
+                              disabled={savingCorrection}
+                              className="px-4 py-1.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-lg text-xs uppercase transition"
+                            >
+                              {savingCorrection ? 'Enviando...' : 'Enviar petición'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -369,7 +547,7 @@ export default function MatchDayView({
         </div>
       )}
 
-      {/* 2. SECCIÓN: HISTORIAL DE PARTIDOS (SOLO MUESTRA FECHA Y HORA; SE DESPLIEGA AL DARLE) */}
+      {/* 2. SECCIÓN: HISTORIAL DE PARTIDOS */}
       <div className="space-y-3">
         <div className="border-b border-neutral-800 pb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -400,7 +578,7 @@ export default function MatchDayView({
                   key={m.id}
                   className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden transition-all shadow-sm"
                 >
-                  {/* Fila principal del historial: SOLO día, mes y hora del partido (+ flecha) */}
+                  {/* Fila principal del historial: SOLO día, mes y hora del partido */}
                   <button
                     onClick={() => toggleExpand(m.id)}
                     className="w-full px-4 py-3.5 flex items-center justify-between text-left hover:bg-neutral-800/40 transition gap-3"
@@ -445,7 +623,7 @@ export default function MatchDayView({
                     </div>
                   </button>
 
-                  {/* Detalle expandido: SOLO AL DARLE */}
+                  {/* Detalle expandido: SOLO AL TOCAR */}
                   {isExpanded && (
                     <div className="border-t border-neutral-800 p-4 sm:p-5 bg-neutral-950/60 space-y-4">
                       {/* Marcador final */}
@@ -523,12 +701,13 @@ export default function MatchDayView({
                                   <th className="py-2 px-2 text-center">Goles</th>
                                   <th className="py-2 px-2 text-center">Asist</th>
                                   <th className="py-2 px-2 text-center">Autogol</th>
+                                  <th className="py-2 px-2 text-center">Salvada</th>
                                   <th className="py-2 px-2 text-center">Nota ⭐</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-neutral-800">
                                 {allMatchPlayers.map(player => {
-                                  const st = m.playerStats?.[player.id] || { goals: 0, assists: 0, ownGoals: 0 };
+                                  const st = m.playerStats?.[player.id] || { goals: 0, assists: 0, ownGoals: 0, saves: 0 };
                                   const isTeamA = m.teamA?.includes(player.id);
 
                                   return (
@@ -554,6 +733,9 @@ export default function MatchDayView({
                                       </td>
                                       <td className="py-2 px-2 text-center font-bold text-neutral-300">
                                         {st.ownGoals > 0 ? <span className="text-red-400">❌ {st.ownGoals}</span> : '0'}
+                                      </td>
+                                      <td className="py-2 px-2 text-center font-bold text-neutral-300">
+                                        {(st.saves || 0) > 0 ? <span className="text-amber-300">🧤 {st.saves}</span> : '0'}
                                       </td>
                                       <td className="py-2 px-2 text-center font-black">
                                         {st.rating && Number(st.rating) > 0 ? (

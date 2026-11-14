@@ -1,9 +1,41 @@
-import { UserAccount, Player, PachangaMatch, PlayerRatingVote, UserRole } from '../types';
-import { getGoalsAgainstPoints } from './scoring';
+import { UserAccount, Player, PachangaMatch, UserRole, CorrectionRequest, LineupSnapshot } from '../types';
+import { calculateMatchScores, calculateManagerPoints } from './scoring';
 import { supabase } from './supabase';
-import { PESO_VOTOS, PESO_STATS, TOPE_OBJ, OBJETIVO_MODO, REDONDEO, PRECIO_COMPRA_INICIAL_MODO, COMPRAS_INICIALES, PRECIO_COMPRA_INICIAL, PRECIO_REDONDEO } from './config';
+import { TITULARES, MAX_PLANTILLA } from './config';
 
 const PREFIX = 'egol_fantasy_';
+
+export function isMarketOrLineupLocked(matches: PachangaMatch[]): { isLocked: boolean; reason?: string } {
+  const active = matches.find(m => m.status === 'live' || m.status === 'voting' || m.status === 'locked');
+  if (active) {
+    return {
+      isLocked: true,
+      reason: active.status === 'voting'
+        ? 'Mercado y alineaciones bloqueados por votaciones en curso (hasta la publicación de resultados).'
+        : 'Mercado y alineaciones bloqueados: partido en juego.'
+    };
+  }
+
+  // Bloqueo a la hora de inicio (zona horaria Europe/Madrid)
+  const now = new Date();
+  for (const m of matches) {
+    if (m.status === 'upcoming' && m.date && m.startTime) {
+      try {
+        const matchDateTime = new Date(`${m.date}T${m.startTime}:00`);
+        if (now >= matchDateTime) {
+          return {
+            isLocked: true,
+            reason: 'Mercado y alineaciones bloqueados: la hora de inicio del partido ha llegado.'
+          };
+        }
+      } catch (e) {
+        // ignore date parse issues
+      }
+    }
+  }
+
+  return { isLocked: false };
+}
 
 
 function getStorage<T>(key: string, defaultValue: T): T {
@@ -28,24 +60,34 @@ function setStorage<T>(key: string, value: T): void {
 function mapProfileToUser(data: any): UserAccount {
   const cleanUser = (data.name || '').trim().toLowerCase();
   const role: UserRole = (data.role === 'admin' || cleanUser === 'pagusa') ? 'admin' : (data.role || 'member');
+  // Budget is stored in Supabase as M€ (100 = 100M€) for now, but the spec requires K€ (100000 = 100M€).
+  // We detect small values (<=1000) and multiply by 1000 to convert from M€ → K€.
+  const rawBudget = data.budget !== undefined && data.budget !== null ? Number(data.budget) : 100;
+  const budget = rawBudget <= 1000 ? rawBudget * 1000 : rawBudget;
   return {
     id: data.id,
     username: data.name,
     role: role,
-    budget: data.budget !== undefined && data.budget !== null ? Number(data.budget) : 100,
+    budget,
     ownedPlayerIds: Array.isArray(data.owned_player_ids) ? data.owned_player_ids : (Array.isArray(data.ownedPlayerIds) ? data.ownedPlayerIds : []),
     starterPlayerIds: Array.isArray(data.starter_player_ids) ? data.starter_player_ids : (Array.isArray(data.starterPlayerIds) ? data.starterPlayerIds : []),
+    captainId: data.captain_id ?? data.captainId ?? null,
+    linkedPlayerId: data.linked_player_id ?? data.linkedPlayerId ?? null,
+    linkStatus: data.link_status ?? data.linkStatus ?? 'none',
     totalPoints: Number(data.total_points ?? data.totalPoints ?? 0),
     lastMatchPoints: Number(data.last_match_points ?? data.lastMatchPoints ?? 0),
-    compras_iniciales: Number(data.compras_iniciales ?? 0)
   };
 }
 
 export function normalizeMatchStatus(s?: string): PachangaMatch['status'] {
   if (!s) return 'upcoming';
-  if (s === 'open' || s === 'draft') return 'upcoming';
+  if (s === 'open' || s === 'draft' || s === 'created') return 'upcoming';
   if (s === 'closed') return 'voting';
-  if (s === 'live' || s === 'voting' || s === 'scored') return s as PachangaMatch['status'];
+  if (s === 'locked') return 'live';
+  if (s === 'published') return 'published';
+  if (s === 'live' || s === 'voting' || s === 'scored' || s === 'published') {
+    return s as PachangaMatch['status'];
+  }
   return 'upcoming';
 }
 
@@ -122,7 +164,7 @@ export const egolDb = {
     return { success: true, user };
   },
 
-  async signup(username: string, password: string): Promise<{ success: boolean; user?: UserAccount; message?: string }> {
+  async signup(username: string, password: string, selectedPlayerId?: string): Promise<{ success: boolean; user?: UserAccount; message?: string }> {
     const cleanUser = username.trim().toLowerCase();
     if (!cleanUser || !password) {
       return { success: false, message: 'Rellena usuario y contraseña.' };
@@ -145,17 +187,34 @@ export const egolDb = {
     const role = cleanUser === 'pagusa' ? 'admin' : 'member';
     const generatedId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : undefined;
 
+    // Admin Pagusa vinculado a Gutsens automáticamente
+    let linkedPlayerId: string | null = selectedPlayerId || null;
+    let linkStatus: 'approved' | 'pending' | 'none' = selectedPlayerId ? 'pending' : 'none';
+
+    if (role === 'admin') {
+      try {
+        const { data: gutsens } = await supabase.from('players').select('id').ilike('name', 'Gutsens').maybeSingle();
+        if (gutsens) {
+          linkedPlayerId = gutsens.id;
+          linkStatus = 'approved';
+        }
+      } catch (e) {
+        console.warn('Could not find player Gutsens for Pagusa:', e);
+      }
+    }
+
     let data: any = null;
     const fullPayload: any = {
       name: username.trim(),
       role: role,
       alias: username.trim(),
-      budget: 100,
+      budget: 100000, // 100 M€ en K€
       owned_player_ids: [],
       starter_player_ids: [],
+      linked_player_id: linkedPlayerId,
+      link_status: linkStatus,
       total_points: 0,
       last_match_points: 0,
-      compras_iniciales: 0
     };
     if (generatedId) fullPayload.id = generatedId;
 
@@ -201,6 +260,40 @@ export const egolDb = {
     return { success: true, user: newAccount };
   },
 
+  async updateAccountLink(userId: string, playerId: string | null, linkStatus: 'approved' | 'pending' | 'none'): Promise<{ success: boolean; message: string }> {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          linked_player_id: playerId,
+          link_status: linkStatus
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+      await this.syncCurrentUser();
+      return { success: true, message: 'Vínculo actualizado con éxito.' };
+    } catch (e: any) {
+      console.error('Error updating account link:', e);
+      return { success: false, message: e.message || 'Error al actualizar vínculo.' };
+    }
+  },
+
+  async reopenMatch(matchId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const { error } = await supabase
+        .from('pachangas')
+        .update({ status: 'voting' })
+        .eq('id', matchId);
+
+      if (error) throw error;
+      return { success: true, message: 'Partido reabierto para corrección de acta.' };
+    } catch (e: any) {
+      console.error('Error reopening match:', e);
+      return { success: false, message: e.message || 'Error al reabrir partido.' };
+    }
+  },
+
   async resetPassword(username: string, newPassword: string): Promise<{ success: boolean; message: string }> {
     // Nota: En una app real con Supabase Auth, esto sería un flujo de recuperación de email
     return { success: false, message: 'Recuperación de contraseña no disponible en este modo.' };
@@ -233,7 +326,7 @@ export const egolDb = {
       priceChangePct: Number(p.price_change_pct ?? p.priceChangePct ?? 0),
       averageRating: Number(p.average_rating ?? p.averageRating ?? 0),
       ratingsCount: Number(p.ratings_count ?? p.ratingsCount ?? 0),
-      stats: p.stats ?? { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
+      stats: p.stats ?? { goals: 0, assists: 0, ownGoals: 0, saves: 0, matchesPlayed: 0 }
     }));
   },
 
@@ -266,12 +359,12 @@ export const egolDb = {
         name: name.trim(),
         is_guest: isGuest,
         avatar_url: avatarUrl || defaultAvatar,
-        current_price: 20,
-        previous_price: 20,
+        current_price: 20000,
+        previous_price: 20000,
         price_change_pct: 0,
         average_rating: 0,
         ratings_count: 0,
-        stats: { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
+        stats: { goals: 0, assists: 0, ownGoals: 0, saves: 0, matchesPlayed: 0 }
       })
       .select()
       .single();
@@ -282,18 +375,24 @@ export const egolDb = {
       name: data.name,
       isGuest: data.is_guest ?? isGuest,
       avatarUrl: data.avatar_url,
-      currentPrice: Number(data.current_price ?? 20),
-      previousPrice: Number(data.previous_price ?? 20),
+      currentPrice: Number(data.current_price ?? 20000),
+      previousPrice: Number(data.previous_price ?? 20000),
       priceChangePct: Number(data.price_change_pct ?? 0),
       averageRating: Number(data.average_rating ?? 0),
       ratingsCount: Number(data.ratings_count ?? 0),
-      stats: data.stats || { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
+      stats: data.stats || { goals: 0, assists: 0, ownGoals: 0, saves: 0, matchesPlayed: 0 }
     };
   },
 
   async buyPlayer(userId: string, playerId: string): Promise<{ success: boolean; message: string; user?: UserAccount }> {
     const currentUser = this.getCurrentUser();
     if (!currentUser) return { success: false, message: 'Inicia sesión.' };
+
+    const matches = await this.getMatches();
+    const lock = isMarketOrLineupLocked(matches);
+    if (lock.isLocked) {
+      return { success: false, message: lock.reason || 'El mercado está bloqueado durante la jornada.' };
+    }
 
     const { data: player } = await supabase
       .from('players')
@@ -303,13 +402,15 @@ export const egolDb = {
 
     if (!player) return { success: false, message: 'Jugador no encontrado.' };
 
-    const price = Number(player.current_price ?? player.currentPrice ?? 20);
+    const rawPrice = Number(player.current_price ?? player.currentPrice ?? 20000);
+    // Convertir M€ → K€ si el precio parece estar en M€ (<=1000)
+    const price = rawPrice <= 1000 ? rawPrice * 1000 : rawPrice;
 
     if (currentUser.ownedPlayerIds.includes(playerId)) {
       return { success: false, message: 'Ya tienes a este jugador en tu plantilla.' };
     }
 
-    if (currentUser.ownedPlayerIds.length >= 6) {
+    if (currentUser.ownedPlayerIds.length >= MAX_PLANTILLA) {
       return { success: false, message: 'Límite alcanzado.' };
     }
 
@@ -317,22 +418,13 @@ export const egolDb = {
       return { success: false, message: 'Presupuesto insuficiente.' };
     }
 
-    // Actualizar presupuesto y propiedad
-    let actualPrice = price;
-    if ((currentUser.compras_iniciales || 0) < COMPRAS_INICIALES) {
-      actualPrice = PRECIO_COMPRA_INICIAL;
-    }
-
-    const newBudget = Math.round((currentUser.budget - actualPrice) * 10) / 10;
+    // Todas las compras se pagan al precio real del jugador (sec. 7)
+    const newBudget = Math.round((currentUser.budget - price) * 10) / 10;
     currentUser.budget = newBudget;
     currentUser.ownedPlayerIds.push(playerId);
 
-    if (currentUser.starterPlayerIds.length < 5) {
+    if (currentUser.starterPlayerIds.length < TITULARES) {
       currentUser.starterPlayerIds.push(playerId);
-    }
-
-    if ((currentUser.compras_iniciales || 0) < COMPRAS_INICIALES) {
-      currentUser.compras_iniciales = (currentUser.compras_iniciales || 0) + 1;
     }
 
     setStorage('session_user', currentUser);
@@ -344,7 +436,6 @@ export const egolDb = {
           budget: currentUser.budget,
           owned_player_ids: currentUser.ownedPlayerIds,
           starter_player_ids: currentUser.starterPlayerIds,
-          compras_iniciales: currentUser.compras_iniciales || 0
         })
         .eq('id', currentUser.id);
     } catch (e) {
@@ -359,6 +450,12 @@ export const egolDb = {
     const currentUser = this.getCurrentUser();
     if (!currentUser) return { success: false, message: 'Inicia sesión.' };
 
+    const matches = await this.getMatches();
+    const lock = isMarketOrLineupLocked(matches);
+    if (lock.isLocked) {
+      return { success: false, message: lock.reason || 'El mercado está bloqueado durante la jornada.' };
+    }
+
     const { data: player } = await supabase
       .from('players')
       .select('*')
@@ -371,7 +468,9 @@ export const egolDb = {
       return { success: false, message: 'No tienes a este jugador en tu plantilla.' };
     }
 
-    const price = Number(player.current_price ?? player.currentPrice ?? 20);
+    const rawPrice = Number(player.current_price ?? player.currentPrice ?? 20000);
+    // Convertir M€ → K€ si el precio parece estar en M€ (<=1000)
+    const price = rawPrice <= 1000 ? rawPrice * 1000 : rawPrice;
     currentUser.budget = Math.round((currentUser.budget + price) * 10) / 10;
     currentUser.ownedPlayerIds = currentUser.ownedPlayerIds.filter(id => id !== playerId);
     currentUser.starterPlayerIds = currentUser.starterPlayerIds.filter(id => id !== playerId);
@@ -398,18 +497,29 @@ export const egolDb = {
     const currentUser = this.getCurrentUser();
     if (!currentUser) return { success: false, message: 'Inicia sesión.' };
 
+    const matches = await this.getMatches();
+    const lock = isMarketOrLineupLocked(matches);
+    if (lock.isLocked) {
+      return { success: false, message: lock.reason || 'Las alineaciones están bloqueadas durante la jornada.' };
+    }
+
     if (starterIds.length > 5) {
       return { success: false, message: 'Solo puedes tener como máximo 5 jugadores titulares.' };
     }
 
     currentUser.starterPlayerIds = starterIds;
+    // Si el capitán actual ya no está entre los titulares, quitarlo
+    if (currentUser.captainId && !starterIds.includes(currentUser.captainId)) {
+      currentUser.captainId = null;
+    }
     setStorage('session_user', currentUser);
 
     try {
       await supabase
         .from('profiles')
         .update({
-          starter_player_ids: currentUser.starterPlayerIds
+          starter_player_ids: currentUser.starterPlayerIds,
+          captain_id: currentUser.captainId
         })
         .eq('id', currentUser.id);
     } catch (e) {
@@ -417,6 +527,35 @@ export const egolDb = {
     }
 
     return { success: true, message: 'Alineación de titulares actualizada.', user: currentUser };
+  },
+
+  async setCaptain(captainId: string | null): Promise<{ success: boolean; message: string; user?: UserAccount }> {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) return { success: false, message: 'Inicia sesión.' };
+
+    const matches = await this.getMatches();
+    const lock = isMarketOrLineupLocked(matches);
+    if (lock.isLocked) {
+      return { success: false, message: lock.reason || 'Las alineaciones están bloqueadas durante la jornada.' };
+    }
+
+    if (captainId && !currentUser.starterPlayerIds.includes(captainId)) {
+      return { success: false, message: 'El capitán debe ser uno de los 5 titulares.' };
+    }
+
+    currentUser.captainId = captainId;
+    setStorage('session_user', currentUser);
+
+    try {
+      await supabase
+        .from('profiles')
+        .update({ captain_id: captainId })
+        .eq('id', currentUser.id);
+    } catch (e) {
+      console.warn('Could not sync captain to Supabase:', e);
+    }
+
+    return { success: true, message: 'Capitán actualizado con éxito.', user: currentUser };
   },
 
   async getMatches(): Promise<PachangaMatch[]> {
@@ -441,7 +580,11 @@ export const egolDb = {
       teamB: Array.isArray(m.team_b) ? m.team_b : (Array.isArray(m.teamB) ? m.teamB : []),
       scoreA: m.score_a !== undefined ? m.score_a : m.scoreA,
       scoreB: m.score_b !== undefined ? m.score_b : m.scoreB,
-      playerStats: m.player_stats || m.playerStats || {}
+      playerStats: m.player_stats || m.playerStats || {},
+      rawVotes: m.raw_votes || m.rawVotes || {},
+      lineupSnapshots: m.lineup_snapshots || m.lineupSnapshots || {},
+      corrections: m.corrections || [],
+      isOfficial: m.is_official ?? m.isOfficial ?? true
     }));
   },
 
@@ -465,7 +608,11 @@ export const egolDb = {
       teamB: Array.isArray(data.team_b) ? data.team_b : (Array.isArray(data.teamB) ? data.teamB : []),
       scoreA: data.score_a !== undefined ? data.score_a : data.scoreA,
       scoreB: data.score_b !== undefined ? data.score_b : data.scoreB,
-      playerStats: data.player_stats || data.playerStats || {}
+      playerStats: data.player_stats || data.playerStats || {},
+      rawVotes: data.raw_votes || data.rawVotes || {},
+      lineupSnapshots: data.lineup_snapshots || data.lineupSnapshots || {},
+      corrections: data.corrections || [],
+      isOfficial: data.is_official ?? data.isOfficial ?? true
     };
   },
 
@@ -615,12 +762,13 @@ export const egolDb = {
     matchId: string,
     scoreA: number,
     scoreB: number,
-    stats: Record<string, { goals: number; assists: number; ownGoals: number; rating?: number; saves?: number; goalsAgainst?: number; matchesPlayed?: number; }>
+    stats: Record<string, { goals: number; assists: number; ownGoals: number; rating?: number; saves?: number; matchesPlayed?: number; }>
   ): Promise<{ success: boolean; match?: PachangaMatch }> {
     const hasRatings = Object.values(stats).some(st => st.rating !== undefined && Number(st.rating) > 0);
     const newStatus = hasRatings ? 'scored' : 'voting';
 
-    // 1. Actualizar resultado y estado en la tabla pachangas
+    // 1. Guardar fotos de alineaciones y actualizar resultado y estado en la tabla pachangas
+    await this.takeLineupSnapshots(matchId);
     let { data: updatedMatch, error: matchErr } = await supabase
       .from('pachangas')
       .update({
@@ -657,116 +805,351 @@ export const egolDb = {
       console.error('Error updating match with acta:', matchErr);
     }
 
-    // 2. Actualizar estadísticas, nota y precio de cada jugador en la tabla players de Supabase
+    // 2. Actualizar estadísticas y precio de cada jugador usando scoring.ts (EGOL_FANTASY.md sec. 6 y 7)
     try {
       const { data: currentPlayers } = await supabase.from('players').select('*');
       if (currentPlayers) {
+        // Preparar input para el motor de puntuación
+        const teamA: string[] = Array.isArray(updatedMatch?.team_a) ? updatedMatch.team_a : [];
+        const teamB: string[] = Array.isArray(updatedMatch?.team_b) ? updatedMatch.team_b : [];
+
+        const statsInput: Record<string, any> = {};
+        const currentPrices: Record<string, number> = {};
+
         for (const [pId, st] of Object.entries(stats)) {
           const p = currentPlayers.find((item: any) => item.id === pId);
-          if (p) {
-            const currentStats = p.stats || { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 };
-            const newStats = {
-              ...currentStats,
-              goals: (currentStats.goals || 0) + (st.goals || 0),
-              assists: (currentStats.assists || 0) + (st.assists || 0),
-              ownGoals: (currentStats.ownGoals || 0) + (st.ownGoals || 0),
-              matchesPlayed: (currentStats.matchesPlayed || 0) + 1
-            };
+          const rawPrice = Number(p?.current_price ?? 20);
+          // Detectar y convertir precios en M€ a K€
+          const price = rawPrice <= 1000 ? rawPrice * 1000 : rawPrice;
+          currentPrices[pId] = price;
 
-            const ratingVal = st.rating !== undefined && Number(st.rating) > 0 ? Number(st.rating) : 0;
-            let newRatingsCount = p.ratings_count || 0;
-            let newAvgRating = p.average_rating || 0;
+          statsInput[pId] = {
+            playerId: pId,
+            team: teamA.includes(pId) ? 'A' : 'B',
+            goals: st.goals || 0,
+            assists: st.assists || 0,
+            ownGoals: st.ownGoals || 0,
+            saves: st.saves || 0,
+          };
+        }
 
-            if (ratingVal > 0) {
-              const prevTotal = (p.average_rating || 0) * (p.ratings_count || 0);
-              newRatingsCount += 1;
-              newAvgRating = Math.round(((prevTotal + ratingVal) / newRatingsCount) * 10) / 10;
+        const playerScores = calculateMatchScores({
+          scoreA,
+          scoreB,
+          stats: statsInput,
+          currentPrices,
+        });
+
+        for (const [pId, sc] of Object.entries(playerScores)) {
+          const p = currentPlayers.find((item: any) => item.id === pId);
+          if (!p) continue;
+
+          const st = stats[pId];
+          const currentStats = p.stats || { goals: 0, assists: 0, ownGoals: 0, saves: 0, matchesPlayed: 0 };
+          const newStats = {
+            ...currentStats,
+            goals: (currentStats.goals || 0) + (st.goals || 0),
+            assists: (currentStats.assists || 0) + (st.assists || 0),
+            ownGoals: (currentStats.ownGoals || 0) + (st.ownGoals || 0),
+            saves: (currentStats.saves || 0) + Math.min(3, st.saves || 0),
+            matchesPlayed: (currentStats.matchesPlayed || 0) + 1
+          };
+
+          const rawCurrentPrice = Number(p.current_price ?? 20);
+          const currentPrice = rawCurrentPrice <= 1000 ? rawCurrentPrice * 1000 : rawCurrentPrice;
+
+          await supabase
+            .from('players')
+            .update({
+              stats: newStats,
+              previous_price: currentPrice,
+              current_price: sc.newPrice,
+              price_change_pct: sc.priceChangePct,
+            })
+            .eq('id', pId);
+        }
+
+        // 3. Actualizar puntos de TODOS los managers en Supabase
+        const { data: allProfiles } = await supabase.from('profiles').select('*');
+        if (allProfiles && allProfiles.length > 0) {
+          for (const prof of allProfiles) {
+            const starterIds: string[] = Array.isArray(prof.starter_player_ids)
+              ? prof.starter_player_ids
+              : (Array.isArray(prof.starterPlayerIds) ? prof.starterPlayerIds : []);
+            const captainId = prof.captain_id ?? prof.captainId ?? null;
+
+            const { totalPoints: matchPoints } = calculateManagerPoints(
+              { starters: starterIds, captainId },
+              playerScores
+            );
+
+            const currentTotal = Number(prof.total_points || 0);
+            const newTotal = currentTotal + matchPoints;
+
+            try {
+              await supabase
+                .from('profiles')
+                .update({
+                  last_match_points: matchPoints,
+                  total_points: newTotal
+                })
+                .eq('id', prof.id);
+            } catch (err) {
+              console.warn(`Error updating points in Supabase for ${prof.name}:`, err);
             }
-
-            // Variación de precio (-15% a +15%)
-            const playerPoints = (st.goals * 3) + (st.assists * 1) - (st.ownGoals * 2) + (st.rating > 0 ? st.rating : 6);
-            const obj = Math.round(Math.min(TOPE_OBJ, Math.max(0, playerPoints)) / TOPE_OBJ * 10);
-            const subj = Math.round(st.rating > 0 ? st.rating : 5);
-            const total = obj + subj;
-
-            const allPoints = Object.values(stats).map(s => {
-              const pPts = (s.goals * 3) + (s.assists * 1) - (s.ownGoals * 2) + (s.rating > 0 ? s.rating : 6);
-              const pObj = Math.round(Math.min(TOPE_OBJ, Math.max(0, pPts)) / TOPE_OBJ * 10);
-              const pSubj = Math.round(s.rating > 0 ? s.rating : 5);
-              return pObj + pSubj;
-            });
-            const media_de_la_jornada = allPoints.reduce((a, b) => a + b, 0) / allPoints.length;
-
-            const changePct = Math.min(15, Math.max(-15, Math.round(2.5 * (total - media_de_la_jornada))));
-            const currentPrice = Number(p.current_price ?? 20);
-            const newPrice = Math.max(8, Math.round((currentPrice * (1 + changePct / 100)) / PRECIO_REDONDEO) * PRECIO_REDONDEO);
-
-
-
-            await supabase
-              .from('players')
-              .update({
-                stats: newStats,
-                average_rating: newAvgRating,
-                ratings_count: newRatingsCount,
-                previous_price: currentPrice,
-                current_price: newPrice,
-                price_change_pct: changePct
-              })
-              .eq('id', pId);
           }
         }
+
+        await this.syncCurrentUser();
       }
     } catch (e) {
       console.error('Error updating player stats in Supabase:', e);
     }
 
-    // 3. Actualizar puntos de TODOS los managers en Supabase
+    return { success: !matchErr, match: updatedMatch as any };
+  },
+
+  async takeLineupSnapshots(matchId: string): Promise<void> {
     try {
-      const winnerTeam = scoreA > scoreB ? 'A' : scoreB > scoreA ? 'B' : 'draw';
+      const { data: profiles } = await supabase.from('profiles').select('*');
+      if (!profiles) return;
+      const snapshots: Record<string, LineupSnapshot> = {};
+      for (const prof of profiles) {
+        const starters = Array.isArray(prof.starter_player_ids)
+          ? prof.starter_player_ids
+          : (Array.isArray(prof.starterPlayerIds) ? prof.starterPlayerIds : []);
+        snapshots[prof.id] = {
+          starters,
+          captainId: prof.captain_id ?? prof.captainId ?? null
+        };
+      }
+      await supabase.from('pachangas').update({
+        lineup_snapshots: snapshots
+      }).eq('id', matchId);
+    } catch (e) {
+      console.warn('Error taking lineup snapshots:', e);
+    }
+  },
+
+  async submitRankingVote(
+    matchId: string,
+    voterPlayerId: string,
+    ranking: string[]
+  ): Promise<{ success: boolean; message: string }> {
+    const match = await this.getMatch(matchId);
+    if (!match) return { success: false, message: 'Partido no encontrado.' };
+
+    const convocados = [...(match.teamA || []), ...(match.teamB || [])];
+    if (!convocados.includes(voterPlayerId)) {
+      return { success: false, message: 'No estás convocado a este partido.' };
+    }
+
+    if (ranking.includes(voterPlayerId)) {
+      return { success: false, message: 'No puedes votarte a ti mismo en el ranking.' };
+    }
+
+    const otherConvocados = convocados.filter(id => id !== voterPlayerId);
+    const rankingSet = new Set(ranking);
+    if (rankingSet.size !== ranking.length) {
+      return { success: false, message: 'El ranking no puede tener posiciones repetidas.' };
+    }
+    if (ranking.length !== otherConvocados.length || !otherConvocados.every(id => rankingSet.has(id))) {
+      return { success: false, message: 'Debes ordenar a todos los demás participantes sin dejar a ninguno fuera.' };
+    }
+
+    const currentVotes = match.rawVotes || {};
+    const updatedVotes = {
+      ...currentVotes,
+      [voterPlayerId]: ranking
+    };
+
+    const { error } = await supabase
+      .from('pachangas')
+      .update({ raw_votes: updatedVotes })
+      .eq('id', matchId);
+
+    if (error) {
+      console.error('Error saving raw votes:', error);
+      return { success: false, message: error.message || 'Error al guardar ranking.' };
+    }
+
+    return { success: true, message: '¡Tu ranking de votos ha sido guardado exitosamente!' };
+  },
+
+  async getRankingVoteForUser(matchId: string, voterPlayerId: string): Promise<string[] | null> {
+    const match = await this.getMatch(matchId);
+    if (!match || !match.rawVotes) return null;
+    return match.rawVotes[voterPlayerId] || null;
+  },
+
+  async submitCorrectionRequest(
+    matchId: string,
+    userId: string,
+    playerId: string,
+    description: string
+  ): Promise<{ success: boolean; message: string }> {
+    const match = await this.getMatch(matchId);
+    if (!match) return { success: false, message: 'Partido no encontrado.' };
+
+    const newRequest: CorrectionRequest = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `corr-${Date.now()}`,
+      matchId,
+      userId,
+      playerId,
+      description,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedCorrections = [...(match.corrections || []), newRequest];
+    const { error } = await supabase
+      .from('pachangas')
+      .update({ corrections: updatedCorrections })
+      .eq('id', matchId);
+
+    if (error) {
+      return { success: false, message: error.message };
+    }
+    return { success: true, message: 'Petición de corrección enviada al administrador.' };
+  },
+
+  async reviewCorrectionRequest(
+    matchId: string,
+    correctionId: string,
+    newStatus: 'approved' | 'rejected'
+  ): Promise<{ success: boolean; message: string }> {
+    const match = await this.getMatch(matchId);
+    if (!match) return { success: false, message: 'Partido no encontrado.' };
+
+    const corrections = (match.corrections || []).map(c =>
+      c.id === correctionId ? { ...c, status: newStatus } : c
+    );
+
+    const { error } = await supabase
+      .from('pachangas')
+      .update({ corrections })
+      .eq('id', matchId);
+
+    if (error) {
+      return { success: false, message: error.message };
+    }
+    return { success: true, message: `Petición marcada como ${newStatus === 'approved' ? 'aprobada' : 'rechazada'}.` };
+  },
+
+  async publishFinalMatchResults(matchId: string): Promise<{ success: boolean; message: string }> {
+    const match = await this.getMatch(matchId);
+    if (!match) return { success: false, message: 'Partido no encontrado.' };
+
+    try {
+      const { data: currentPlayers } = await supabase.from('players').select('*');
+      if (!currentPlayers) throw new Error('No se pudieron obtener los jugadores.');
+
+      const teamA: string[] = match.teamA || [];
+      const teamB: string[] = match.teamB || [];
+      const stats: Record<string, any> = match.playerStats || {};
+      const statsInput: Record<string, any> = {};
+      const currentPrices: Record<string, number> = {};
+
+      for (const [pId, stVal] of Object.entries(stats)) {
+        const st = stVal as any;
+        const p = currentPlayers.find((item: any) => item.id === pId);
+        const rawPrice = Number(p?.current_price ?? 20000);
+        const price = rawPrice <= 1000 ? rawPrice * 1000 : rawPrice;
+        currentPrices[pId] = price;
+
+        statsInput[pId] = {
+          playerId: pId,
+          team: teamA.includes(pId) ? 'A' : 'B',
+          goals: st.goals || 0,
+          assists: st.assists || 0,
+          ownGoals: st.ownGoals || 0,
+          saves: st.saves || 0,
+        };
+      }
+
+      const playerScores = calculateMatchScores({
+        scoreA: match.scoreA || 0,
+        scoreB: match.scoreB || 0,
+        stats: statsInput,
+        votesByVoter: match.rawVotes || {},
+        currentPrices,
+      });
+
+      // Actualizar jugadores
+      for (const [pId, sc] of Object.entries(playerScores)) {
+        const p = currentPlayers.find((item: any) => item.id === pId);
+        if (!p) continue;
+
+        const st = stats[pId] || { goals: 0, assists: 0, ownGoals: 0, saves: 0 };
+        const currentStats = p.stats || { goals: 0, assists: 0, ownGoals: 0, saves: 0, matchesPlayed: 0 };
+        const newStats = {
+          ...currentStats,
+          goals: (currentStats.goals || 0) + (st.goals || 0),
+          assists: (currentStats.assists || 0) + (st.assists || 0),
+          ownGoals: (currentStats.ownGoals || 0) + (st.ownGoals || 0),
+          saves: (currentStats.saves || 0) + Math.min(3, st.saves || 0),
+          matchesPlayed: (currentStats.matchesPlayed || 0) + 1
+        };
+
+        const rawCurrentPrice = Number(p.current_price ?? 20000);
+        const currentPrice = rawCurrentPrice <= 1000 ? rawCurrentPrice * 1000 : rawCurrentPrice;
+
+        await supabase
+          .from('players')
+          .update({
+            stats: newStats,
+            previous_price: currentPrice,
+            current_price: sc.newPrice,
+            price_change_pct: sc.priceChangePct,
+            average_rating: Math.round(sc.votesPoints * 10) / 10
+          })
+          .eq('id', pId);
+      }
+
+      // Actualizar puntuaciones de mánagers con snapshots
       const { data: allProfiles } = await supabase.from('profiles').select('*');
       if (allProfiles && allProfiles.length > 0) {
         for (const prof of allProfiles) {
-          const starterIds: string[] = Array.isArray(prof.starter_player_ids)
-            ? prof.starter_player_ids
-            : (Array.isArray(prof.starterPlayerIds) ? prof.starterPlayerIds : []);
+          const snapshot = match.lineupSnapshots?.[prof.id];
+          const starterIds: string[] = snapshot?.starters ?? (
+            Array.isArray(prof.starter_player_ids)
+              ? prof.starter_player_ids
+              : (Array.isArray(prof.starterPlayerIds) ? prof.starterPlayerIds : [])
+          );
+          const captainId = snapshot?.captainId ?? (prof.captain_id ?? prof.captainId ?? null);
 
-          let matchPoints = 0;
-          starterIds.forEach(pId => {
-            const st = stats[pId];
-            if (st) {
-              let pts = (st.goals * 3) + (st.assists * 1) - (st.ownGoals * 2);
-              if (st.rating && Number(st.rating) > 0) pts += Number(st.rating);
-              if (winnerTeam === 'A' && updatedMatch?.team_a?.includes(pId)) pts += 3;
-              if (winnerTeam === 'B' && updatedMatch?.team_b?.includes(pId)) pts += 3;
-              if (winnerTeam === 'draw') pts += 1;
-              matchPoints += Math.max(0, Math.round(pts));
-            }
-          });
+          const { totalPoints: matchPoints } = calculateManagerPoints(
+            { starters: starterIds, captainId },
+            playerScores
+          );
 
           const currentTotal = Number(prof.total_points || 0);
           const newTotal = currentTotal + matchPoints;
 
-          try {
-            await supabase
-              .from('profiles')
-              .update({
-                last_match_points: matchPoints,
-                total_points: newTotal
-              })
-              .eq('id', prof.id);
-          } catch (err) {
-            console.warn(`Error updating points in Supabase for ${prof.name}:`, err);
-          }
+          await supabase
+            .from('profiles')
+            .update({
+              last_match_points: matchPoints,
+              total_points: newTotal
+            })
+            .eq('id', prof.id);
         }
       }
 
-      await this.syncCurrentUser();
-    } catch (e) {
-      console.warn('Error calculating manager points:', e);
-    }
+      // Cerrar y publicar partido
+      await supabase
+        .from('pachangas')
+        .update({
+          status: 'scored'
+        })
+        .eq('id', matchId);
 
-    return { success: !matchErr, match: updatedMatch as any };
+      await this.syncCurrentUser();
+      return { success: true, message: '¡Resultados oficiales publicados con éxito!' };
+    } catch (e: any) {
+      console.error('Error publishing match results:', e);
+      return { success: false, message: e.message || 'Error al publicar resultados.' };
+    }
   },
 
   isUserGuest(username?: string | null): boolean {

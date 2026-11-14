@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Player } from '../types';
-import { egolDb } from '../lib/db';
-import { formatCurrency } from '../lib/utils';
-import { Search, Star, TrendingUp, TrendingDown } from 'lucide-react';
+import { egolDb, isMarketOrLineupLocked } from '../lib/db';
+import { formatCurrency, formatPercent } from '../lib/utils';
+import { Search, Star, TrendingUp, TrendingDown, Lock } from 'lucide-react';
 
 export default function MarketView({
   user,
@@ -18,12 +18,14 @@ export default function MarketView({
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<string>('');
   const [hasPlayedMatches, setHasPlayedMatches] = useState(false);
+  const [lockStatus, setLockStatus] = useState<{ isLocked: boolean; reason?: string }>({ isLocked: false });
 
   useEffect(() => {
     const fetchMatches = async () => {
       try {
         const matches = await egolDb.getMatches();
         setHasPlayedMatches(matches.some(m => m.status === 'voting' || m.status === 'scored'));
+        setLockStatus(isMarketOrLineupLocked(matches));
       } catch (e) {
         console.error('Error fetching matches:', e);
       }
@@ -84,11 +86,18 @@ export default function MarketView({
 
         {user && (
           <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
-            <span className="text-neutral-400">Presupuesto: <span className="font-black text-white">{user.budget}M€</span></span>
+            <span className="text-neutral-400">Presupuesto: <span className="font-black text-white">{formatCurrency(user.budget)}</span></span>
             <span className="text-neutral-400">Plantilla: <span className="font-black text-amber-400">{user.ownedPlayerIds.length} / 6</span></span>
           </div>
         )}
       </div>
+
+      {lockStatus.isLocked && (
+        <div className="p-3.5 bg-amber-950/40 border border-amber-500/40 text-amber-300 rounded-xl text-xs font-bold flex items-center gap-2.5">
+          <Lock className="h-4 w-4 text-amber-400 flex-shrink-0" />
+          <span>{lockStatus.reason || 'El mercado está bloqueado temporalmente debido a un partido en juego o votaciones en curso.'}</span>
+        </div>
+      )}
 
       {toastMessage && (
         <div className="p-3 bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-xl text-xs font-bold text-center">
@@ -166,15 +175,15 @@ export default function MarketView({
                       </span>
                       {hasIncreased ? (
                         <span className="inline-flex items-center justify-end gap-0.5 text-emerald-400 text-[10px] font-bold">
-                          <TrendingUp className="h-3 w-3" />+{player.priceChangePct}%
+                          <TrendingUp className="h-3 w-3" />{formatPercent(player.priceChangePct)}
                         </span>
                       ) : hasDecreased ? (
                         <span className="inline-flex items-center justify-end gap-0.5 text-red-400 text-[10px] font-bold">
-                          <TrendingDown className="h-3 w-3" />{player.priceChangePct}%
+                          <TrendingDown className="h-3 w-3" />{formatPercent(player.priceChangePct)}
                         </span>
                       ) : (
                         <span className="text-neutral-500 text-[10px] font-bold block">
-                          0%
+                          0 %
                         </span>
                       )}
                     </div>
@@ -184,21 +193,28 @@ export default function MarketView({
                       {isOwned ? (
                         <button
                           onClick={() => handleSell(player.id)}
-                          className="w-full py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-lg text-xs transition text-center"
+                          disabled={lockStatus.isLocked}
+                          className={`w-full py-1.5 font-bold rounded-lg text-xs transition text-center ${
+                            lockStatus.isLocked
+                              ? 'bg-neutral-800/50 text-neutral-600 cursor-not-allowed'
+                              : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'
+                          }`}
                         >
                           Vender
                         </button>
                       ) : (
                         <button
                           onClick={() => handleBuy(player.id)}
-                          disabled={!user || isTeamFull || !canAfford}
+                          disabled={!user || isTeamFull || !canAfford || lockStatus.isLocked}
                           className={`w-full py-1.5 font-black rounded-lg text-xs transition text-center ${
-                            !user || isTeamFull || !canAfford
+                            !user || isTeamFull || !canAfford || lockStatus.isLocked
                               ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
                               : 'bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-sm'
                           }`}
                         >
-                          {isTeamFull
+                          {lockStatus.isLocked
+                            ? 'Bloqueado'
+                            : isTeamFull
                             ? 'Llena'
                             : !canAfford
                             ? 'Sin saldo'

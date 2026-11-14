@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-11-14T19:19:03.766Z",
+  "tables": {
+    "profiles": {
+      "status": "ok",
+      "count": 1,
+      "file": "profiles.json"
+    },
+    "players": {
+      "status": "ok",
+      "count": 19,
+      "file": "players.json"
+    },
+    "pachangas": {
+      "status": "ok",
+      "count": 2,
+      "file": "pachangas.json"
+    },
+    "pachanga_attendees": {
+      "status": "ok",
+      "count": 1,
+      "file": "pachanga_attendees.json"
+    },
+    "fantasy_picks": {
+      "status": "ok",
+      "count": 0,
+      "file": "fantasy_picks.json"
+    },
+    "match_stats": {
+      "status": "ok",
+      "count": 0,
+      "file": "match_stats.json"
+    },
+    "pachanga_results": {
+      "status": "ok",
+      "count": 0,
+      "file": "pachanga_results.json"
+    },
+    "rating_votes": {
+      "status": "error",
+      "message": "Could not find the table 'public.rating_votes' in the schema cache"
+    }
+  }
+}

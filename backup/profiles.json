@@ -1,0 +1,16 @@
+[
+  {
+    "id": "6bf5b9c4-8ce7-471d-a854-730b0edff8a7",
+    "name": "Pagusa",
+    "alias": "Pagusa",
+    "avatar_url": null,
+    "role": "admin",
+    "created_at": "2026-11-08T19:08:15.365311+00:00",
+    "budget": 100,
+    "owned_player_ids": [],
+    "starter_player_ids": [],
+    "total_points": 0,
+    "last_match_points": 0,
+    "compras_iniciales": 0
+  }
+]

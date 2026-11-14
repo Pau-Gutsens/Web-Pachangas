@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { egolDb } from '../lib/db';
-import { Eye, EyeOff, Lock, User } from 'lucide-react';
-import { UserAccount } from '../types';
+import { Eye, EyeOff, Lock, User, UserCheck } from 'lucide-react';
+import { UserAccount, Player } from '../types';
 
 export default function AuthView({
   onLoginSuccess,
@@ -15,10 +15,24 @@ export default function AuthView({
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
+  const [playersList, setPlayersList] = useState<Player[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadPlayers = async () => {
+      try {
+        const list = await egolDb.getPlayers();
+        setPlayersList(list.filter(p => !p.isGuest));
+      } catch (e) {
+        console.warn('Error loading players for registration:', e);
+      }
+    };
+    loadPlayers();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +50,7 @@ export default function AuthView({
           alert(res.message || 'Error al iniciar sesión.');
         }
       } else if (mode === 'signup') {
-        const res = await egolDb.signup(username, password);
+        const res = await egolDb.signup(username, password, selectedPlayerId || undefined);
         if (res.success && res.user) {
           onLoginSuccess(res.user);
         } else {
@@ -137,6 +151,30 @@ export default function AuthView({
               </button>
             </div>
           </div>
+
+          {mode === 'signup' && (
+            <div>
+              <label className="block text-xs font-bold text-neutral-300 uppercase mb-1.5 flex items-center gap-1.5">
+                <UserCheck className="h-3.5 w-3.5 text-amber-400" />
+                ¿Quién eres en las pachangas?
+              </label>
+              <select
+                value={selectedPlayerId}
+                onChange={(e) => setSelectedPlayerId(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-800 text-white p-2.5 rounded-xl focus:outline-none focus:border-amber-400 text-xs"
+              >
+                <option value="">Solo juego al fantasy (sin jugador en pachangas)</option>
+                {playersList.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-neutral-500 mt-1">
+                Si eliges un jugador, la solicitud de vínculo quedará pendiente de aprobación del administrador. Podrás jugar al fantasy inmediatamente.
+              </p>
+            </div>
+          )}
 
           <button
             type="submit"

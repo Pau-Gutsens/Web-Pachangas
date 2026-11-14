@@ -11,7 +11,7 @@ export const INITIAL_PLAYERS: Player[] = [
     priceChangePct: 0,
     averageRating: 0,
     ratingsCount: 0,
-    stats: { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
+    stats: { goals: 0, assists: 0, ownGoals: 0, saves: 0, matchesPlayed: 0 }
   },
   {
     id: 'p-carlos-invitado',
@@ -23,6 +23,6 @@ export const INITIAL_PLAYERS: Player[] = [
     priceChangePct: 0,
     averageRating: 0,
     ratingsCount: 0,
-    stats: { goals: 0, assists: 0, ownGoals: 0, saves: 0, goalsAgainst: 0, matchesPlayed: 0 }
+    stats: { goals: 0, assists: 0, ownGoals: 0, saves: 0, matchesPlayed: 0 }
   }
 ];
