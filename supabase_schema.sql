@@ -27,6 +27,20 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS total_points INTEGER DEFAULT 0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_match_points INTEGER DEFAULT 0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS compras_iniciales INTEGER DEFAULT 0;
 
+-- Asegurar que el id se genere automáticamente y no dependa de auth.users:
+ALTER TABLE profiles ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+
+-- Permitir eliminar perfiles de managers sin bloqueos de clave foránea:
+ALTER TABLE pachanga_attendees DROP CONSTRAINT IF EXISTS pachanga_attendees_member_id_fkey;
+ALTER TABLE pachanga_attendees ADD CONSTRAINT pachanga_attendees_member_id_fkey FOREIGN KEY (member_id) REFERENCES profiles(id) ON DELETE SET NULL;
+ALTER TABLE fantasy_picks DROP CONSTRAINT IF EXISTS fantasy_picks_manager_id_fkey;
+ALTER TABLE fantasy_picks ADD CONSTRAINT fantasy_picks_manager_id_fkey FOREIGN KEY (manager_id) REFERENCES profiles(id) ON DELETE CASCADE;
+
+-- Conceder permisos completos a usuarios anónimos y autenticados:
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+
 -- 2. Tabla de pachangas
 CREATE TABLE IF NOT EXISTS pachangas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -135,41 +135,57 @@ export const egolDb = {
 
     // El check constraint en PostgreSQL profiles_role_check requiere 'admin' o 'member'
     const role = cleanUser === 'pagusa' ? 'admin' : 'member';
+    const generatedId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : undefined;
 
     let data: any = null;
+    const fullPayload: any = {
+      name: username.trim(),
+      role: role,
+      alias: username.trim(),
+      budget: 100,
+      owned_player_ids: [],
+      starter_player_ids: [],
+      total_points: 0,
+      last_match_points: 0,
+      compras_iniciales: 0
+    };
+    if (generatedId) fullPayload.id = generatedId;
+
     const fullInsert = await supabase
       .from('profiles')
-      .insert({
-        name: username.trim(),
-        role: role,
-        alias: username.trim(),
-        budget: 100,
-        owned_player_ids: [],
-        starter_player_ids: [],
-        total_points: 0,
-        last_match_points: 0,
-        compras_iniciales: 0
-      })
+      .insert(fullPayload)
       .select()
-      .single();
+      .maybeSingle();
 
     if (!fullInsert.error && fullInsert.data) {
       data = fullInsert.data;
     } else {
+      console.warn('Full profiles insert failed, trying basic insert:', fullInsert.error);
+      const basicPayload: any = {
+        name: username.trim(),
+        role: role,
+        alias: username.trim()
+      };
+      if (generatedId) basicPayload.id = generatedId;
+
       const fallback = await supabase
         .from('profiles')
-        .insert({
-          name: username.trim(),
-          role: role,
-          alias: username.trim()
-        })
+        .insert(basicPayload)
         .select()
-        .single();
+        .maybeSingle();
 
       if (fallback.error) {
-        return { success: false, message: 'Error al registrar: ' + fallback.error.message };
+        console.error('Supabase registration error:', fallback.error);
+        return {
+          success: false,
+          message: `Error al registrar en Supabase: ${fallback.error.message}. Por favor ejecuta el script SQL en Supabase para deshabilitar RLS y añadir columnas.`
+        };
       }
       data = fallback.data;
+    }
+
+    if (!data) {
+      return { success: false, message: 'No se pudo crear el perfil en la base de datos.' };
     }
 
     const newAccount = mapProfileToUser(data);
@@ -719,12 +735,19 @@ export const egolDb = {
       .select('*');
 
     if (error) {
-      console.error('Error fetching leaderboard:', error);
-      return [];
+      console.error('Error fetching leaderboard from Supabase:', error);
+      const cur = this.getCurrentUser();
+      return cur ? [cur] : [];
     }
 
-    return (data || [])
-      .map((p: any) => mapProfileToUser(p))
-      .sort((a, b) => b.totalPoints - a.totalPoints);
+    const list = (data || []).map((p: any) => mapProfileToUser(p));
+
+    // Si por cualquier motivo el usuario local no estuviera devuelto en la lista, añadirlo
+    const cur = this.getCurrentUser();
+    if (cur && !list.some(u => u.id === cur.id || u.username.toLowerCase() === cur.username.toLowerCase())) {
+      list.push(cur);
+    }
+
+    return list.sort((a, b) => b.totalPoints - a.totalPoints);
   }
 };

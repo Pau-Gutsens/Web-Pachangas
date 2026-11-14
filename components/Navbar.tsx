@@ -128,8 +128,8 @@ export default function Navbar({
               </div>
 
               {/* Usuario y Logout */}
-              <div className="h-8 flex items-center gap-1 pl-0.5">
-                <span className="text-xs font-bold text-neutral-300 hidden md:inline max-w-[100px] truncate">
+              <div className="h-8 flex items-center gap-1.5 pl-0.5">
+                <span className="text-xs font-bold text-amber-400 max-w-[85px] sm:max-w-[120px] truncate block">
                   {user.username}
                 </span>
                 <button

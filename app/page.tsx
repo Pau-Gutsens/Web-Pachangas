@@ -114,7 +114,7 @@ export default function EGOLApp() {
 
         {/* 4. Clasificación Total de Puntos */}
         {activeTab === 'standings' && (
-          <LeaderboardView />
+          <LeaderboardView currentUser={currentUser} />
         )}
 
         {/* 5. Panel de Admin (Solo Pagusa / Admin) */}

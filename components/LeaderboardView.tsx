@@ -16,7 +16,7 @@ interface ConvokedPlayerRank {
   fantasyPoints: number;
 }
 
-export default function LeaderboardView() {
+export default function LeaderboardView({ currentUser }: { currentUser?: UserAccount | null }) {
   const [tab, setTab] = useState<'general' | 'ultima'>('general');
   const [standings, setStandings] = useState<UserAccount[]>([]);
   const [matches, setMatches] = useState<PachangaMatch[]>([]);
@@ -40,6 +40,14 @@ export default function LeaderboardView() {
     };
     fetchData();
   }, []);
+
+  const myPosition = React.useMemo(() => {
+    if (!currentUser) return 0;
+    const index = standings.findIndex(
+      u => u.id === currentUser.id || u.username.toLowerCase() === currentUser.username.toLowerCase()
+    );
+    return index >= 0 ? index + 1 : 0;
+  }, [standings, currentUser]);
 
   const lastMatch = matches.find(m => m.status === 'scored' || m.status === 'voting') || matches[0];
 
@@ -126,8 +134,40 @@ export default function LeaderboardView() {
 
       {/* Contenido según la pestaña activa */}
       {tab === 'general' ? (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
+        <div className="space-y-4">
+          {currentUser && (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3.5 sm:p-4 flex items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-amber-400 text-neutral-950 flex items-center justify-center font-black text-sm flex-shrink-0">
+                  {currentUser.username.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-black text-white text-sm truncate">{currentUser.username}</span>
+                    <span className="text-[9px] bg-amber-400/10 text-amber-400 font-bold px-1.5 py-0.5 rounded border border-amber-400/20">
+                      TÚ
+                    </span>
+                  </div>
+                  <span className="text-xs text-neutral-400 block mt-0.5">
+                    Posición actual: <strong className="text-amber-400 font-bold">{myPosition > 0 ? `${myPosition}º` : 'En la lista'}</strong>
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 sm:gap-4 text-right flex-shrink-0">
+                <div>
+                  <span className="text-[10px] text-neutral-400 uppercase font-bold block">Puntos</span>
+                  <span className="text-sm font-black text-amber-400">{currentUser.totalPoints} pts</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-neutral-400 uppercase font-bold block">Presupuesto</span>
+                  <span className="text-sm font-black text-white">{currentUser.budget}M€</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">
               <thead className="bg-neutral-950 text-neutral-500 text-xs uppercase font-bold border-b border-neutral-800">
                 <tr className="py-3 px-2 sm:p-4">
@@ -197,6 +237,7 @@ export default function LeaderboardView() {
             </table>
           </div>
         </div>
+      </div>
       ) : (
         /* Pestaña: Última Jornada con clasificación ordenada de convocados */
         <div className="space-y-4">
