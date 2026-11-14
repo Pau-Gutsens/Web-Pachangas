@@ -74,7 +74,7 @@ export interface VoteRanking {
   submittedAt?: string;
 }
 
-export type MatchStatus = 'created' | 'locked' | 'live' | 'voting' | 'published' | 'upcoming' | 'scored';
+export type MatchStatus = 'created' | 'locked' | 'live' | 'voting' | 'published' | 'upcoming' | 'scored' | 'cancelled';
 
 export interface PlayerMatchScore {
   playerId: string;

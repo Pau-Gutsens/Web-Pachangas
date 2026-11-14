@@ -6,7 +6,9 @@ import { TITULARES, MAX_PLANTILLA } from './config';
 const PREFIX = 'egol_fantasy_';
 
 export function isMarketOrLineupLocked(matches: PachangaMatch[]): { isLocked: boolean; reason?: string } {
-  const active = matches.find(m => m.status === 'live' || m.status === 'voting' || m.status === 'locked');
+  // Los partidos cancelados nunca bloquean el mercado ni las alineaciones
+  const validMatches = matches.filter(m => m.status !== ('cancelled' as any));
+  const active = validMatches.find(m => m.status === 'live' || m.status === 'voting' || m.status === 'locked');
   if (active) {
     return {
       isLocked: true,
@@ -18,7 +20,7 @@ export function isMarketOrLineupLocked(matches: PachangaMatch[]): { isLocked: bo
 
   // Bloqueo a la hora de inicio (zona horaria Europe/Madrid)
   const now = new Date();
-  for (const m of matches) {
+  for (const m of validMatches) {
     if (m.status === 'upcoming' && m.date && m.startTime) {
       try {
         const matchDateTime = new Date(`${m.date}T${m.startTime}:00`);
@@ -59,11 +61,17 @@ function setStorage<T>(key: string, value: T): void {
 
 function mapProfileToUser(data: any): UserAccount {
   const cleanUser = (data.name || '').trim().toLowerCase();
-  const role: UserRole = (data.role === 'admin' || cleanUser === 'pagusa') ? 'admin' : (data.role || 'member');
-  // Budget is stored in Supabase as M€ (100 = 100M€) for now, but the spec requires K€ (100000 = 100M€).
-  // We detect small values (<=1000) and multiply by 1000 to convert from M€ → K€.
+  const isPagusa = cleanUser === 'pagusa';
+  const role: UserRole = (data.role === 'admin' || isPagusa) ? 'admin' : (data.role || 'member');
+  // Presupuesto en K€ (100.000 K€ = 100 M€)
   const rawBudget = data.budget !== undefined && data.budget !== null ? Number(data.budget) : 100;
   const budget = rawBudget <= 1000 ? rawBudget * 1000 : rawBudget;
+
+  // Por especificación sección 2: Pagusa es la administradora y está vinculada a Gutsens
+  const defaultLinkedId = isPagusa ? 'ce470862-4bac-49d5-becb-2abbe2cff860' : null;
+  const linkedPlayerId = data.linked_player_id ?? data.linkedPlayerId ?? defaultLinkedId;
+  const linkStatus = data.link_status ?? data.linkStatus ?? (isPagusa ? 'approved' : 'none');
+
   return {
     id: data.id,
     username: data.name,
@@ -72,8 +80,8 @@ function mapProfileToUser(data: any): UserAccount {
     ownedPlayerIds: Array.isArray(data.owned_player_ids) ? data.owned_player_ids : (Array.isArray(data.ownedPlayerIds) ? data.ownedPlayerIds : []),
     starterPlayerIds: Array.isArray(data.starter_player_ids) ? data.starter_player_ids : (Array.isArray(data.starterPlayerIds) ? data.starterPlayerIds : []),
     captainId: data.captain_id ?? data.captainId ?? null,
-    linkedPlayerId: data.linked_player_id ?? data.linkedPlayerId ?? null,
-    linkStatus: data.link_status ?? data.linkStatus ?? 'none',
+    linkedPlayerId,
+    linkStatus,
     totalPoints: Number(data.total_points ?? data.totalPoints ?? 0),
     lastMatchPoints: Number(data.last_match_points ?? data.lastMatchPoints ?? 0),
   };
@@ -81,6 +89,7 @@ function mapProfileToUser(data: any): UserAccount {
 
 export function normalizeMatchStatus(s?: string): PachangaMatch['status'] {
   if (!s) return 'upcoming';
+  if (s === 'cancelled') return 'cancelled';
   if (s === 'open' || s === 'draft' || s === 'created') return 'upcoming';
   if (s === 'closed') return 'voting';
   if (s === 'locked') return 'live';
@@ -291,6 +300,33 @@ export const egolDb = {
     } catch (e: any) {
       console.error('Error reopening match:', e);
       return { success: false, message: e.message || 'Error al reabrir partido.' };
+    }
+  },
+
+  async cancelMatch(matchId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      // 1. Intentar marcar como 'cancelled'
+      let { error } = await supabase
+        .from('pachangas')
+        .update({ status: 'cancelled' })
+        .eq('id', matchId);
+
+      // Si la base de datos tiene una restricción CHECK que no admite 'cancelled', eliminarlo de la tabla
+      if (error && (error.code === '23514' || error.message?.includes('pachangas_status_check'))) {
+        const delRes = await supabase
+          .from('pachangas')
+          .delete()
+          .eq('id', matchId);
+        if (!delRes.error) {
+          error = null;
+        }
+      }
+
+      if (error) throw error;
+      return { success: true, message: 'Partido cancelado correctamente. El mercado y las alineaciones se han desbloqueado.' };
+    } catch (e: any) {
+      console.error('Error cancelling match:', e);
+      return { success: false, message: e.message || 'Error al cancelar el partido.' };
     }
   },
 

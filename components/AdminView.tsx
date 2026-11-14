@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Player, PachangaMatch, UserAccount } from '../types';
-import { egolDb } from '../lib/db';
-import { ShieldAlert, PlusCircle, Clock, Calendar, Users, Award, UserPlus, CheckCircle, RotateCcw, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { egolDb, isMarketOrLineupLocked } from '../lib/db';
+import { ShieldAlert, PlusCircle, Clock, Calendar, Users, Award, UserPlus, CheckCircle, RotateCcw, AlertTriangle, ShieldCheck, XCircle } from 'lucide-react';
 
 export default function AdminView({
   players,
@@ -241,6 +241,30 @@ export default function AdminView({
     }
   };
 
+  const handleCancelMatch = async () => {
+    if (!currentMatch) return;
+    const isLocked = isMarketOrLineupLocked([currentMatch]).isLocked;
+    const confirmText = isLocked
+      ? `¿Estás seguro de que deseas cancelar este partido (${currentMatch.date})?\n\nActualmente está bloqueando el mercado o las alineaciones. Al cancelarlo se desbloquearán inmediatamente.`
+      : `¿Estás seguro de que deseas cancelar este partido (${currentMatch.date})?`;
+
+    if (!confirm(confirmText)) return;
+
+    try {
+      const res = await egolDb.cancelMatch(currentMatch.id);
+      if (res.success) {
+        alert(res.message);
+        await loadData();
+        onRefresh();
+      } else {
+        alert(res.message);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Error al cancelar partido.');
+    }
+  };
+
   const handleUpdateLink = async (userId: string, playerId: string | null, status: 'approved' | 'pending' | 'none') => {
     const res = await egolDb.updateAccountLink(userId, playerId, status);
     if (res.success) {
@@ -404,8 +428,10 @@ export default function AdminView({
 
         <div className="divide-y divide-neutral-800/80">
           {accounts.map(acc => {
-            const linkedPlayer = players.find(p => p.id === acc.linkedPlayerId);
             const isPagusa = acc.username.toLowerCase() === 'pagusa';
+            const gutsensPlayer = players.find(p => p.name.toLowerCase() === 'gutsens');
+            const linkedPlayer = players.find(p => p.id === acc.linkedPlayerId) || (isPagusa ? gutsensPlayer : null);
+            const isApproved = acc.linkStatus === 'approved' || (isPagusa && linkedPlayer);
 
             return (
               <div key={acc.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -422,12 +448,12 @@ export default function AdminView({
                       Pendiente de aprobación: {linkedPlayer ? linkedPlayer.name : 'Jugador'}
                     </span>
                   )}
-                  {acc.linkStatus === 'approved' && linkedPlayer && (
+                  {isApproved && linkedPlayer && (
                     <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-500/30">
-                      ✓ Vinculado a {linkedPlayer.name}
+                      ✓ Vinculado a {linkedPlayer.name} {isPagusa ? '(Admin)' : ''}
                     </span>
                   )}
-                  {(!acc.linkStatus || acc.linkStatus === 'none') && (
+                  {(!isApproved && (!acc.linkStatus || acc.linkStatus === 'none' || !linkedPlayer)) && (
                     <span className="text-neutral-500 text-[11px]">Solo fantasy (sin jugador)</span>
                   )}
 
@@ -440,22 +466,20 @@ export default function AdminView({
                     </button>
                   )}
 
-                  {!isPagusa && (
-                    <select
-                      value={acc.linkedPlayerId || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        handleUpdateLink(acc.id, val || null, val ? 'approved' : 'none');
-                      }}
-                      className="bg-neutral-950 border border-neutral-800 text-white p-1 rounded-lg text-xs"
-                    >
-                      <option value="">Cambiar vínculo...</option>
-                      <option value="">(Desvincular)</option>
-                      {players.filter(p => !p.isGuest).map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                  )}
+                  <select
+                    value={acc.linkedPlayerId || (isPagusa && gutsensPlayer ? gutsensPlayer.id : '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleUpdateLink(acc.id, val || null, val ? 'approved' : 'none');
+                    }}
+                    className="bg-neutral-950 border border-neutral-800 text-white p-1 rounded-lg text-xs"
+                  >
+                    <option value="">Cambiar vínculo...</option>
+                    <option value="">(Desvincular)</option>
+                    {players.filter(p => !p.isGuest).map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             );
@@ -510,6 +534,15 @@ export default function AdminView({
                   Publicar Resultados Finales
                 </button>
               )}
+
+              <button
+                onClick={handleCancelMatch}
+                className="px-2.5 py-1.5 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                title="Cancela este partido y desbloquea el mercado y las alineaciones"
+              >
+                <XCircle className="h-3.5 w-3.5 text-red-400" />
+                Cancelar Partido
+              </button>
             </div>
           </div>
 
