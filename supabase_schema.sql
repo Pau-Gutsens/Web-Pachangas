@@ -57,6 +57,22 @@ CREATE TABLE IF NOT EXISTS pachangas (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Si la tabla pachangas ya existía con restricciones anteriores, asegurar columnas y actualizar estados permitidos:
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS start_time TEXT DEFAULT '17:00';
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS end_time TEXT DEFAULT '18:30';
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'upcoming';
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS format INTEGER NOT NULL DEFAULT 5;
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS team_a JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS team_b JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS score_a INTEGER;
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS score_b INTEGER;
+ALTER TABLE pachangas ADD COLUMN IF NOT EXISTS player_stats JSONB DEFAULT '{}'::jsonb;
+
+-- Actualizar restricción de estados para admitir todos los estados:
+ALTER TABLE pachangas DROP CONSTRAINT IF EXISTS pachangas_status_check;
+ALTER TABLE pachangas ADD CONSTRAINT pachangas_status_check 
+  CHECK (status IN ('upcoming', 'live', 'voting', 'scored', 'draft', 'open', 'closed', 'cancelled'));
+
 -- 3. Tabla de jugadores fantasy (futbolistas gestionados por el admin)
 CREATE TABLE IF NOT EXISTS players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

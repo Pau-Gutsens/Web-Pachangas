@@ -41,6 +41,14 @@ function mapProfileToUser(data: any): UserAccount {
   };
 }
 
+export function normalizeMatchStatus(s?: string): PachangaMatch['status'] {
+  if (!s) return 'upcoming';
+  if (s === 'open' || s === 'draft') return 'upcoming';
+  if (s === 'closed') return 'voting';
+  if (s === 'live' || s === 'voting' || s === 'scored') return s as PachangaMatch['status'];
+  return 'upcoming';
+}
+
 export const egolDb = {
   getCurrentUser(): UserAccount | null {
     const user = getStorage<UserAccount | null>('session_user', null);
@@ -428,7 +436,7 @@ export const egolDb = {
       startTime: m.start_time || m.startTime || '17:00',
       endTime: m.end_time || m.endTime || '18:30',
       format: m.format || 5,
-      status: (m.status as any) || 'upcoming',
+      status: normalizeMatchStatus(m.status),
       teamA: Array.isArray(m.team_a) ? m.team_a : (Array.isArray(m.teamA) ? m.teamA : []),
       teamB: Array.isArray(m.team_b) ? m.team_b : (Array.isArray(m.teamB) ? m.teamB : []),
       scoreA: m.score_a !== undefined ? m.score_a : m.scoreA,
@@ -452,7 +460,7 @@ export const egolDb = {
       startTime: data.start_time || data.startTime || '17:00',
       endTime: data.end_time || data.endTime || '18:30',
       format: data.format || 5,
-      status: data.status || 'upcoming',
+      status: normalizeMatchStatus(data.status),
       teamA: Array.isArray(data.team_a) ? data.team_a : (Array.isArray(data.teamA) ? data.teamA : []),
       teamB: Array.isArray(data.team_b) ? data.team_b : (Array.isArray(data.teamB) ? data.teamB : []),
       scoreA: data.score_a !== undefined ? data.score_a : data.scoreA,
@@ -462,7 +470,7 @@ export const egolDb = {
   },
 
   async createMatch(payload: { date: string; startTime: string; endTime: string; format: number }): Promise<PachangaMatch> {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('pachangas')
       .insert({
         date: payload.date,
@@ -476,6 +484,46 @@ export const egolDb = {
       .select()
       .single();
 
+    if (error && (error.code === '23514' || error.message?.includes('pachangas_status_check'))) {
+      console.warn('pachangas_status_check constraint triggered, retrying with status "open"...');
+      const retry = await supabase
+        .from('pachangas')
+        .insert({
+          date: payload.date,
+          start_time: payload.startTime,
+          end_time: payload.endTime,
+          status: 'open',
+          format: payload.format || 5,
+          team_a: [],
+          team_b: []
+        })
+        .select()
+        .single();
+
+      if (!retry.error && retry.data) {
+        data = retry.data;
+        error = null;
+      } else if (retry.error) {
+        const retryDraft = await supabase
+          .from('pachangas')
+          .insert({
+            date: payload.date,
+            start_time: payload.startTime,
+            end_time: payload.endTime,
+            status: 'draft',
+            format: payload.format || 5,
+            team_a: [],
+            team_b: []
+          })
+          .select()
+          .single();
+        if (!retryDraft.error && retryDraft.data) {
+          data = retryDraft.data;
+          error = null;
+        }
+      }
+    }
+
     if (error) {
       console.error('Error creating match:', error);
       throw error;
@@ -483,11 +531,11 @@ export const egolDb = {
 
     return {
       id: data.id,
-      date: data.date ? data.date.split('T')[0] : payload.date,
+      date: data.date ? (typeof data.date === 'string' ? data.date.split('T')[0] : new Date(data.date).toISOString().split('T')[0]) : payload.date,
       startTime: data.start_time || payload.startTime,
       endTime: data.end_time || payload.endTime,
       format: data.format || payload.format || 5,
-      status: data.status || 'upcoming',
+      status: normalizeMatchStatus(data.status),
       teamA: [],
       teamB: []
     };
@@ -510,11 +558,11 @@ export const egolDb = {
 
     return {
       id: data.id,
-      date: data.date ? data.date.split('T')[0] : '',
+      date: data.date ? (typeof data.date === 'string' ? data.date.split('T')[0] : new Date(data.date).toISOString().split('T')[0]) : '',
       startTime: data.start_time || '17:00',
       endTime: data.end_time || '18:30',
       format: data.format || 5,
-      status: data.status || 'upcoming',
+      status: normalizeMatchStatus(data.status),
       teamA: data.team_a || teamA,
       teamB: data.team_b || teamB,
       scoreA: data.score_a,
@@ -523,12 +571,27 @@ export const egolDb = {
   },
 
   async updateMatchStatus(matchId: string, status: PachangaMatch['status']): Promise<PachangaMatch | undefined> {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('pachangas')
       .update({ status })
       .eq('id', matchId)
       .select()
       .maybeSingle();
+
+    if (error && (error.code === '23514' || error.message?.includes('pachangas_status_check'))) {
+      const fallbackStatus = status === 'upcoming' ? 'open' : status === 'voting' ? 'closed' : status === 'scored' ? 'scored' : 'open';
+      const retry = await supabase
+        .from('pachangas')
+        .update({ status: fallbackStatus })
+        .eq('id', matchId)
+        .select()
+        .maybeSingle();
+
+      if (!retry.error) {
+        data = retry.data;
+        error = null;
+      }
+    }
 
     if (error) {
       console.error('Error updating match status:', error);
@@ -538,11 +601,11 @@ export const egolDb = {
     if (!data) return undefined;
     return {
       id: data.id,
-      date: data.date ? data.date.split('T')[0] : '',
+      date: data.date ? (typeof data.date === 'string' ? data.date.split('T')[0] : new Date(data.date).toISOString().split('T')[0]) : '',
       startTime: data.start_time || '17:00',
       endTime: data.end_time || '18:30',
       format: data.format || 5,
-      status: data.status,
+      status: normalizeMatchStatus(data.status),
       teamA: data.team_a || [],
       teamB: data.team_b || []
     };
@@ -558,7 +621,7 @@ export const egolDb = {
     const newStatus = hasRatings ? 'scored' : 'voting';
 
     // 1. Actualizar resultado y estado en la tabla pachangas
-    const { data: updatedMatch, error: matchErr } = await supabase
+    let { data: updatedMatch, error: matchErr } = await supabase
       .from('pachangas')
       .update({
         score_a: scoreA,
@@ -569,6 +632,26 @@ export const egolDb = {
       .eq('id', matchId)
       .select()
       .maybeSingle();
+
+    if (matchErr && (matchErr.code === '23514' || matchErr.message?.includes('pachangas_status_check'))) {
+      const fallbackStatus = newStatus === 'scored' ? 'scored' : 'closed';
+      const retry = await supabase
+        .from('pachangas')
+        .update({
+          score_a: scoreA,
+          score_b: scoreB,
+          player_stats: stats,
+          status: fallbackStatus
+        })
+        .eq('id', matchId)
+        .select()
+        .maybeSingle();
+
+      if (!retry.error) {
+        updatedMatch = retry.data;
+        matchErr = null;
+      }
+    }
 
     if (matchErr) {
       console.error('Error updating match with acta:', matchErr);
