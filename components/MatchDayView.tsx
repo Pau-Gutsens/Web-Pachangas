@@ -46,8 +46,8 @@ export default function MatchDayView({
   // Partido activo que se vaya a celebrar o esté en votación/juego
   const activeMatch = matches.find(m => m.status === 'upcoming' || m.status === 'live' || m.status === 'voting');
 
-  // Historial de partidos (todos los partidos que están finalizados o archivados)
-  const historyMatches = matches.filter(m => m.id !== activeMatch?.id);
+  // Historial de partidos (únicamente partidos finalizados con acta publicada, nunca cancelados)
+  const historyMatches = matches.filter(m => m.id !== activeMatch?.id && m.status !== 'cancelled' && (m.status === 'scored' || m.status === 'published'));
 
   // Modo Directo (Admin)
   const [directGoalModal, setDirectGoalModal] = useState<{ team: 'A' | 'B'; scorerId?: string; step: 'scorer' | 'assist' } | null>(null);
@@ -166,9 +166,11 @@ export default function MatchDayView({
     if (!activeMatch) return;
     if (!confirm('¿Seguro que quieres cancelar este partido? El mercado y las alineaciones se desbloquearán inmediatamente.')) return;
     try {
-      const res = await egolDb.cancelMatch(activeMatch.id);
+      const matchIdToCancel = activeMatch.id;
+      const res = await egolDb.cancelMatch(matchIdToCancel);
       if (res.success) {
         alert(res.message);
+        setMatches(prev => prev.filter(m => m.id !== matchIdToCancel));
         await loadMatches();
       } else {
         alert(res.message);

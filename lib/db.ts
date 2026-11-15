@@ -348,19 +348,19 @@ export const egolDb = {
 
   async cancelMatch(matchId: string): Promise<{ success: boolean; message: string }> {
     try {
-      // 1. Intentar marcar como 'cancelled'
+      // 1. Eliminar el partido cancelado de Supabase para que no quede huérfano ni en admin ni en historial
       let { error } = await supabase
         .from('pachangas')
-        .update({ status: 'cancelled' })
+        .delete()
         .eq('id', matchId);
 
-      // Si la base de datos tiene una restricción CHECK que no admite 'cancelled', eliminarlo de la tabla
-      if (error && (error.code === '23514' || error.message?.includes('pachangas_status_check'))) {
-        const delRes = await supabase
+      // Si no se puede borrar (ej: permisos o FK), marcar como 'cancelled'
+      if (error) {
+        const updateRes = await supabase
           .from('pachangas')
-          .delete()
+          .update({ status: 'cancelled' })
           .eq('id', matchId);
-        if (!delRes.error) {
+        if (!updateRes.error) {
           error = null;
         }
       }
@@ -648,7 +648,9 @@ export const egolDb = {
       return [];
     }
 
-    return (data || []).map((m: any) => ({
+    return (data || [])
+      .filter((m: any) => normalizeMatchStatus(m.status) !== 'cancelled')
+      .map((m: any) => ({
       id: m.id,
       date: m.date ? (typeof m.date === 'string' ? m.date.split('T')[0] : new Date(m.date).toISOString().split('T')[0]) : '',
       startTime: m.start_time || m.startTime || '17:00',

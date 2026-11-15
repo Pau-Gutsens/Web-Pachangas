@@ -23,10 +23,15 @@ export default function AdminView({
         egolDb.getMatches(),
         egolDb.getLeaderboard()
       ]);
-      setMatches(mData);
+      const validMatches = mData.filter(m => m.status !== 'cancelled');
+      setMatches(validMatches);
       setAccounts(aData);
-      if (mData.length > 0 && !selectedMatchId) {
-        setSelectedMatchId(mData[0].id);
+      if (validMatches.length > 0) {
+        if (!selectedMatchId || !validMatches.some(m => m.id === selectedMatchId)) {
+          setSelectedMatchId(validMatches[0].id);
+        }
+      } else {
+        setSelectedMatchId('');
       }
     } catch (e) {
       console.error(e);
@@ -65,7 +70,7 @@ export default function AdminView({
   const [isEventLoading, setIsEventLoading] = useState(false);
   const [showManualTable, setShowManualTable] = useState(false);
 
-  const currentMatch = matches.find(m => m.id === selectedMatchId) || matches[0];
+  const currentMatch = matches.find(m => m.id === selectedMatchId) || (matches.length > 0 ? matches[0] : null);
 
   useEffect(() => {
     if (currentMatch) {
@@ -259,9 +264,12 @@ export default function AdminView({
     if (!confirm(confirmText)) return;
 
     try {
-      const res = await egolDb.cancelMatch(currentMatch.id);
+      const matchIdToCancel = currentMatch.id;
+      const res = await egolDb.cancelMatch(matchIdToCancel);
       if (res.success) {
         alert(res.message);
+        setSelectedMatchId('');
+        setMatches(prev => prev.filter(m => m.id !== matchIdToCancel));
         await loadData();
         onRefresh();
       } else {
