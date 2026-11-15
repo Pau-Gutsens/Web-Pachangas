@@ -26,10 +26,13 @@ export default function AdminView({
       const validMatches = mData.filter(m => m.status !== 'cancelled');
       setMatches(validMatches);
       setAccounts(aData);
-      if (validMatches.length > 0) {
-        if (!selectedMatchId || !validMatches.some(m => m.id === selectedMatchId)) {
-          setSelectedMatchId(validMatches[0].id);
-        }
+
+      // Solo seleccionar por defecto si hay un partido ACTIVO en curso (upcoming, live o voting)
+      const activeMatch = validMatches.find(m => m.status === 'upcoming' || m.status === 'live' || m.status === 'voting');
+      if (activeMatch) {
+        setSelectedMatchId(activeMatch.id);
+      } else if (selectedMatchId && validMatches.some(m => m.id === selectedMatchId)) {
+        // Mantener selección manual previa del usuario si sigue existiendo
       } else {
         setSelectedMatchId('');
       }
@@ -70,7 +73,7 @@ export default function AdminView({
   const [isEventLoading, setIsEventLoading] = useState(false);
   const [showManualTable, setShowManualTable] = useState(false);
 
-  const currentMatch = matches.find(m => m.id === selectedMatchId) || (matches.length > 0 ? matches[0] : null);
+  const currentMatch = matches.find(m => m.id === selectedMatchId) || null;
 
   useEffect(() => {
     if (currentMatch) {
@@ -636,6 +639,7 @@ export default function AdminView({
                 onChange={(e) => setSelectedMatchId(e.target.value)}
                 className="bg-neutral-950 border border-neutral-800 text-white text-xs p-2 rounded-xl focus:outline-none"
               >
+                <option value="">(Cerrar selección de partido)</option>
                 {matches.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.date} ({m.startTime} - {m.endTime}) · {m.status}
@@ -846,57 +850,75 @@ export default function AdminView({
               </div>
             </div>
 
-            {/* BOTONES GIGANTES DE GOL (MODO DIRECTO) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                onClick={() => setDirectGoalModal({ team: 'A', step: 'scorer' })}
-                disabled={isEventLoading}
-                className="py-4 px-4 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white font-black rounded-2xl text-base uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
-              >
-                <span>⚽ Gol Equipo A</span>
-              </button>
+            {/* BOTONES GIGANTES DE GOL (MODO DIRECTO) - SOLO SI EL PARTIDO ESTÁ EN CURSO */}
+            {(currentMatch.status === 'upcoming' || currentMatch.status === 'live') ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setDirectGoalModal({ team: 'A', step: 'scorer' })}
+                    disabled={isEventLoading}
+                    className="py-4 px-4 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white font-black rounded-2xl text-base uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <span>⚽ Gol Equipo A</span>
+                  </button>
 
-              <button
-                onClick={() => setDirectGoalModal({ team: 'B', step: 'scorer' })}
-                disabled={isEventLoading}
-                className="py-4 px-4 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-black rounded-2xl text-base uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
-              >
-                <span>⚽ Gol Equipo B</span>
-              </button>
-            </div>
+                  <button
+                    onClick={() => setDirectGoalModal({ team: 'B', step: 'scorer' })}
+                    disabled={isEventLoading}
+                    className="py-4 px-4 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-black rounded-2xl text-base uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <span>⚽ Gol Equipo B</span>
+                  </button>
+                </div>
 
-            {/* ACCIONES SECUNDARIAS (AUTOGOL, SALVADA, DESHACER) */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                onClick={() => setDirectOwnGoalModal(true)}
-                disabled={isEventLoading}
-                className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700/80 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-              >
-                <span>❌ Autogol</span>
-              </button>
+                {/* ACCIONES SECUNDARIAS (AUTOGOL, SALVADA, DESHACER) */}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    onClick={() => setDirectOwnGoalModal(true)}
+                    disabled={isEventLoading}
+                    className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700/80 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <span>❌ Autogol</span>
+                  </button>
 
-              <button
-                onClick={() => setDirectSaveModal(true)}
-                disabled={isEventLoading}
-                className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-              >
-                <span>🧤 Salvada (+2 pts, máx 3)</span>
-              </button>
+                  <button
+                    onClick={() => setDirectSaveModal(true)}
+                    disabled={isEventLoading}
+                    className="px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <span>🧤 Salvada (+2 pts, máx 3)</span>
+                  </button>
 
-              <button
-                onClick={handleUndoEvent}
-                disabled={isEventLoading || !currentMatch.events || currentMatch.events.length === 0}
-                className={`ml-auto px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
-                  currentMatch.events && currentMatch.events.length > 0
-                    ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-600 shadow-sm cursor-pointer'
-                    : 'bg-neutral-950 text-neutral-600 border-neutral-800 cursor-not-allowed'
-                }`}
-                title="Deshacer el último gol o evento apuntado"
-              >
-                <Undo2 className="h-3.5 w-3.5" />
-                <span>Deshacer Último ({currentMatch.events?.length || 0})</span>
-              </button>
-            </div>
+                  <button
+                    onClick={handleUndoEvent}
+                    disabled={isEventLoading || !currentMatch.events || currentMatch.events.length === 0}
+                    className={`ml-auto px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                      currentMatch.events && currentMatch.events.length > 0
+                        ? 'bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-600 shadow-sm cursor-pointer'
+                        : 'bg-neutral-950 text-neutral-600 border-neutral-800 cursor-not-allowed'
+                    }`}
+                    title="Deshacer el último gol o evento apuntado"
+                  >
+                    <Undo2 className="h-3.5 w-3.5" />
+                    <span>Deshacer Último ({currentMatch.events?.length || 0})</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="p-4 bg-emerald-950/20 border border-emerald-500/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>Partido finalizado con resultados oficiales publicados. El modo directo en vivo está cerrado.</span>
+                </div>
+                <button
+                  onClick={handleReopenMatch}
+                  className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reabrir Acta
+                </button>
+              </div>
+            )}
 
             {/* MODAL DE REGISTRO DE GOL (2 TOQUES: GOLEADOR + ASISTENCIA) */}
             {directGoalModal && (
@@ -1189,6 +1211,34 @@ export default function AdminView({
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Si no hay partido activo seleccionado */}
+      {!currentMatch && (
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 sm:p-8 text-center text-neutral-400 space-y-3">
+          <Calendar className="h-9 w-9 text-amber-400 mx-auto opacity-80" />
+          <h3 className="font-bold text-sm sm:text-base text-white">No hay ninguna jornada activa pendiente de apuntar</h3>
+          <p className="text-xs text-neutral-400 max-w-md mx-auto">
+            El partido del 6 de noviembre ya está finalizado y publicado oficialmente. Crea un nuevo partido con el formulario de arriba cuando vayáis a jugar la siguiente pachanga.
+          </p>
+          {matches.length > 0 && (
+            <div className="pt-2 flex items-center justify-center gap-2">
+              <span className="text-xs text-neutral-500 font-medium">Consultar o reabrir acta anterior:</span>
+              <select
+                value=""
+                onChange={(e) => setSelectedMatchId(e.target.value)}
+                className="bg-neutral-950 border border-neutral-800 text-white text-xs p-2 rounded-xl focus:outline-none"
+              >
+                <option value="">Seleccionar partido...</option>
+                {matches.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.date} ({m.startTime} - {m.endTime}) · {m.status}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
     </div>
