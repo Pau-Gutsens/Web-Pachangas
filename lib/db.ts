@@ -1,9 +1,18 @@
-import { UserAccount, Player, PachangaMatch, UserRole, CorrectionRequest, LineupSnapshot, MatchEvent } from '../types';
+import { UserAccount, Player, PachangaMatch, UserRole, CorrectionRequest, LineupSnapshot, MatchEvent, BudgetTransaction, BudgetTransactionType } from '../types';
 import { calculateMatchScores, calculateManagerPoints } from './scoring';
 import { supabase } from './supabase';
 import { TITULARES, MAX_PLANTILLA } from './config';
 
 const PREFIX = 'egol_fantasy_';
+
+export function autoFillStarters(ownedIds: string[], starterIds: string[]): string[] {
+  let validStarters = (starterIds || []).filter(id => (ownedIds || []).includes(id));
+  const benchPlayers = (ownedIds || []).filter(id => !validStarters.includes(id));
+  while (validStarters.length < TITULARES && benchPlayers.length > 0) {
+    validStarters.push(benchPlayers.shift()!);
+  }
+  return validStarters;
+}
 
 export function computeStatsAndScoreFromEvents(
   events: MatchEvent[],
@@ -115,13 +124,17 @@ function mapProfileToUser(data: any): UserAccount {
   const linkedPlayerId = data.linked_player_id ?? data.linkedPlayerId ?? defaultLinkedId;
   const linkStatus = data.link_status ?? data.linkStatus ?? (isPagusa ? 'approved' : 'none');
 
+  const owned = Array.isArray(data.owned_player_ids) ? data.owned_player_ids : (Array.isArray(data.ownedPlayerIds) ? data.ownedPlayerIds : []);
+  const rawStarters = Array.isArray(data.starter_player_ids) ? data.starter_player_ids : (Array.isArray(data.starterPlayerIds) ? data.starterPlayerIds : []);
+  const starterPlayerIds = autoFillStarters(owned, rawStarters);
+
   return {
     id: data.id,
     username: data.name,
     role: role,
     budget,
-    ownedPlayerIds: Array.isArray(data.owned_player_ids) ? data.owned_player_ids : (Array.isArray(data.ownedPlayerIds) ? data.ownedPlayerIds : []),
-    starterPlayerIds: Array.isArray(data.starter_player_ids) ? data.starter_player_ids : (Array.isArray(data.starterPlayerIds) ? data.starterPlayerIds : []),
+    ownedPlayerIds: owned,
+    starterPlayerIds,
     captainId: data.captain_id ?? data.captainId ?? null,
     linkedPlayerId,
     linkStatus,
@@ -498,13 +511,13 @@ export const egolDb = {
     }
 
     // Todas las compras se pagan al precio real del jugador (sec. 7)
+    const prevBudget = currentUser.budget;
     const newBudget = Math.round((currentUser.budget - price) * 10) / 10;
     currentUser.budget = newBudget;
     currentUser.ownedPlayerIds.push(playerId);
 
-    if (currentUser.starterPlayerIds.length < TITULARES) {
-      currentUser.starterPlayerIds.push(playerId);
-    }
+    // Si hay hueco libre de titular, se coloca de titular automáticamente
+    currentUser.starterPlayerIds = autoFillStarters(currentUser.ownedPlayerIds, currentUser.starterPlayerIds);
 
     setStorage('session_user', currentUser);
 
@@ -520,6 +533,18 @@ export const egolDb = {
     } catch (e) {
       console.warn('Could not sync profile to Supabase on buyPlayer:', e);
     }
+
+    // Registrar auditoría de transacción
+    await this.recordBudgetTransaction({
+      userId: currentUser.id,
+      username: currentUser.username,
+      type: 'buy',
+      description: `Compra de ${player.name}`,
+      playerName: player.name,
+      amount: -price,
+      previousBudget: prevBudget,
+      newBudget: newBudget
+    });
 
     return { success: true, message: `¡Has fichado a ${player.name}!`, user: currentUser };
 
@@ -547,12 +572,21 @@ export const egolDb = {
       return { success: false, message: 'No tienes a este jugador en tu plantilla.' };
     }
 
+    const prevBudget = currentUser.budget;
     const rawPrice = Number(player.current_price ?? player.currentPrice ?? 20000);
     // Convertir M€ → K€ si el precio parece estar en M€ (<=1000)
     const price = rawPrice <= 1000 ? rawPrice * 1000 : rawPrice;
-    currentUser.budget = Math.round((currentUser.budget + price) * 10) / 10;
+    const newBudget = Math.round((currentUser.budget + price) * 10) / 10;
+    currentUser.budget = newBudget;
     currentUser.ownedPlayerIds = currentUser.ownedPlayerIds.filter(id => id !== playerId);
     currentUser.starterPlayerIds = currentUser.starterPlayerIds.filter(id => id !== playerId);
+
+    // Si tienes un jugador en el banquillo y hay hueco libre de titular, se pone automáticamente de titular
+    currentUser.starterPlayerIds = autoFillStarters(currentUser.ownedPlayerIds, currentUser.starterPlayerIds);
+
+    if (currentUser.captainId && !currentUser.starterPlayerIds.includes(currentUser.captainId)) {
+      currentUser.captainId = null;
+    }
 
     setStorage('session_user', currentUser);
 
@@ -562,12 +596,25 @@ export const egolDb = {
         .update({
           budget: currentUser.budget,
           owned_player_ids: currentUser.ownedPlayerIds,
-          starter_player_ids: currentUser.starterPlayerIds
+          starter_player_ids: currentUser.starterPlayerIds,
+          captain_id: currentUser.captainId
         })
         .eq('id', currentUser.id);
     } catch (e) {
       console.warn('Could not sync profile to Supabase on sellPlayer:', e);
     }
+
+    // Registrar auditoría de transacción
+    await this.recordBudgetTransaction({
+      userId: currentUser.id,
+      username: currentUser.username,
+      type: 'sell',
+      description: `Venta de ${player.name}`,
+      playerName: player.name,
+      amount: price,
+      previousBudget: prevBudget,
+      newBudget: newBudget
+    });
 
     return { success: true, message: `Has vendido a ${player.name}.`, user: currentUser };
   },
@@ -586,9 +633,11 @@ export const egolDb = {
       return { success: false, message: 'Solo puedes tener como máximo 5 jugadores titulares.' };
     }
 
-    currentUser.starterPlayerIds = starterIds;
+    // Auto-rellenar si hay hueco libre de titular y hay alguien en el banquillo
+    const filledStarters = autoFillStarters(currentUser.ownedPlayerIds, starterIds);
+    currentUser.starterPlayerIds = filledStarters;
     // Si el capitán actual ya no está entre los titulares, quitarlo
-    if (currentUser.captainId && !starterIds.includes(currentUser.captainId)) {
+    if (currentUser.captainId && !filledStarters.includes(currentUser.captainId)) {
       currentUser.captainId = null;
     }
     setStorage('session_user', currentUser);
@@ -1404,5 +1453,135 @@ export const egolDb = {
     }
 
     return list.sort((a, b) => b.totalPoints - a.totalPoints);
+  },
+
+  async recordBudgetTransaction(payload: Omit<BudgetTransaction, 'id' | 'createdAt'>): Promise<BudgetTransaction> {
+    const tx: BudgetTransaction = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tx-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      ...payload,
+      createdAt: new Date().toISOString()
+    };
+
+    // Guardar en localStorage
+    const local = getStorage<BudgetTransaction[]>('budget_transactions', []);
+    setStorage('budget_transactions', [tx, ...local]);
+
+    // Guardar en Supabase
+    try {
+      await supabase
+        .from('budget_transactions')
+        .insert({
+          id: tx.id,
+          user_id: tx.userId,
+          username: tx.username,
+          type: tx.type,
+          description: tx.description,
+          player_name: tx.playerName || null,
+          amount: tx.amount,
+          previous_budget: tx.previousBudget,
+          new_budget: tx.newBudget,
+          created_at: tx.createdAt
+        });
+    } catch (e) {
+      console.warn('Could not save budget transaction to Supabase (using localStorage):', e);
+    }
+
+    return tx;
+  },
+
+  async getBudgetTransactions(): Promise<BudgetTransaction[]> {
+    let supabaseTxs: BudgetTransaction[] = [];
+    try {
+      const { data, error } = await supabase
+        .from('budget_transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        supabaseTxs = data.map((d: any) => ({
+          id: d.id,
+          userId: d.user_id || d.userId,
+          username: d.username,
+          type: d.type as BudgetTransactionType,
+          description: d.description,
+          playerName: d.player_name || d.playerName,
+          amount: Number(d.amount),
+          previousBudget: Number(d.previous_budget ?? d.previousBudget),
+          newBudget: Number(d.new_budget ?? d.newBudget),
+          createdAt: d.created_at || d.createdAt
+        }));
+      }
+    } catch (e) {
+      console.warn('Error fetching budget transactions from Supabase:', e);
+    }
+
+    const localTxs = getStorage<BudgetTransaction[]>('budget_transactions', []);
+
+    // Combinar sin duplicados por id
+    const map = new Map<string, BudgetTransaction>();
+    supabaseTxs.forEach(tx => map.set(tx.id, tx));
+    localTxs.forEach(tx => {
+      if (!map.has(tx.id)) map.set(tx.id, tx);
+    });
+
+    const all = Array.from(map.values());
+    all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return all;
+  },
+
+  async adjustUserBudget(
+    userId: string,
+    amountK: number,
+    description: string,
+    type: BudgetTransactionType = 'adjustment'
+  ): Promise<{ success: boolean; message: string; transaction?: BudgetTransaction }> {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error || !profile) {
+        return { success: false, message: 'Usuario no encontrado en la base de datos.' };
+      }
+
+      const rawPrev = Number(profile.budget ?? 100000);
+      const prevBudget = rawPrev <= 1000 ? rawPrev * 1000 : rawPrev;
+      const newBudget = Math.round((prevBudget + amountK) * 10) / 10;
+
+      if (newBudget < 0) {
+        return { success: false, message: 'El saldo del usuario no puede quedar en negativo.' };
+      }
+
+      const { error: updateErr } = await supabase
+        .from('profiles')
+        .update({ budget: newBudget })
+        .eq('id', userId);
+
+      if (updateErr) throw updateErr;
+
+      // Si es el usuario logueado en sesión, sincronizar
+      const currentUser = this.getCurrentUser();
+      if (currentUser && currentUser.id === userId) {
+        currentUser.budget = newBudget;
+        setStorage('session_user', currentUser);
+      }
+
+      const tx = await this.recordBudgetTransaction({
+        userId,
+        username: profile.name || 'Usuario',
+        type,
+        description: description || 'Ajuste manual de presupuesto',
+        amount: amountK,
+        previousBudget: prevBudget,
+        newBudget: newBudget
+      });
+
+      return { success: true, message: 'Presupuesto ajustado correctamente.', transaction: tx };
+    } catch (e: any) {
+      console.error('Error adjusting budget:', e);
+      return { success: false, message: e.message || 'Error al ajustar presupuesto.' };
+    }
   }
 };

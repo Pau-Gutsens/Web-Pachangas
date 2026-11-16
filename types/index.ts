@@ -59,6 +59,21 @@ export interface CorrectionRequest {
   createdAt: string;
 }
 
+export type BudgetTransactionType = 'buy' | 'sell' | 'adjustment' | 'bonus' | 'penalty' | 'other';
+
+export interface BudgetTransaction {
+  id: string;
+  userId: string;
+  username: string;
+  type: BudgetTransactionType;
+  description: string;
+  playerName?: string;
+  amount: number; // en K€ (positivo ingreso, negativo gasto)
+  previousBudget: number; // en K€
+  newBudget: number; // en K€
+  createdAt: string; // ISO string
+}
+
 export interface LineupSnapshot {
   starters: string[]; // 5 titulares
   captainId?: string | null;

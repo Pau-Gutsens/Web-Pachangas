@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Player, PachangaMatch, UserAccount, MatchEvent } from '../types';
+import { Player, PachangaMatch, UserAccount, MatchEvent, BudgetTransaction, BudgetTransactionType } from '../types';
 import { egolDb, isMarketOrLineupLocked } from '../lib/db';
 import { formatCurrency } from '../lib/utils';
-import { ShieldAlert, PlusCircle, Clock, Calendar, Users, Award, UserPlus, CheckCircle, RotateCcw, AlertTriangle, ShieldCheck, XCircle, Undo2, Play, Flame, ChevronDown, ChevronUp } from 'lucide-react';
+import { ShieldAlert, PlusCircle, Clock, Calendar, Users, Award, UserPlus, CheckCircle, RotateCcw, AlertTriangle, ShieldCheck, XCircle, Undo2, Play, Flame, ChevronDown, ChevronUp, History, Filter, Wallet } from 'lucide-react';
 
 export default function AdminView({
   players,
@@ -16,16 +16,27 @@ export default function AdminView({
   const [matches, setMatches] = useState<PachangaMatch[]>([]);
   const [selectedMatchId, setSelectedMatchId] = useState<string>('');
   const [accounts, setAccounts] = useState<UserAccount[]>([]);
+  const [transactions, setTransactions] = useState<BudgetTransaction[]>([]);
+  const [txUserFilter, setTxUserFilter] = useState<string>('all');
+  const [txTypeFilter, setTxTypeFilter] = useState<string>('all');
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjustUserId, setAdjustUserId] = useState('');
+  const [adjustAmountM, setAdjustAmountM] = useState('');
+  const [adjustDesc, setAdjustDesc] = useState('');
+  const [adjustType, setAdjustType] = useState<BudgetTransactionType>('adjustment');
+  const [isAdjusting, setIsAdjusting] = useState(false);
 
   const loadData = async () => {
     try {
-      const [mData, aData] = await Promise.all([
+      const [mData, aData, tData] = await Promise.all([
         egolDb.getMatches(),
-        egolDb.getLeaderboard()
+        egolDb.getLeaderboard(),
+        egolDb.getBudgetTransactions()
       ]);
       const validMatches = mData.filter(m => m.status !== 'cancelled');
       setMatches(validMatches);
       setAccounts(aData);
+      setTransactions(tData);
 
       // Solo seleccionar por defecto si hay un partido ACTIVO en curso (upcoming, live o voting)
       const activeMatch = validMatches.find(m => m.status === 'upcoming' || m.status === 'live' || m.status === 'voting');
@@ -39,6 +50,38 @@ export default function AdminView({
     } catch (e) {
       console.error(e);
       alert('Error al cargar datos de administración.');
+    }
+  };
+
+  const handleCreateAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adjustUserId) {
+      alert('Selecciona un usuario.');
+      return;
+    }
+    const parsedAmountM = parseFloat(adjustAmountM);
+    if (isNaN(parsedAmountM) || parsedAmountM === 0) {
+      alert('Introduce un importe válido (ej: 5 para +5 M€ o -2 para -2 M€).');
+      return;
+    }
+    const amountK = Math.round(parsedAmountM * 1000);
+    setIsAdjusting(true);
+    try {
+      const res = await egolDb.adjustUserBudget(adjustUserId, amountK, adjustDesc.trim(), adjustType);
+      if (res.success) {
+        alert(res.message);
+        setShowAdjustModal(false);
+        setAdjustAmountM('');
+        setAdjustDesc('');
+        await loadData();
+        onRefresh();
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error al registrar ajuste.');
+    } finally {
+      setIsAdjusting(false);
     }
   };
 
@@ -406,6 +449,16 @@ export default function AdminView({
     }
   };
 
+  const filteredTransactions = transactions.filter(tx => {
+    if (txUserFilter !== 'all' && tx.userId !== txUserFilter) return false;
+    if (txTypeFilter !== 'all') {
+      if (txTypeFilter === 'buy' && tx.type !== 'buy') return false;
+      if (txTypeFilter === 'sell' && tx.type !== 'sell') return false;
+      if (txTypeFilter === 'adjustment' && (tx.type === 'buy' || tx.type === 'sell')) return false;
+    }
+    return true;
+  });
+
   const currentMatchPlayers = players.filter(p => currentMatch && [...(currentMatch.teamA || []), ...(currentMatch.teamB || [])].includes(p.id));
 
   return (
@@ -618,7 +671,240 @@ export default function AdminView({
         </div>
       </div>
 
-      {/* 4. CONVOCATORIAS Y ASIGNACIÓN EQUIPOS (A vs B) */}
+      {/* 4. HISTORIAL Y AUDITORÍA DE TRANSACCIONES DE PRESUPUESTO */}
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-3">
+          <div>
+            <h3 className="text-sm font-black text-white flex items-center gap-2">
+              <History className="h-4 w-4 text-amber-400" />
+              Auditoría y Transacciones de Presupuesto
+            </h3>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              Control de gastos e ingresos: compras, ventas y ajustes de presupuesto de todos los mánagers.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                if (accounts.length > 0 && !adjustUserId) setAdjustUserId(accounts[0].id);
+                setShowAdjustModal(true);
+              }}
+              className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition shadow-sm flex items-center gap-1.5"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span>Ajustar Saldo Manual</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="flex flex-wrap items-center gap-3 text-xs bg-neutral-950 p-3 rounded-xl border border-neutral-800/80">
+          <div className="flex items-center gap-1.5 text-neutral-400">
+            <Filter className="h-3.5 w-3.5 text-amber-400" />
+            <span className="font-bold">Filtros:</span>
+          </div>
+
+          <select
+            value={txUserFilter}
+            onChange={(e) => setTxUserFilter(e.target.value)}
+            className="bg-neutral-900 border border-neutral-800 text-white p-1.5 rounded-lg text-xs"
+          >
+            <option value="all">Todos los usuarios ({accounts.length})</option>
+            {accounts.map(acc => (
+              <option key={acc.id} value={acc.id}>{acc.username}</option>
+            ))}
+          </select>
+
+          <select
+            value={txTypeFilter}
+            onChange={(e) => setTxTypeFilter(e.target.value)}
+            className="bg-neutral-900 border border-neutral-800 text-white p-1.5 rounded-lg text-xs"
+          >
+            <option value="all">Todas las transacciones</option>
+            <option value="buy">Solo Compras (Fichajes)</option>
+            <option value="sell">Solo Ventas</option>
+            <option value="adjustment">Solo Ajustes / Premios / Otros</option>
+          </select>
+
+          <span className="text-[11px] text-neutral-500 ml-auto font-semibold">
+            {filteredTransactions.length} movimiento(s)
+          </span>
+        </div>
+
+        {/* Modal de Ajuste Manual */}
+        {showAdjustModal && (
+          <div className="p-4 bg-neutral-950 border border-amber-400/40 rounded-2xl space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+              <span className="font-black text-xs sm:text-sm text-amber-400 uppercase flex items-center gap-1.5">
+                <Wallet className="h-4 w-4" />
+                Registrar Movimiento / Ajuste Manual de Saldo
+              </span>
+              <button
+                onClick={() => setShowAdjustModal(false)}
+                className="text-neutral-500 hover:text-white text-xs px-2 py-0.5"
+              >
+                Cancelar ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAdjustment} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
+                    Mánager / Usuario
+                  </label>
+                  <select
+                    value={adjustUserId}
+                    onChange={(e) => setAdjustUserId(e.target.value)}
+                    required
+                    className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs"
+                  >
+                    <option value="">Selecciona usuario...</option>
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.username} (Saldo actual: {formatCurrency(acc.budget)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
+                    Tipo de Operación
+                  </label>
+                  <select
+                    value={adjustType}
+                    onChange={(e) => setAdjustType(e.target.value as BudgetTransactionType)}
+                    className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs"
+                  >
+                    <option value="adjustment">Ajuste Manual</option>
+                    <option value="bonus">Premio / Bonus (+)</option>
+                    <option value="penalty">Penalización (-)</option>
+                    <option value="other">Otro Concepto</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
+                    Importe en Millones de Euros (M€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="Ej: 5 (ingreso) o -3 (gasto)"
+                    value={adjustAmountM}
+                    onChange={(e) => setAdjustAmountM(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs focus:ring-1 focus:ring-amber-400"
+                  />
+                  <p className="text-[10px] text-neutral-500 mt-1">Escribe positivo para sumar dinero, o negativo (-) para restar.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
+                    Motivo / Descripción de cómo se ha ganado o perdido
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: Premio ganador jornada, Penalización por retraso..."
+                    value={adjustDesc}
+                    onChange={(e) => setAdjustDesc(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs focus:ring-1 focus:ring-amber-400"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isAdjusting}
+                className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition shadow-md"
+              >
+                {isAdjusting ? 'Aplicando...' : 'Confirmar y Registrar Movimiento'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Tabla de movimientos */}
+        <div className="overflow-x-auto rounded-xl border border-neutral-800">
+          <table className="w-full text-left text-xs divide-y divide-neutral-800">
+            <thead className="bg-neutral-950 text-neutral-400 font-bold uppercase text-[10px]">
+              <tr>
+                <th className="p-3">Usuario</th>
+                <th className="p-3 text-center">Tipo</th>
+                <th className="p-3">Concepto / En qué</th>
+                <th className="p-3 text-right">Importe</th>
+                <th className="p-3 text-right">Saldo Antes</th>
+                <th className="p-3 text-right">Saldo Después</th>
+                <th className="p-3 text-right">Fecha y Hora</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-800/60 bg-neutral-900/50">
+              {filteredTransactions.map(tx => {
+                const isPositive = tx.amount > 0;
+                const formattedDate = new Date(tx.createdAt).toLocaleDateString('es-ES', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+
+                return (
+                  <tr key={tx.id} className="hover:bg-neutral-800/40 transition">
+                    <td className="p-3 font-bold text-white">
+                      {tx.username}
+                    </td>
+                    <td className="p-3 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                        tx.type === 'buy'
+                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                          : tx.type === 'sell'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : tx.type === 'bonus'
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          : tx.type === 'penalty'
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                          : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                      }`}>
+                        {tx.type === 'buy' ? 'Compra' : tx.type === 'sell' ? 'Venta' : tx.type === 'bonus' ? 'Premio' : tx.type === 'penalty' ? 'Penalización' : 'Ajuste'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-neutral-300 font-medium">
+                      {tx.description}
+                    </td>
+                    <td className={`p-3 text-right font-black ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {isPositive ? '+' : ''}{formatCurrency(tx.amount)}
+                    </td>
+                    <td className="p-3 text-right text-neutral-400 font-semibold">
+                      {formatCurrency(tx.previousBudget)}
+                    </td>
+                    <td className="p-3 text-right text-white font-bold">
+                      {formatCurrency(tx.newBudget)}
+                    </td>
+                    <td className="p-3 text-right text-[11px] text-neutral-500">
+                      {formattedDate}
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredTransactions.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-6 text-center text-xs text-neutral-500">
+                    No se han registrado transacciones de presupuesto todavía.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 5. CONVOCATORIAS Y ASIGNACIÓN EQUIPOS (A vs B) */}
       {currentMatch && (
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 space-y-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4 border-b border-neutral-800">

@@ -149,6 +149,20 @@ CREATE TABLE IF NOT EXISTS pachanga_results (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8. Tabla de auditoría y transacciones de presupuesto
+CREATE TABLE IF NOT EXISTS budget_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  username TEXT NOT NULL,
+  type TEXT NOT NULL, -- 'buy', 'sell', 'adjustment', 'bonus', etc.
+  description TEXT NOT NULL,
+  player_name TEXT,
+  amount NUMERIC NOT NULL,
+  previous_budget NUMERIC NOT NULL,
+  new_budget NUMERIC NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ========================================================
 -- PERMISOS Y SEGURIDAD (RLS)
 -- ========================================================
@@ -159,6 +173,7 @@ ALTER TABLE players DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fantasy_picks DISABLE ROW LEVEL SECURITY;
 ALTER TABLE match_stats DISABLE ROW LEVEL SECURITY;
 ALTER TABLE pachanga_results DISABLE ROW LEVEL SECURITY;
+ALTER TABLE budget_transactions DISABLE ROW LEVEL SECURITY;
 
 -- ========================================================
 -- INSERCIÓN Y VINCULACIÓN DEL ADMINISTRADOR (PAGUSA ↔ GUTSENS)

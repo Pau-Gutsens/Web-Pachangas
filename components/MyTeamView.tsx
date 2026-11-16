@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Player, PachangaMatch } from '../types';
-import { egolDb, isMarketOrLineupLocked } from '../lib/db';
+import { egolDb, isMarketOrLineupLocked, autoFillStarters } from '../lib/db';
 import { ArrowLeftRight, Trash2, Star, PlusCircle, Crown, Lock } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { MAX_PLANTILLA, TITULARES } from '../lib/config';
@@ -42,6 +42,16 @@ export default function MyTeamView({
   const starters = ownedPlayers.filter(p => user.starterPlayerIds.includes(p.id));
   const reserves = ownedPlayers.filter(p => !user.starterPlayerIds.includes(p.id));
 
+  // Requisito: Si hay jugadores en el banquillo y queda hueco libre de titular, colocarlos automáticamente
+  useEffect(() => {
+    if (reserves.length > 0 && starters.length < TITULARES) {
+      const autoStarters = autoFillStarters(user.ownedPlayerIds, user.starterPlayerIds);
+      if (autoStarters.length !== user.starterPlayerIds.length) {
+        egolDb.setStarters(autoStarters).then(() => onUpdateUser());
+      }
+    }
+  }, [user.ownedPlayerIds, user.starterPlayerIds]);
+
   const handleSell = async (playerId: string) => {
     const player = players.find(p => p.id === playerId);
     if (!player) return;
@@ -63,13 +73,24 @@ export default function MyTeamView({
   const handleToggleStarter = async (playerId: string) => {
     let newStarters: string[] = [];
     if (user.starterPlayerIds.includes(playerId)) {
-      newStarters = user.starterPlayerIds.filter(id => id !== playerId);
-    } else {
-      if (user.starterPlayerIds.length >= TITULARES) {
-        alert(`Solo puedes alinear como máximo ${TITULARES} jugadores titulares.`);
-        return;
+      // Si se quita un titular y hay alguien en el banquillo, el del banquillo entra automáticamente
+      const remaining = user.starterPlayerIds.filter(id => id !== playerId);
+      const bench = user.ownedPlayerIds.filter(id => !user.starterPlayerIds.includes(id));
+      if (bench.length > 0) {
+        newStarters = [...remaining, bench[0]];
+      } else {
+        newStarters = remaining;
       }
-      newStarters = [...user.starterPlayerIds, playerId];
+    } else {
+      // Jugador en el banquillo quiere pasar a titular
+      if (user.starterPlayerIds.length < TITULARES) {
+        newStarters = [...user.starterPlayerIds, playerId];
+      } else {
+        // Si ya hay 5 titulares, intercambiar con el último titular no capitán
+        const nonCaptains = user.starterPlayerIds.filter(id => id !== user.captainId);
+        const toSwapOut = nonCaptains.length > 0 ? nonCaptains[nonCaptains.length - 1] : user.starterPlayerIds[user.starterPlayerIds.length - 1];
+        newStarters = user.starterPlayerIds.map(id => id === toSwapOut ? playerId : id);
+      }
     }
 
     try {
