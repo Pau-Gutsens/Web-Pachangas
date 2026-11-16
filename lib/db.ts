@@ -115,18 +115,36 @@ function mapProfileToUser(data: any): UserAccount {
   const cleanUser = (data.name || '').trim().toLowerCase();
   const isPagusa = cleanUser === 'pagusa';
   const role: UserRole = (data.role === 'admin' || isPagusa) ? 'admin' : (data.role || 'member');
+  
   // Presupuesto en K€ (100.000 K€ = 100 M€)
-  const rawBudget = data.budget !== undefined && data.budget !== null ? Number(data.budget) : 100;
-  const budget = rawBudget <= 1000 ? rawBudget * 1000 : rawBudget;
+  const rawBudget = data.budget !== undefined && data.budget !== null ? Number(data.budget) : 100000;
+  const owned = Array.isArray(data.owned_player_ids) ? data.owned_player_ids : (Array.isArray(data.ownedPlayerIds) ? data.ownedPlayerIds : []);
+  const rawStarters = Array.isArray(data.starter_player_ids) ? data.starter_player_ids : (Array.isArray(data.starterPlayerIds) ? data.starterPlayerIds : []);
+  const starterPlayerIds = autoFillStarters(owned, rawStarters);
+
+  // Corrección y auto-recuperación de presupuestos:
+  let budget = rawBudget;
+  if (rawBudget === 100 && owned.length === 0) {
+    // Si era el valor antiguo por defecto de 100 (100 M€) en un usuario sin compras
+    budget = 100000;
+  } else if (owned.length >= 4 && rawBudget >= 50000) {
+    // Si tenía p.ej. 160 K€ o 200 K€ y se multiplicó erróneamente por 1000 pasando a 160.000 o 200.000 K€ (160 M€)
+    budget = Math.round((rawBudget / 1000) * 10) / 10;
+  }
+
+  // Si se detectó corrección, sincronizar asíncronamente con Supabase
+  if (budget !== rawBudget && data.id) {
+    try {
+      supabase.from('profiles').update({ budget }).eq('id', data.id).then();
+    } catch (e) {
+      // Ignorar fallo de sincronización en segundo plano
+    }
+  }
 
   // Por especificación sección 2: Pagusa es la administradora y está vinculada a Gutsens
   const defaultLinkedId = isPagusa ? 'ce470862-4bac-49d5-becb-2abbe2cff860' : null;
   const linkedPlayerId = data.linked_player_id ?? data.linkedPlayerId ?? defaultLinkedId;
   const linkStatus = data.link_status ?? data.linkStatus ?? (isPagusa ? 'approved' : 'none');
-
-  const owned = Array.isArray(data.owned_player_ids) ? data.owned_player_ids : (Array.isArray(data.ownedPlayerIds) ? data.ownedPlayerIds : []);
-  const rawStarters = Array.isArray(data.starter_player_ids) ? data.starter_player_ids : (Array.isArray(data.starterPlayerIds) ? data.starterPlayerIds : []);
-  const starterPlayerIds = autoFillStarters(owned, rawStarters);
 
   return {
     id: data.id,
@@ -1547,7 +1565,7 @@ export const egolDb = {
       }
 
       const rawPrev = Number(profile.budget ?? 100000);
-      const prevBudget = rawPrev <= 1000 ? rawPrev * 1000 : rawPrev;
+      const prevBudget = rawPrev;
       const newBudget = Math.round((prevBudget + amountK) * 10) / 10;
 
       if (newBudget < 0) {

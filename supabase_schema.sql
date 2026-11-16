@@ -188,6 +188,16 @@ ALTER TABLE pachanga_results DISABLE ROW LEVEL SECURITY;
 ALTER TABLE budget_transactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE user_notifications DISABLE ROW LEVEL SECURITY;
 
+-- Concesión de permisos completos para anon y authenticated en PostgREST
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+-- Por si se crean tablas futuras en el esquema public
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
 -- ========================================================
 -- INSERCIÓN Y VINCULACIÓN DEL ADMINISTRADOR (PAGUSA ↔ GUTSENS)
 -- ========================================================

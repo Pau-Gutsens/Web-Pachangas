@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, Player, PachangaMatch } from '../types';
 import { egolDb, isMarketOrLineupLocked, autoFillStarters } from '../lib/db';
-import { ArrowLeftRight, Trash2, Star, PlusCircle, Crown, Lock } from 'lucide-react';
+import { ArrowLeftRight, Trash2, Star, PlusCircle, Crown, Lock, X } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { MAX_PLANTILLA, TITULARES } from '../lib/config';
 
@@ -23,6 +23,7 @@ export default function MyTeamView({
   const [matches, setMatches] = useState<PachangaMatch[]>([]);
   const [hasPlayedMatches, setHasPlayedMatches] = useState(false);
   const [lockStatus, setLockStatus] = useState<{ isLocked: boolean; reason?: string }>({ isLocked: false });
+  const [swapModalReserve, setSwapModalReserve] = useState<Player | null>(null);
 
   useEffect(() => {
     const fetchMatches = async () => {
@@ -73,7 +74,7 @@ export default function MyTeamView({
   const handleToggleStarter = async (playerId: string) => {
     let newStarters: string[] = [];
     if (user.starterPlayerIds.includes(playerId)) {
-      // Si se quita un titular y hay alguien en el banquillo, el del banquillo entra automáticamente
+      // Quitar a un titular: Si hay alguien en el banquillo, intercambiar con él
       const remaining = user.starterPlayerIds.filter(id => id !== playerId);
       const bench = user.ownedPlayerIds.filter(id => !user.starterPlayerIds.includes(id));
       if (bench.length > 0) {
@@ -81,15 +82,21 @@ export default function MyTeamView({
       } else {
         newStarters = remaining;
       }
+      if (user.captainId === playerId) {
+        await egolDb.setCaptain(null);
+      }
     } else {
-      // Jugador en el banquillo quiere pasar a titular
+      // Jugador en el banquillo quiere pasar a titular:
       if (user.starterPlayerIds.length < TITULARES) {
         newStarters = [...user.starterPlayerIds, playerId];
       } else {
-        // Si ya hay 5 titulares, intercambiar con el último titular no capitán
-        const nonCaptains = user.starterPlayerIds.filter(id => id !== user.captainId);
-        const toSwapOut = nonCaptains.length > 0 ? nonCaptains[nonCaptains.length - 1] : user.starterPlayerIds[user.starterPlayerIds.length - 1];
-        newStarters = user.starterPlayerIds.map(id => id === toSwapOut ? playerId : id);
+        // Ya hay 5 titulares: abrir modal para que el usuario elija exactamente a qué titular sustituir
+        const targetPlayer = players.find(p => p.id === playerId);
+        if (targetPlayer) {
+          setSwapModalReserve(targetPlayer);
+          return;
+        }
+        return;
       }
     }
 
@@ -103,6 +110,30 @@ export default function MyTeamView({
     } catch (e) {
       console.error(e);
       alert('Error al actualizar titulares.');
+    }
+  };
+
+  // Ejecución de la sustitución elegida por el usuario
+  const handleExecuteSwap = async (starterIdToReplace: string) => {
+    if (!swapModalReserve) return;
+    const reserveId = swapModalReserve.id;
+    const newStarters = user.starterPlayerIds.map(id => id === starterIdToReplace ? reserveId : id);
+    const shouldClearCaptain = user.captainId === starterIdToReplace;
+
+    try {
+      const res = await egolDb.setStarters(newStarters);
+      if (res.success) {
+        if (shouldClearCaptain) {
+          await egolDb.setCaptain(null);
+        }
+        setSwapModalReserve(null);
+        onUpdateUser();
+      } else {
+        alert(res.message);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al realizar el cambio.');
     }
   };
 
@@ -187,8 +218,8 @@ export default function MyTeamView({
             }`}
           >
             <ArrowLeftRight className="h-3 w-3 flex-shrink-0" />
-            <span className="hidden xs:inline">{isStarter ? 'Banquillo' : 'Titular'}</span>
-            <span className="xs:hidden">{isStarter ? 'Banq' : 'Tit'}</span>
+            <span className="hidden xs:inline">{isStarter ? 'Banquillo' : (starters.length >= TITULARES ? 'Cambiar' : 'Titular')}</span>
+            <span className="xs:hidden">{isStarter ? 'Banq' : (starters.length >= TITULARES ? 'Camb' : 'Tit')}</span>
           </button>
           <button
             onClick={() => handleSell(player.id)}
@@ -284,6 +315,79 @@ export default function MyTeamView({
           </div>
         )}
       </div>
+
+      {/* Modal para elegir qué titular cambiar por el jugador del banquillo */}
+      {swapModalReserve && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <ArrowLeftRight className="h-4 w-4 text-amber-400" />
+                  Sustitución en el Once
+                </h3>
+                <p className="text-xs text-neutral-400 mt-1">
+                  Quieres meter como titular a <strong className="text-amber-400">{swapModalReserve.name}</strong>.
+                  Elige qué titular pasará al banquillo:
+                </p>
+              </div>
+              <button
+                onClick={() => setSwapModalReserve(null)}
+                className="text-neutral-400 hover:text-white p-1 rounded-lg transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="divide-y divide-neutral-800 border border-neutral-800 rounded-xl overflow-hidden bg-neutral-950/60 max-h-72 overflow-y-auto">
+              {starters.map(starter => {
+                const isCap = user.captainId === starter.id;
+                return (
+                  <div
+                    key={starter.id}
+                    className="p-3 flex items-center justify-between gap-3 hover:bg-neutral-800/40 transition"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 border border-neutral-700 flex-shrink-0">
+                        <img src={starter.avatarUrl || '/logo.png'} alt={starter.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-xs text-white truncate max-w-[120px] sm:max-w-none">
+                            {starter.name}
+                          </span>
+                          {isCap && (
+                            <span className="bg-amber-400 text-neutral-950 font-black text-[9px] px-1.5 py-0.2 rounded inline-flex items-center gap-0.5">
+                              <Crown className="h-2.5 w-2.5" />
+                              CAP
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-amber-400 font-semibold">{formatCurrency(starter.currentPrice)}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleExecuteSwap(starter.id)}
+                      className="px-3 py-1.5 bg-neutral-800 hover:bg-amber-400 hover:text-neutral-950 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-sm"
+                    >
+                      <ArrowLeftRight className="h-3 w-3" />
+                      <span>Cambiar por este</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setSwapModalReserve(null)}
+              className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold rounded-xl text-xs uppercase transition cursor-pointer"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
