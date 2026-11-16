@@ -687,10 +687,15 @@ export default function AdminView({
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => {
-                if (accounts.length > 0 && !adjustUserId) setAdjustUserId(accounts[0].id);
+                if (txUserFilter !== 'all') {
+                  setAdjustUserId(txUserFilter);
+                } else if (!adjustUserId) {
+                  const pagusa = accounts.find(a => a.username.toLowerCase() === 'pagusa');
+                  setAdjustUserId(pagusa ? pagusa.id : (accounts[0]?.id || ''));
+                }
                 setShowAdjustModal(true);
               }}
-              className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition shadow-sm flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
               <PlusCircle className="h-3.5 w-3.5" />
               <span>Ajustar Saldo Manual</span>
@@ -733,101 +738,146 @@ export default function AdminView({
         </div>
 
         {/* Modal de Ajuste Manual */}
-        {showAdjustModal && (
-          <div className="p-4 bg-neutral-950 border border-amber-400/40 rounded-2xl space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
-              <span className="font-black text-xs sm:text-sm text-amber-400 uppercase flex items-center gap-1.5">
-                <Wallet className="h-4 w-4" />
-                Registrar Movimiento / Ajuste Manual de Saldo
-              </span>
-              <button
-                onClick={() => setShowAdjustModal(false)}
-                className="text-neutral-500 hover:text-white text-xs px-2 py-0.5"
-              >
-                Cancelar ✕
-              </button>
+        {showAdjustModal && (() => {
+          const selectedAdjustAccount = accounts.find(a => a.id === adjustUserId);
+          const currentAdjustBudgetK = selectedAdjustAccount ? selectedAdjustAccount.budget : 0;
+          const parsedInputM = parseFloat(adjustAmountM);
+          const hasInput = !isNaN(parsedInputM) && parsedInputM !== 0;
+          const adjustDeltaK = hasInput ? Math.round(parsedInputM * 1000) : 0;
+          const resultingBudgetK = currentAdjustBudgetK + adjustDeltaK;
+          const isNegativeResult = selectedAdjustAccount && hasInput && resultingBudgetK < 0;
+
+          return (
+            <div className="p-4 bg-neutral-950 border border-amber-400/40 rounded-2xl space-y-4 shadow-xl">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                <span className="font-black text-xs sm:text-sm text-amber-400 uppercase flex items-center gap-1.5">
+                  <Wallet className="h-4 w-4" />
+                  Registrar Movimiento / Ajuste Manual de Saldo
+                </span>
+                <button
+                  onClick={() => setShowAdjustModal(false)}
+                  className="text-neutral-500 hover:text-white text-xs px-2 py-0.5 cursor-pointer"
+                >
+                  Cancelar ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateAdjustment} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
+                      Mánager / Usuario
+                    </label>
+                    <select
+                      value={adjustUserId}
+                      onChange={(e) => setAdjustUserId(e.target.value)}
+                      required
+                      className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs"
+                    >
+                      <option value="">Selecciona usuario...</option>
+                      {accounts.map(acc => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.username} (Saldo actual: {formatCurrency(acc.budget)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
+                      Tipo de Operación
+                    </label>
+                    <select
+                      value={adjustType}
+                      onChange={(e) => setAdjustType(e.target.value as BudgetTransactionType)}
+                      className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs"
+                    >
+                      <option value="adjustment">Ajuste Manual</option>
+                      <option value="bonus">Premio / Bonus (+)</option>
+                      <option value="penalty">Penalización (-)</option>
+                      <option value="other">Otro Concepto</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
+                      Importe en Millones de Euros (M€)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      placeholder="Ej: 5 (ingreso) o -3 (gasto)"
+                      value={adjustAmountM}
+                      onChange={(e) => setAdjustAmountM(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs focus:ring-1 focus:ring-amber-400"
+                    />
+                    <p className="text-[10px] text-neutral-500 mt-1">Escribe positivo para sumar dinero, o negativo (-) para restar.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
+                      Motivo / Descripción de cómo se ha ganado o perdido
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: Premio ganador jornada, Penalización por retraso..."
+                      value={adjustDesc}
+                      onChange={(e) => setAdjustDesc(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs focus:ring-1 focus:ring-amber-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Cálculo en tiempo real del saldo resultante */}
+                {selectedAdjustAccount && hasInput && (
+                  <div className={`p-3 rounded-xl text-xs border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 ${
+                    isNegativeResult
+                      ? 'bg-red-950/60 border-red-500/50 text-red-200'
+                      : 'bg-neutral-900/90 border-neutral-700 text-neutral-200'
+                  }`}>
+                    <div>
+                      <div className="text-[11px] text-neutral-400">
+                        Saldo actual de <strong className="text-white">{selectedAdjustAccount.username}</strong>: <span className="font-bold text-amber-400">{formatCurrency(currentAdjustBudgetK)}</span>
+                      </div>
+                      <div className="font-bold mt-1">
+                        {isNegativeResult ? (
+                          <span className="text-red-400">
+                            ⚠️ El saldo no puede ser negativo: quedaría en <strong>{formatCurrency(resultingBudgetK)}</strong>. Comprueba si has seleccionado al usuario correcto en el desplegable.
+                          </span>
+                        ) : (
+                          <span>
+                            Nuevo saldo resultante: <strong className="text-emerald-400">{formatCurrency(resultingBudgetK)}</strong>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded flex-shrink-0 ${
+                      isNegativeResult ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    }`}>
+                      {isNegativeResult ? 'Saldo Negativo' : 'Válido'}
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isAdjusting || isNegativeResult}
+                  className={`w-full py-2.5 font-black rounded-xl text-xs uppercase transition shadow-md ${
+                    isNegativeResult
+                      ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-700'
+                      : 'bg-amber-400 hover:bg-amber-300 text-neutral-950 cursor-pointer'
+                  }`}
+                >
+                  {isAdjusting ? 'Aplicando...' : isNegativeResult ? 'Saldo insuficiente para este usuario' : 'Confirmar y Registrar Movimiento'}
+                </button>
+              </form>
             </div>
-
-            <form onSubmit={handleCreateAdjustment} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
-                    Mánager / Usuario
-                  </label>
-                  <select
-                    value={adjustUserId}
-                    onChange={(e) => setAdjustUserId(e.target.value)}
-                    required
-                    className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs"
-                  >
-                    <option value="">Selecciona usuario...</option>
-                    {accounts.map(acc => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.username} (Saldo actual: {formatCurrency(acc.budget)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
-                    Tipo de Operación
-                  </label>
-                  <select
-                    value={adjustType}
-                    onChange={(e) => setAdjustType(e.target.value as BudgetTransactionType)}
-                    className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs"
-                  >
-                    <option value="adjustment">Ajuste Manual</option>
-                    <option value="bonus">Premio / Bonus (+)</option>
-                    <option value="penalty">Penalización (-)</option>
-                    <option value="other">Otro Concepto</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
-                    Importe en Millones de Euros (M€)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="Ej: 5 (ingreso) o -3 (gasto)"
-                    value={adjustAmountM}
-                    onChange={(e) => setAdjustAmountM(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs focus:ring-1 focus:ring-amber-400"
-                  />
-                  <p className="text-[10px] text-neutral-500 mt-1">Escribe positivo para sumar dinero, o negativo (-) para restar.</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-neutral-300 uppercase mb-1">
-                    Motivo / Descripción de cómo se ha ganado o perdido
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: Premio ganador jornada, Penalización por retraso..."
-                    value={adjustDesc}
-                    onChange={(e) => setAdjustDesc(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-xs focus:ring-1 focus:ring-amber-400"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isAdjusting}
-                className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black rounded-xl text-xs uppercase transition shadow-md"
-              >
-                {isAdjusting ? 'Aplicando...' : 'Confirmar y Registrar Movimiento'}
-              </button>
-            </form>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Tabla de movimientos */}
         <div className="overflow-x-auto rounded-xl border border-neutral-800">
