@@ -163,6 +163,18 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 9. Tabla de notificaciones a usuarios (ej: avisos de ajustes de saldo manuales)
+CREATE TABLE IF NOT EXISTS user_notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'budget_adjustment',
+  amount NUMERIC,
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ========================================================
 -- PERMISOS Y SEGURIDAD (RLS)
 -- ========================================================
@@ -174,6 +186,7 @@ ALTER TABLE fantasy_picks DISABLE ROW LEVEL SECURITY;
 ALTER TABLE match_stats DISABLE ROW LEVEL SECURITY;
 ALTER TABLE pachanga_results DISABLE ROW LEVEL SECURITY;
 ALTER TABLE budget_transactions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_notifications DISABLE ROW LEVEL SECURITY;
 
 -- ========================================================
 -- INSERCIÓN Y VINCULACIÓN DEL ADMINISTRADOR (PAGUSA ↔ GUTSENS)

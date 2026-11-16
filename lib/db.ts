@@ -1,4 +1,4 @@
-import { UserAccount, Player, PachangaMatch, UserRole, CorrectionRequest, LineupSnapshot, MatchEvent, BudgetTransaction, BudgetTransactionType } from '../types';
+import { UserAccount, Player, PachangaMatch, UserRole, CorrectionRequest, LineupSnapshot, MatchEvent, BudgetTransaction, BudgetTransactionType, UserNotification } from '../types';
 import { calculateMatchScores, calculateManagerPoints } from './scoring';
 import { supabase } from './supabase';
 import { TITULARES, MAX_PLANTILLA } from './config';
@@ -1578,10 +1578,117 @@ export const egolDb = {
         newBudget: newBudget
       });
 
-      return { success: true, message: 'Presupuesto ajustado correctamente.', transaction: tx };
+      // Notificar al usuario afectado de forma inmediata
+      const isPositive = amountK > 0;
+      const title = isPositive ? '¡Ingreso de presupuesto!' : 'Ajuste de presupuesto aplicado';
+      const formattedAmount = (Math.abs(amountK) >= 1000)
+        ? `${(Math.abs(amountK) / 1000).toLocaleString('es-ES', { maximumFractionDigits: 2 })} M€`
+        : `${Math.abs(amountK).toLocaleString('es-ES')} K€`;
+      const formattedTotal = (newBudget >= 1000)
+        ? `${(newBudget / 1000).toLocaleString('es-ES', { maximumFractionDigits: 2 })} M€`
+        : `${newBudget.toLocaleString('es-ES')} K€`;
+
+      const notifMsg = `El administrador ha aplicado un ajuste de ${isPositive ? '+' : '-'}${formattedAmount} con el motivo: "${description || 'Ajuste de saldo'}". Tu nuevo presupuesto disponible es de ${formattedTotal}.`;
+
+      await this.createNotification({
+        userId,
+        title,
+        message: notifMsg,
+        type: 'budget_adjustment',
+        amount: amountK
+      });
+
+      return { success: true, message: 'Presupuesto ajustado y usuario notificado correctamente.', transaction: tx };
     } catch (e: any) {
       console.error('Error adjusting budget:', e);
       return { success: false, message: e.message || 'Error al ajustar presupuesto.' };
+    }
+  },
+
+  async createNotification(payload: Omit<UserNotification, 'id' | 'createdAt' | 'read'>): Promise<UserNotification> {
+    const notif: UserNotification = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `notif-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      ...payload,
+      read: false,
+      createdAt: new Date().toISOString()
+    };
+
+    // Guardar en localStorage
+    const local = getStorage<UserNotification[]>('user_notifications', []);
+    setStorage('user_notifications', [notif, ...local]);
+
+    // Guardar en Supabase
+    try {
+      await supabase
+        .from('user_notifications')
+        .insert({
+          id: notif.id,
+          user_id: notif.userId,
+          title: notif.title,
+          message: notif.message,
+          type: notif.type,
+          amount: notif.amount ?? null,
+          read: false,
+          created_at: notif.createdAt
+        });
+    } catch (e) {
+      console.warn('Could not save notification to Supabase (using localStorage):', e);
+    }
+
+    return notif;
+  },
+
+  async getUserNotifications(userId: string): Promise<UserNotification[]> {
+    let supabaseNotifs: UserNotification[] = [];
+    try {
+      const { data, error } = await supabase
+        .from('user_notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        supabaseNotifs = data.map((d: any) => ({
+          id: d.id,
+          userId: d.user_id || d.userId,
+          title: d.title,
+          message: d.message,
+          type: d.type,
+          amount: d.amount ? Number(d.amount) : undefined,
+          read: Boolean(d.read),
+          createdAt: d.created_at || d.createdAt
+        }));
+      }
+    } catch (e) {
+      console.warn('Error fetching notifications from Supabase:', e);
+    }
+
+    const localNotifs = getStorage<UserNotification[]>('user_notifications', [])
+      .filter(n => n.userId === userId);
+
+    const map = new Map<string, UserNotification>();
+    supabaseNotifs.forEach(n => map.set(n.id, n));
+    localNotifs.forEach(n => {
+      if (!map.has(n.id)) map.set(n.id, n);
+    });
+
+    const all = Array.from(map.values());
+    all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return all;
+  },
+
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    const local = getStorage<UserNotification[]>('user_notifications', []);
+    const updated = local.map(n => n.id === notificationId ? { ...n, read: true } : n);
+    setStorage('user_notifications', updated);
+
+    try {
+      await supabase
+        .from('user_notifications')
+        .update({ read: true })
+        .eq('id', notificationId);
+    } catch (e) {
+      console.warn('Could not update notification in Supabase:', e);
     }
   }
 };

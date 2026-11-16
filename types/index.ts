@@ -74,6 +74,17 @@ export interface BudgetTransaction {
   createdAt: string; // ISO string
 }
 
+export interface UserNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'budget_adjustment' | 'info' | 'warning';
+  amount?: number; // en K€
+  read: boolean;
+  createdAt: string;
+}
+
 export interface LineupSnapshot {
   starters: string[]; // 5 titulares
   captainId?: string | null;
