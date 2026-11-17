@@ -43,13 +43,13 @@ export default function MatchDayView({
     loadMatches();
   }, []);
 
-  // Partido activo que se vaya a celebrar o esté en votación/juego
-  const activeMatch = matches.find(m => m.status === 'upcoming' || m.status === 'live' || m.status === 'voting');
+  // Partido activo que se vaya a celebrar o esté en votación/juego/verificación
+  const activeMatch = matches.find(m => m.status === 'upcoming' || m.status === 'live' || m.status === 'closed' || m.status === 'voting');
 
   // Historial de partidos (únicamente partidos finalizados con acta publicada, nunca cancelados)
   const historyMatches = matches.filter(m => m.id !== activeMatch?.id && m.status !== 'cancelled' && (m.status === 'scored' || m.status === 'published'));
 
-  // Modo Directo (Admin)
+  // Modo Directo (Accesible para todos durante el partido en juego)
   const [directGoalModal, setDirectGoalModal] = useState<{ team: 'A' | 'B'; scorerId?: string; step: 'scorer' | 'assist' } | null>(null);
   const [directOwnGoalModal, setDirectOwnGoalModal] = useState(false);
   const [directSaveModal, setDirectSaveModal] = useState(false);
@@ -66,8 +66,29 @@ export default function MatchDayView({
     }
   };
 
+  const handleFinishMatch = async () => {
+    if (!activeMatch) return;
+    if (!confirm('¿Deseas dar por finalizado el partido? Se cerrará el modo directo y el acta pasará a verificación en el panel de administración antes de abrir las votaciones.')) return;
+    try {
+      const res = await egolDb.finishMatchForVerification(activeMatch.id);
+      if (res.success) {
+        alert(res.message);
+        await loadMatches();
+      } else {
+        alert(res.message);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al finalizar el partido.');
+    }
+  };
+
   const handleRecordGoal = async (scorerId: string, assistantId?: string) => {
     if (!activeMatch || !directGoalModal) return;
+    if (!user) {
+      onOpenAuth();
+      return;
+    }
     setIsEventLoading(true);
     try {
       const targetTeam = directGoalModal.team;
@@ -83,7 +104,10 @@ export default function MatchDayView({
         type: 'goal',
         team: directGoalModal.team,
         playerId: scorerId,
-        assistantId: assistantId || undefined
+        assistantId: assistantId || undefined,
+        createdByUserId: user.id,
+        createdByUsername: user.username,
+        deviceTime: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       });
       if (res.success) {
         setDirectGoalModal(null);
@@ -100,13 +124,20 @@ export default function MatchDayView({
 
   const handleRecordOwnGoal = async (playerId: string) => {
     if (!activeMatch) return;
+    if (!user) {
+      onOpenAuth();
+      return;
+    }
     setIsEventLoading(true);
     try {
       const isTeamA = activeMatch.teamA?.includes(playerId);
       const res = await egolDb.addMatchEvent(activeMatch.id, {
         type: 'own_goal',
         team: isTeamA ? 'A' : 'B',
-        playerId
+        playerId,
+        createdByUserId: user.id,
+        createdByUsername: user.username,
+        deviceTime: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       });
       if (res.success) {
         setDirectOwnGoalModal(false);
@@ -123,13 +154,20 @@ export default function MatchDayView({
 
   const handleRecordSave = async (playerId: string) => {
     if (!activeMatch) return;
+    if (!user) {
+      onOpenAuth();
+      return;
+    }
     setIsEventLoading(true);
     try {
       const isTeamA = activeMatch.teamA?.includes(playerId);
       const res = await egolDb.addMatchEvent(activeMatch.id, {
         type: 'save',
         team: isTeamA ? 'A' : 'B',
-        playerId
+        playerId,
+        createdByUserId: user.id,
+        createdByUsername: user.username,
+        deviceTime: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       });
       if (res.success) {
         setDirectSaveModal(false);
@@ -326,12 +364,16 @@ export default function MatchDayView({
               <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
                 activeMatch.status === 'live'
                   ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse'
+                  : activeMatch.status === 'closed'
+                  ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
                   : activeMatch.status === 'voting'
                   ? 'bg-amber-400/20 text-amber-400 border-amber-400/30'
                   : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               }`}>
                 {activeMatch.status === 'live'
                   ? '● En Juego'
+                  : activeMatch.status === 'closed'
+                  ? '📋 Verificación de Acta'
                   : activeMatch.status === 'voting'
                   ? '⭐ Votaciones Abiertas (48h)'
                   : 'Próximo Encuentro'}
@@ -379,8 +421,67 @@ export default function MatchDayView({
             </div>
           </div>
 
-          {/* MODO DIRECTO (EN VIVO) PARA EL ADMINISTRADOR */}
-          {user?.role === 'admin' && (
+          {/* BANNER / CONTROLES CUANDO EL PARTIDO ES UPCOMING */}
+          {activeMatch.status === 'upcoming' && (
+            <div className="p-4 sm:p-5 bg-neutral-950/90 border-b border-neutral-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Clock className="h-4 w-4 text-emerald-400" />
+                  Partido Programado
+                </h3>
+                <p className="text-xs text-neutral-400 mt-0.5">
+                  El mercado y las alineaciones permanecen abiertos. El modo directo y los bloqueos se activarán cuando comience el encuentro.
+                </p>
+              </div>
+
+              {user?.role === 'admin' && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleStartMatchLive}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md cursor-pointer"
+                  >
+                    <Play className="h-3.5 w-3.5 fill-white" />
+                    Comenzar Partido (Poner En Juego)
+                  </button>
+
+                  <button
+                    onClick={handleCancelMatch}
+                    className="px-3 py-2 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
+                    title="Cancela este partido y desbloquea el mercado y las alineaciones"
+                  >
+                    <XCircle className="h-3.5 w-3.5 text-red-400" />
+                    Cancelar Partido
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* BANNER CUANDO EL PARTIDO ESTÁ EN FASE DE VERIFICACIÓN (CLOSED) */}
+          {activeMatch.status === 'closed' && (
+            <div className="p-4 sm:p-5 bg-purple-950/30 border-b border-purple-500/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
+              <div className="flex items-start gap-2.5">
+                <ShieldAlert className="h-5 w-5 text-purple-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-black text-purple-200">
+                    Partido Finalizado — Acta en Verificación
+                  </h3>
+                  <p className="text-purple-300/80 mt-0.5 text-xs">
+                    El modo directo se ha cerrado. El administrador está revisando los goles, asistencias y salvadas registradas para verificar su validez antes de abrir las votaciones.
+                  </p>
+                </div>
+              </div>
+
+              {user?.role === 'admin' && (
+                <span className="bg-purple-500/20 text-purple-300 font-bold px-3 py-1.5 rounded-xl border border-purple-500/30 text-xs">
+                  Revisa los eventos en el Panel de Admin
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* MODO DIRECTO EN VIVO — ACCESIBLE PARA TODOS LOS USUARIOS CUANDO EL PARTIDO ESTÁ EN JUEGO */}
+          {activeMatch.status === 'live' && (
             <div className="p-4 sm:p-5 bg-neutral-950/90 border-b border-neutral-800 space-y-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div className="flex items-center gap-2">
@@ -388,36 +489,35 @@ export default function MatchDayView({
                   <div>
                     <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
                       Modo Directo (Apuntar en Vivo)
-                      <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-bold border border-red-500/30">
-                        Admin
+                      <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-bold border border-red-500/30 animate-pulse">
+                        En Juego
                       </span>
                     </h3>
                     <p className="text-[11px] text-neutral-400">
-                      Dos toques por gol. Se sincroniza al momento con todos los convocados.
+                      Cualquier jugador puede apuntar goles y salvadas. Cada acción se registra con tu usuario y la hora del móvil para su posterior verificación.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {activeMatch.status === 'upcoming' && (
+                {user?.role === 'admin' && (
+                  <div className="flex items-center gap-2 flex-wrap">
                     <button
-                      onClick={handleStartMatchLive}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md"
+                      onClick={handleFinishMatch}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md cursor-pointer"
                     >
-                      <Play className="h-3.5 w-3.5 fill-white" />
-                      Poner En Juego
+                      <span>⏹ Finalizar Partido (Pasar a Verificación)</span>
                     </button>
-                  )}
 
-                  <button
-                    onClick={handleCancelMatch}
-                    className="px-2.5 py-1.5 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm"
-                    title="Cancela este partido y desbloquea el mercado y las alineaciones"
-                  >
-                    <XCircle className="h-3.5 w-3.5 text-red-400" />
-                    Cancelar Partido
-                  </button>
-                </div>
+                    <button
+                      onClick={handleCancelMatch}
+                      className="px-2.5 py-1.5 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
+                      title="Cancela este partido y desbloquea el mercado y las alineaciones"
+                    >
+                      <XCircle className="h-3.5 w-3.5 text-red-400" />
+                      Cancelar
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* BOTONES GIGANTES DE GOL (MODO DIRECTO) */}
@@ -643,6 +743,11 @@ export default function MatchDayView({
                       {a && <span className="text-[10px] text-neutral-400">(asist. {a.name})</span>}
                       {ev.type === 'own_goal' && <span className="text-[10px] text-red-400">(autogol)</span>}
                       {ev.type === 'save' && <span className="text-[10px] text-amber-400">(salvada)</span>}
+                      {ev.createdByUsername && (
+                        <span className="text-[9px] text-neutral-400/80 font-normal ml-0.5 border-l border-neutral-700/60 pl-1.5">
+                          por {ev.createdByUsername} {ev.deviceTime ? `· ${ev.deviceTime}` : ''}
+                        </span>
+                      )}
                     </div>
                   );
                 })}

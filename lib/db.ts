@@ -60,34 +60,19 @@ export function computeStatsAndScoreFromEvents(
 export function isMarketOrLineupLocked(matches: PachangaMatch[]): { isLocked: boolean; reason?: string } {
   // Los partidos cancelados nunca bloquean el mercado ni las alineaciones
   const validMatches = matches.filter(m => m.status !== ('cancelled' as any));
-  const active = validMatches.find(m => m.status === 'live' || m.status === 'voting' || m.status === 'locked');
+  const active = validMatches.find(m => m.status === 'live' || m.status === 'closed' || m.status === 'voting' || m.status === 'locked');
   if (active) {
     return {
       isLocked: true,
       reason: active.status === 'voting'
         ? 'Mercado y alineaciones bloqueados por votaciones en curso (hasta la publicación de resultados).'
+        : active.status === 'closed'
+        ? 'Mercado y alineaciones bloqueados: partido finalizado pendiente de verificación del acta.'
         : 'Mercado y alineaciones bloqueados: partido en juego.'
     };
   }
 
-  // Bloqueo a la hora de inicio (zona horaria Europe/Madrid)
-  const now = new Date();
-  for (const m of validMatches) {
-    if (m.status === 'upcoming' && m.date && m.startTime) {
-      try {
-        const matchDateTime = new Date(`${m.date}T${m.startTime}:00`);
-        if (now >= matchDateTime) {
-          return {
-            isLocked: true,
-            reason: 'Mercado y alineaciones bloqueados: la hora de inicio del partido ha llegado.'
-          };
-        }
-      } catch (e) {
-        // ignore date parse issues
-      }
-    }
-  }
-
+  // Mientras el partido esté en 'upcoming', mercado y alineaciones permanecen abiertos hasta que el admin le dé a comenzar partido
   return { isLocked: false };
 }
 
@@ -122,22 +107,14 @@ function mapProfileToUser(data: any): UserAccount {
   const rawStarters = Array.isArray(data.starter_player_ids) ? data.starter_player_ids : (Array.isArray(data.starterPlayerIds) ? data.starterPlayerIds : []);
   const starterPlayerIds = autoFillStarters(owned, rawStarters);
 
-  // Corrección y auto-recuperación de presupuestos:
+  // Presupuesto en K€: usar directamente el valor de DB.
+  // El único caso a corregir es el valor legacy 100 (antiguo default en M€) en usuarios sin compras.
   let budget = rawBudget;
   if (rawBudget === 100 && owned.length === 0) {
-    // Si era el valor antiguo por defecto de 100 (100 M€) en un usuario sin compras
+    // Valor antiguo por defecto de 100 M€ → convertir a 100 000 K€
     budget = 100000;
-  } else if (owned.length >= 4 && rawBudget >= 50000) {
-    // Si tenía p.ej. 160 K€ o 200 K€ y se multiplicó erróneamente por 1000 pasando a 160.000 o 200.000 K€ (160 M€)
-    budget = Math.round((rawBudget / 1000) * 10) / 10;
-  }
-
-  // Si se detectó corrección, sincronizar asíncronamente con Supabase
-  if (budget !== rawBudget && data.id) {
-    try {
-      supabase.from('profiles').update({ budget }).eq('id', data.id).then();
-    } catch (e) {
-      // Ignorar fallo de sincronización en segundo plano
+    if (data.id) {
+      try { supabase.from('profiles').update({ budget }).eq('id', data.id).then(); } catch {}
     }
   }
 
@@ -165,10 +142,10 @@ export function normalizeMatchStatus(s?: string): PachangaMatch['status'] {
   if (!s) return 'upcoming';
   if (s === 'cancelled') return 'cancelled';
   if (s === 'open' || s === 'draft' || s === 'created') return 'upcoming';
-  if (s === 'closed') return 'voting';
   if (s === 'locked') return 'live';
+  if (s === 'closed') return 'closed';
   if (s === 'published') return 'published';
-  if (s === 'live' || s === 'voting' || s === 'scored' || s === 'published') {
+  if (s === 'live' || s === 'closed' || s === 'voting' || s === 'scored' || s === 'published') {
     return s as PachangaMatch['status'];
   }
   return 'upcoming';
@@ -766,7 +743,16 @@ export const egolDb = {
     };
   },
 
-  async createMatch(payload: { date: string; startTime: string; endTime: string; format: number }): Promise<PachangaMatch> {
+  async createMatch(payload: {
+    date: string;
+    startTime: string;
+    endTime: string;
+    format: number;
+    teamA?: string[];
+    teamB?: string[];
+  }): Promise<PachangaMatch> {
+    const teamA = payload.teamA || [];
+    const teamB = payload.teamB || [];
     let { data, error } = await supabase
       .from('pachangas')
       .insert({
@@ -775,8 +761,8 @@ export const egolDb = {
         end_time: payload.endTime,
         status: 'upcoming',
         format: payload.format || 5,
-        team_a: [],
-        team_b: []
+        team_a: teamA,
+        team_b: teamB
       })
       .select()
       .single();
@@ -791,8 +777,8 @@ export const egolDb = {
           end_time: payload.endTime,
           status: 'open',
           format: payload.format || 5,
-          team_a: [],
-          team_b: []
+          team_a: teamA,
+          team_b: teamB
         })
         .select()
         .single();
@@ -809,8 +795,8 @@ export const egolDb = {
             end_time: payload.endTime,
             status: 'draft',
             format: payload.format || 5,
-            team_a: [],
-            team_b: []
+            team_a: teamA,
+            team_b: teamB
           })
           .select()
           .single();
@@ -1290,6 +1276,124 @@ export const egolDb = {
 
   async setMatchLive(matchId: string): Promise<{ success: boolean; message: string }> {
     return this.updateMatchStatus(matchId, 'live').then(m => ({ success: !!m, message: 'Partido en juego (Modo Directo activado).' }));
+  },
+
+  async finishMatchForVerification(matchId: string): Promise<{ success: boolean; message: string }> {
+    const res = await this.updateMatchStatus(matchId, 'closed');
+    return { success: !!res, message: 'Partido finalizado. Modo directo cerrado y acta enviada a verificación.' };
+  },
+
+  async updateMatchEvent(
+    matchId: string,
+    eventId: string,
+    updatedFields: Partial<MatchEvent>
+  ): Promise<{ success: boolean; message: string; match?: PachangaMatch }> {
+    const match = await this.getMatch(matchId);
+    if (!match) return { success: false, message: 'Partido no encontrado.' };
+
+    const events = (match.events || []).map(ev => ev.id === eventId ? { ...ev, ...updatedFields } : ev);
+    const allConvocados = [...(match.teamA || []), ...(match.teamB || [])];
+    const { scoreA, scoreB, stats } = computeStatsAndScoreFromEvents(events, allConvocados);
+
+    const { data, error } = await supabase
+      .from('pachangas')
+      .update({
+        events,
+        score_a: scoreA,
+        score_b: scoreB,
+        player_stats: stats
+      })
+      .eq('id', matchId)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error updating match event:', error);
+      return { success: false, message: error.message };
+    }
+
+    return { success: true, message: 'Evento actualizado.', match: data as any };
+  },
+
+  async deleteMatchEvent(
+    matchId: string,
+    eventId: string
+  ): Promise<{ success: boolean; message: string; match?: PachangaMatch }> {
+    const match = await this.getMatch(matchId);
+    if (!match) return { success: false, message: 'Partido no encontrado.' };
+
+    const events = (match.events || []).filter(ev => ev.id !== eventId);
+    const allConvocados = [...(match.teamA || []), ...(match.teamB || [])];
+    const { scoreA, scoreB, stats } = computeStatsAndScoreFromEvents(events, allConvocados);
+
+    const { data, error } = await supabase
+      .from('pachangas')
+      .update({
+        events,
+        score_a: scoreA,
+        score_b: scoreB,
+        player_stats: stats
+      })
+      .eq('id', matchId)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error deleting match event:', error);
+      return { success: false, message: error.message };
+    }
+
+    return { success: true, message: 'Evento eliminado del acta.', match: data as any };
+  },
+
+  async verifyAndOpenVoting(
+    matchId: string,
+    verifiedEvents: MatchEvent[]
+  ): Promise<{ success: boolean; message: string }> {
+    const match = await this.getMatch(matchId);
+    if (!match) return { success: false, message: 'Partido no encontrado.' };
+
+    const allConvocados = [...(match.teamA || []), ...(match.teamB || [])];
+    const { scoreA, scoreB, stats } = computeStatsAndScoreFromEvents(verifiedEvents, allConvocados);
+
+    let { data, error } = await supabase
+      .from('pachangas')
+      .update({
+        events: verifiedEvents,
+        score_a: scoreA,
+        score_b: scoreB,
+        player_stats: stats,
+        status: 'voting'
+      })
+      .eq('id', matchId)
+      .select()
+      .maybeSingle();
+
+    if (error && (error.code === '23514' || error.message?.includes('pachangas_status_check'))) {
+      const retry = await supabase
+        .from('pachangas')
+        .update({
+          events: verifiedEvents,
+          score_a: scoreA,
+          score_b: scoreB,
+          player_stats: stats,
+          status: 'closed'
+        })
+        .eq('id', matchId)
+        .select()
+        .maybeSingle();
+      if (!retry.error) {
+        data = retry.data;
+        error = null;
+      }
+    }
+
+    if (error) {
+      console.error('Error approving match events and opening voting:', error);
+      return { success: false, message: error.message };
+    }
+
+    return { success: true, message: '¡Acta verificada y aprobada! Se abren las votaciones para todos los convocados.' };
   },
 
   async publishFinalMatchResults(matchId: string): Promise<{ success: boolean; message: string }> {

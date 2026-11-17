@@ -47,6 +47,9 @@ export interface MatchEvent {
   playerId: string;
   assistantId?: string; // Opcional, para goles
   createdAt: string;
+  createdByUserId?: string;
+  createdByUsername?: string;
+  deviceTime?: string; // Hora local del dispositivo/móvil (ej: "18:42:15")
 }
 
 export interface CorrectionRequest {
@@ -100,7 +103,7 @@ export interface VoteRanking {
   submittedAt?: string;
 }
 
-export type MatchStatus = 'created' | 'locked' | 'live' | 'voting' | 'published' | 'upcoming' | 'scored' | 'cancelled';
+export type MatchStatus = 'created' | 'locked' | 'live' | 'closed' | 'voting' | 'published' | 'upcoming' | 'scored' | 'cancelled';
 
 export interface PlayerMatchScore {
   playerId: string;
