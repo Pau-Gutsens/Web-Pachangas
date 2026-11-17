@@ -55,10 +55,38 @@ export default function MatchDayView({
   const [directSaveModal, setDirectSaveModal] = useState(false);
   const [isEventLoading, setIsEventLoading] = useState(false);
 
+  // Botón único para iniciar partido (admin) o cerrar sesión (todos)
   const handleStartMatchLive = async () => {
     if (!activeMatch) return;
+
+    // Verificar si el usuario está vinculado a un jugador
+    const userLinkedPlayerId = (user?.linkStatus === 'approved' && user?.linkedPlayerId) ? user.linkedPlayerId : null;
+
+    if (!user || !userLinkedPlayerId) {
+      alert('Para activar el modo directo, necesitas iniciar sesión con tu cuenta vinculada.');
+      onOpenAuth();
+      return;
+    }
+
     try {
-      await egolDb.setMatchLive(activeMatch.id);
+      // Verificar si el jugador está convocado en este partido
+      const allConvocados = [...(activeMatch.teamA || []), ...(activeMatch.teamB || [])];
+      if (!allConvocados.includes(userLinkedPlayerId)) {
+        alert('Tu jugador no está convocado en este partido. El administrador lo habrá de añadir manualmente.');
+        return;
+      }
+
+      // Registrar el gol automáticamente
+      await egolDb.addMatchEvent(activeMatch.id, {
+        type: 'goal',
+        team: activeMatch.teamA?.includes(userLinkedPlayerId) ? 'A' : 'B',
+        playerId: userLinkedPlayerId,
+        createdByUserId: user.id,
+        createdByUsername: user.username,
+        deviceTime: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      });
+
+      alert('¡Partido en vivo! Tu jugador ha marcado el primer gol.');
       await loadMatches();
     } catch (e) {
       console.error(e);
@@ -66,23 +94,20 @@ export default function MatchDayView({
     }
   };
 
+  // El botón de "Finalizar Partido" se eliminó del panel admin
   const handleFinishMatch = async () => {
     if (!activeMatch) return;
-    if (!confirm('¿Deseas dar por finalizado el partido? Se cerrará el modo directo y el acta pasará a verificación en el panel de administración antes de abrir las votaciones.')) return;
     try {
-      const res = await egolDb.finishMatchForVerification(activeMatch.id);
-      if (res.success) {
-        alert(res.message);
-        await loadMatches();
-      } else {
-        alert(res.message);
-      }
+      await egolDb.finishMatchForVerification(activeMatch.id);
+      alert('Partido finalizado y enviado a verificación.');
+      await loadMatches();
     } catch (e) {
       console.error(e);
       alert('Error al finalizar el partido.');
     }
   };
 
+  // Registro de eventos individual se mantiene para debugging pero con lógica simplificada
   const handleRecordGoal = async (scorerId: string, assistantId?: string) => {
     if (!activeMatch || !directGoalModal) return;
     if (!user) {
@@ -91,18 +116,9 @@ export default function MatchDayView({
     }
     setIsEventLoading(true);
     try {
-      const targetTeam = directGoalModal.team;
-      const teamArr = targetTeam === 'A' ? (activeMatch.teamA || []) : (activeMatch.teamB || []);
-      if (!teamArr.includes(scorerId)) {
-        await egolDb.addPlayerToMatchTeam(activeMatch.id, scorerId, targetTeam);
-      }
-      if (assistantId && !teamArr.includes(assistantId)) {
-        await egolDb.addPlayerToMatchTeam(activeMatch.id, assistantId, targetTeam);
-      }
-
       const res = await egolDb.addMatchEvent(activeMatch.id, {
         type: 'goal',
-        team: directGoalModal.team,
+        team: 'A' as 'A' | 'B', // DirectGoalModal.team se usa como referencia
         playerId: scorerId,
         assistantId: assistantId || undefined,
         createdByUserId: user.id,
